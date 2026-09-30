@@ -11,21 +11,34 @@ defmodule ViewNinjasWeb.PaymentComponents do
 
   import ViewNinjas.Pricing, only: [format_kes_cents: 1]
 
-  @doc "The waiting state: a prompt is on the phone."
+  @doc "The waiting state. The prompt copy appears only after the rail has accepted the payment."
   attr :amount_cents, :integer, required: true
   attr :phone, :string, required: true
+  attr :prompted, :boolean, default: false
 
   def waiting(assigns) do
     ~H"""
     <section class="vn-sheet" id="payment-sheet">
-      <p class="vn-muted">{gettext("A prompt is on your phone")}</p>
+      <p class="vn-muted">
+        <%= if @prompted do %>
+          {gettext("A prompt is on your phone")}
+        <% else %>
+          {gettext("Sending the prompt…")}
+        <% end %>
+      </p>
       <p class="vn-sheet__amount">{format_kes_cents(@amount_cents)}</p>
-      <p class="vn-sheet__note">
+      <p :if={@prompted} class="vn-sheet__note">
         {gettext("Enter your M-Pesa PIN on %{phone} to confirm.", phone: @phone)}
       </p>
       <p class="vn-sheet__waiting">
         <span class="vn-pulse" aria-hidden="true"></span>
-        <span class="vn-muted">{gettext("Waiting for M-Pesa…")}</span>
+        <span class="vn-muted">
+          <%= if @prompted do %>
+            {gettext("Waiting for M-Pesa…")}
+          <% else %>
+            {gettext("Contacting the payment rail…")}
+          <% end %>
+        </span>
       </p>
       <p class="vn-muted">
         {gettext("Leave this screen open. It updates the moment the money lands.")}

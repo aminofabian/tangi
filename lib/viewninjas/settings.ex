@@ -58,8 +58,7 @@ defmodule ViewNinjas.Settings do
       group: "Payments",
       label: "Client ID",
       placeholder: "pk_live_…",
-      hint:
-        "The client id from Malipo Connect. Sent as the bearer token when no secret key is set.",
+      hint: "The client id Connect shows (pk_live_…). It is not the payment key and is not sent.",
       env: {:malipo, :client_id}
     },
     %{
@@ -95,7 +94,8 @@ defmodule ViewNinjas.Settings do
       group: "Payments",
       label: "Secret key",
       secret: true,
-      hint: "Optional sk_live_… key. When set, it is sent instead of the client id.",
+      hint:
+        "Required. The key in Connect's sample request, starting with sk_live_. This is the bearer.",
       env: {:malipo, :secret_key}
     },
     %{

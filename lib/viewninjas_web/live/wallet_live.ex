@@ -59,15 +59,26 @@ defmodule ViewNinjasWeb.WalletLive do
   end
 
   defp start_topup(socket, raw_amount) do
-    with {:ok, amount_cents} <- validate_amount(raw_amount),
-         {:ok, payment} <- start_attempt(socket, amount_cents) do
-      {:noreply, watch(socket, payment)}
-    else
-      {:error, message} when is_binary(message) ->
-        {:noreply, put_flash(socket, :error, message)}
+    if Payments.configured?() do
+      with {:ok, amount_cents} <- validate_amount(raw_amount),
+           {:ok, payment} <- start_attempt(socket, amount_cents) do
+        {:noreply, watch(socket, payment)}
+      else
+        {:error, message} when is_binary(message) ->
+          {:noreply, put_flash(socket, :error, message)}
 
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, gettext("Could not start the top-up."))}
+        {:error, _reason} ->
+          {:noreply, put_flash(socket, :error, gettext("Could not start the top-up."))}
+      end
+    else
+      {:noreply,
+       put_flash(
+         socket,
+         :error,
+         gettext(
+           "Payments need the secret key that starts with sk_live_. The client id cannot take a payment."
+         )
+       )}
     end
   end
 
@@ -98,6 +109,7 @@ defmodule ViewNinjasWeb.WalletLive do
           <.waiting
             amount_cents={@payment.amount_cents}
             phone={ViewNinjas.Accounts.Phone.format(@current_scope.user.phone)}
+            prompted={not is_nil(@payment.malipo_payment_id)}
           />
         <% @mode == :succeeded -> %>
           <.succeeded

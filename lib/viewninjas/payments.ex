@@ -36,12 +36,7 @@ defmodule ViewNinjas.Payments do
   @doc "Whether the rail is configured well enough to try."
   def configured?, do: provider() != ViewNinjas.Payments.Malipo or malipo_configured?()
 
-  defp malipo_configured? do
-    present?(ViewNinjas.Settings.malipo_secret_key()) or
-      present?(ViewNinjas.Settings.malipo_client_id())
-  end
-
-  defp present?(value), do: is_binary(value) and value != ""
+  defp malipo_configured?, do: ViewNinjas.Payments.Malipo.ready?()
 
   # -- reading -----------------------------------------------------------
 

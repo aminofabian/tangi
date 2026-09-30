@@ -105,7 +105,11 @@ defmodule ViewNinjasWeb.CheckoutLive do
     <Layouts.app flash={@flash} current_scope={@current_scope} section={:shop} title={@page_title}>
       <%= cond do %>
         <% @mode == :waiting -> %>
-          <.waiting amount_cents={@payment.amount_cents} phone={phone(@current_scope.user)} />
+          <.waiting
+            amount_cents={@payment.amount_cents}
+            phone={phone(@current_scope.user)}
+            prompted={not is_nil(@payment.malipo_payment_id)}
+          />
         <% @mode == :succeeded -> %>
           <.succeeded
             title={gettext("Paid")}
@@ -162,7 +166,9 @@ defmodule ViewNinjasWeb.CheckoutLive do
     <section :if={@user.phone_verified_at} class="vn-card">
       <h2>{gettext("Pay")}</h2>
       <p :if={not @payments_configured} class="vn-error" id="payments-unconfigured">
-        {gettext("Payments are not configured yet, so this order cannot be paid for.")}
+        {gettext(
+          "Payments need the secret key that starts with sk_live_. The client id cannot take a payment."
+        )}
       </p>
       <p :if={@payments_configured} class="vn-muted">
         {gettext("The prompt goes to %{phone}.", phone: phone(@user))}

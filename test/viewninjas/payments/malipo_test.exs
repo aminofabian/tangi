@@ -147,10 +147,10 @@ defmodule ViewNinjas.Payments.MalipoTest do
     assert Malipo.error_message({:transport, :timeout}) =~ "Could not reach"
   end
 
-  test "a client id is the bearer and create uses the configured path" do
+  test "the secret key is the bearer and create uses the configured path" do
     Application.put_env(:viewninjas, @config,
       base_url: "https://backend.kioskpay.co.ke",
-      secret_key: nil,
+      secret_key: "sk_live_test",
       client_id: "pk_live_test",
       create_path: "/v1/payments",
       check_path: "/v1/payments/{id}",
@@ -161,7 +161,7 @@ defmodule ViewNinjas.Payments.MalipoTest do
       assert conn.method == "POST"
       assert conn.host == "backend.kioskpay.co.ke"
       assert conn.request_path == "/v1/payments"
-      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer pk_live_test"]
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer sk_live_test"]
 
       Req.Test.json(conn, %{"id" => "pay_9", "status" => "pending"})
     end)
@@ -176,10 +176,42 @@ defmodule ViewNinjas.Payments.MalipoTest do
     assert payment.id == "pay_9"
   end
 
-  test "check replaces {id} on the configured path" do
+  test "a client id is not sent" do
     Application.put_env(:viewninjas, @config,
       base_url: "https://backend.kioskpay.co.ke",
       secret_key: nil,
+      client_id: "pk_live_test",
+      req_options: [plug: {Req.Test, __MODULE__}]
+    )
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      flunk("a client id must not leave the app: #{conn.method} #{conn.request_path}")
+    end)
+
+    assert Malipo.create(%{
+             amount: "1.00",
+             customer_phone: "254700000000",
+             idempotency_key: "order-9-1"
+           }) == {:error, :client_id}
+
+    assert Malipo.error_message(:client_id) =~ "sk_live_"
+    refute Malipo.ready?()
+  end
+
+  test "a client id saved in the secret field is not sent" do
+    Application.put_env(:viewninjas, @config,
+      secret_key: "  Bearer pk_live_test  ",
+      client_id: nil,
+      req_options: [plug: {Req.Test, __MODULE__}]
+    )
+
+    assert Malipo.get("pay_1") == {:error, :client_id}
+  end
+
+  test "check replaces {id} on the configured path" do
+    Application.put_env(:viewninjas, @config,
+      base_url: "https://backend.kioskpay.co.ke",
+      secret_key: "sk_live_test",
       client_id: "pk_live_test",
       check_path: "/v1/payments/{id}",
       req_options: [plug: {Req.Test, __MODULE__}]

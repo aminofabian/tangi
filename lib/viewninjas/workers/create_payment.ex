@@ -65,6 +65,7 @@ defmodule ViewNinjas.Workers.CreatePayment do
 
   defp failure_kind({:malipo, code, _message, _status}), do: code
   defp failure_kind(:not_configured), do: "not_configured"
+  defp failure_kind(:client_id), do: "client_id"
   defp failure_kind({:transport, _reason}), do: "transport"
   defp failure_kind({:http_error, status}), do: "http_#{status}"
   defp failure_kind({:invalid_response, _raw}), do: "invalid_response"
