@@ -33,6 +33,7 @@ defmodule ViewNinjas.Blog.Clusters.TopYoutubeViewsProvidersKenya do
   def posts do
     [
       pillar(),
+      top_ten(),
       best_sites(),
       prices(),
       real_vs_fake(),
@@ -340,6 +341,7 @@ defmodule ViewNinjas.Blog.Clusters.TopYoutubeViewsProvidersKenya do
         blocks: [
           {:ul,
            [
+             "[Top 10 YouTube views providers in Kenya](/blog/top-10-youtube-views-providers-kenya)",
              "[Best sites to buy YouTube views in Kenya](/blog/best-sites-to-buy-youtube-views-in-kenya)",
              "[YouTube views prices in Kenya: what 1,000 views cost](/blog/youtube-views-prices-in-kenya)",
              "[Real vs fake YouTube views: how to identify a quality provider](/blog/real-vs-fake-youtube-views)",
@@ -1057,5 +1059,274 @@ defmodule ViewNinjas.Blog.Clusters.TopYoutubeViewsProvidersKenya do
         }
       ]
     }
+  end
+
+  # --------------------------------------------------- spoke: top 10
+
+  defp top_ten do
+    %Post{
+      slug: "top-10-youtube-views-providers-kenya",
+      cluster: @cluster,
+      kind: :spoke,
+      updated_on: @updated,
+      eyebrow: "Top 10",
+      title: "Top 10 YouTube Views Providers in Kenya",
+      meta_title: "Top 10 YouTube Views Providers in Kenya (Compared)",
+      description:
+        "The ten kinds of YouTube views provider you can buy from in Kenya, ranked for a Kenyan creator paying by M-Pesa — price, delivery, traffic quality and what to watch out for.",
+      keywords: [
+        "top 10 YouTube views providers in Kenya",
+        "best YouTube views providers in Kenya",
+        "YouTube views companies Kenya",
+        "top YouTube views provider Kenya",
+        "ranked YouTube views providers Kenya"
+      ],
+      intro: [
+        "\"Top 10\" usually means ten company names, a star rating and a reason to click the first one. We are not going to do that, because we cannot honestly rank ten businesses we have not audited — and neither can most of the sites that publish those lists. What we can do is describe the ten kinds of provider a Kenyan buyer actually meets, rank them for one specific buyer, and say openly which one is ours.",
+        "The buyer we have in mind: a Kenyan creator or small business on a phone, paying by M-Pesa, who wants views that arrive steadily and stay. If that is you, this is the order to consider them in."
+      ],
+      sections: top_ten_sections(),
+      faqs: [
+        %{
+          question: "Which is the best YouTube views provider in Kenya?",
+          answer:
+            "It depends what you value most. Ours, Tangi, is built for a Kenyan buyer who wants M-Pesa and local support; a global panel is cheaper if you can pay in dollars; an agency is better if you want a campaign rather than views. Judge any of them on source, delivery, retention and support — not on the headline price."
+        },
+        %{
+          question: "Are these ten providers ranked?",
+          answer:
+            "They are ranked provider profiles, not named companies — we cannot verify another business's traffic or results, so we describe the kinds of provider and rank them for one buyer. Tangi is the only named entry, and it is ours."
+        },
+        %{
+          question: "Which provider will not lose my views?",
+          answer:
+            "None can guarantee it. The best protection is real traffic delivered gradually, with a refill if delivery falls short — the opposite of an instant burst from a cheap source."
+        },
+        %{
+          question: "Can I buy from a global panel using M-Pesa?",
+          answer:
+            "Usually not — most want a card, PayPal or crypto in dollars. If M-Pesa is how you pay, that alone narrows the list to local providers."
+        }
+      ]
+    }
+  end
+
+  defp top_ten_sections do
+    [
+      %{
+        id: "how-we-ranked",
+        heading: "How We Ranked This List",
+        blocks: [
+          {:p,
+           "We ranked provider profiles — not companies — for fit against one buyer, on four things: how easy it is to pay from Kenya, how honest the traffic source is likely to be, whether the views tend to stay, and whether there is anyone to hold to account when something goes wrong."},
+          {:callout,
+           "No paid placements, and no third-party business is named and rated here — we cannot verify other companies' traffic or results, so we describe what each kind of provider is. The one exception is number one, which is ours, and it is labelled as such."},
+          {:p,
+           "That is more useful than a fake ranking, and it is the only honest version of this article."}
+        ]
+      },
+      %{
+        id: "the-ten",
+        heading: "The Ten Provider Profiles",
+        blocks: [
+          {:h3, "1. Tangi — the local shop (ours)"},
+          {:p,
+           "Profile: a Kenyan shop selling YouTube views priced in shillings, paid by M-Pesa, in three grades — Cheap, Moderate and Quality. Real accounts on the better grades, delivered gradually over hours or days, with a refill when delivery falls short."},
+          {:ul,
+           [
+             "Best for: a Kenyan creator on a phone who wants M-Pesa and someone local to hold to account.",
+             "Price: from about KSh 240 per 1,000 views.",
+             "Watch out: we sell views only — not subscribers or comments — and we are not the absolute cheapest per 1,000."
+           ]},
+          {:h3, "2. Large global self-service panels"},
+          {:p,
+           "Profile: automated platforms with hundreds of services, priced in dollars and paid by card, PayPal or crypto. Most deliver almost instantly, and support is a ticket queue in another time zone."},
+          {:ul,
+           [
+             "Best for: buyers who already know panels, can pay in dollars and want the lowest price per 1,000.",
+             "Price: the cheapest per 1,000 anywhere.",
+             "Watch out: mixed traffic quality, instant delivery is the most easily filtered, and little you can do if an order goes wrong."
+           ]},
+          {:h3, "3. Local generalist social-media shops"},
+          {:p,
+           "Profile: Kenyan shops selling followers, likes, comments and views as bundles, paid by M-Pesa. They rarely state where the views come from."},
+          {:ul,
+           [
+             "Best for: convenience, when you want several things at once.",
+             "Price: low to mid, in shillings.",
+             "Watch out: an unstated source, and bundles that often include bot engagement, which carries more risk than views alone."
+           ]},
+          {:h3, "4. Social-media marketing agencies"},
+          {:p,
+           "Profile: agencies that sell promotion campaigns — content, ad management and reporting — invoiced in shillings. They generally do not sell raw views."},
+          {:ul,
+           [
+             "Best for: businesses that want a campaign run for them rather than a number.",
+             "Price: the highest per outcome, because you are paying for strategy and people.",
+             "Watch out: results depend on the creative, and you are not buying a guaranteed view count."
+           ]},
+          {:h3, "5. Freelance resellers on WhatsApp and Instagram"},
+          {:p,
+           "Profile: individuals reselling a panel from their phone, priced in shillings and paid by M-Pesa. The most common provider you will meet, and the least accountable."},
+          {:ul,
+           [
+             "Best for: a quick, cheap order from someone you already know and trust.",
+             "Price: cheap.",
+             "Watch out: the source is unknown, there is usually no policy, and there is no recourse if the order fails or the views drop."
+           ]},
+          {:h3, "6. Panel marketplaces and comparison sites"},
+          {:p,
+           "Profile: aggregators that list dozens of panels with prices and reviews, then send you to the panel to buy. Still priced in dollars."},
+          {:ul,
+           [
+             "Best for: comparing many panels in one place before you choose.",
+             "Price: whatever the underlying panel charges.",
+             "Watch out: reviews are often affiliate-driven, and the marketplace is not the provider — it does not deliver or guarantee your order."
+           ]},
+          {:h3, "7. Music and artist promotion services"},
+          {:p,
+           "Profile: services aimed at musicians, bundling views with playlist pushes, blog placements and distribution."},
+          {:ul,
+           [
+             "Best for: an artist launching a single who wants a coordinated push.",
+             "Price: mid to high, often as a package.",
+             "Watch out: claims about playlist placements and guaranteed reach are frequently inflated; ask what is paid placement and what is organic."
+           ]},
+          {:h3, "8. Influencer and creator networks"},
+          {:p,
+           "Profile: they put your video in front of a network of real creators' audiences, so the reach is genuine but the volume is modest."},
+          {:ul,
+           [
+             "Best for: relevant, trusting viewers rather than a bare number.",
+             "Price: higher per viewer, negotiated.",
+             "Watch out: it is reach, not views; relevance depends entirely on matching the audience to your topic."
+           ]},
+          {:h3, "9. YouTube Ads management services"},
+          {:p,
+           "Profile: agencies and freelancers who run Google Ads for your video, billed in shillings or dollars, with real targeting and reporting."},
+          {:ul,
+           [
+             "Best for: measurable outcomes — clicks, leads, sales.",
+             "Price: the most expensive route, because you pay for the ads and the management.",
+             "Watch out: it is the advertising route, not views, and it needs a video that converts to be worth it."
+           ]},
+          {:h3, "10. White-label resellers bundling views, likes and watch time"},
+          {:p,
+           "Profile: sellers offering views, likes and watch hours as one package, usually near an instant delivery."},
+          {:ul,
+           [
+             "Best for: someone trying to look maximally established in one order.",
+             "Price: cheap per item.",
+             "Watch out: this is the riskiest bundle there is. Watch time and likes from the same cheap source as the views are exactly what gets a video's reach limited — treat it as a last option, if at all."
+           ]}
+        ]
+      },
+      %{
+        id: "side-by-side",
+        heading: "The Ten, Side by Side",
+        blocks: [
+          {:p, "The same ten profiles, at a glance:"},
+          {:table,
+           %{
+             head: ["Provider type", "Price", "Payment", "Delivery", "Watch out"],
+             rows: [
+               [
+                 "Tangi (ours)",
+                 "From ~KSh 240/1k",
+                 "M-Pesa",
+                 "Gradual",
+                 "Views only; not the cheapest"
+               ],
+               [
+                 "Global panels",
+                 "Cheapest, USD",
+                 "Card/PayPal",
+                 "Near-instant",
+                 "Mixed traffic; little support"
+               ],
+               [
+                 "Local shops",
+                 "Low–mid, KES",
+                 "M-Pesa",
+                 "Varies",
+                 "Source unstated; bot bundles"
+               ],
+               ["Agencies", "Highest", "Invoice/M-Pesa", "Scheduled", "Strategy, not raw views"],
+               ["Freelancers", "Cheap", "M-Pesa", "Uneven", "Unknown source; no recourse"],
+               [
+                 "Marketplaces",
+                 "Panel price, USD",
+                 "Card",
+                 "The panel's",
+                 "Affiliate reviews; no delivery"
+               ],
+               [
+                 "Music services",
+                 "Mid–high",
+                 "M-Pesa/invoice",
+                 "Packaged",
+                 "Inflated placement claims"
+               ],
+               [
+                 "Creator networks",
+                 "High per viewer",
+                 "Negotiated",
+                 "Moderate",
+                 "Reach, not views"
+               ],
+               [
+                 "Ads managers",
+                 "Highest",
+                 "KES/USD",
+                 "Paced",
+                 "Ads, not views; needs a converter"
+               ],
+               [
+                 "Bundlers",
+                 "Cheap per item",
+                 "M-Pesa",
+                 "Near-instant",
+                 "Watch time + likes are risky"
+               ]
+             ]
+           }},
+          {:p,
+           "Read the last column as the whole point of the table. Every provider is cheap at something and expensive at something else."}
+        ]
+      },
+      %{
+        id: "how-to-use",
+        heading: "How to Use This List",
+        blocks: [
+          {:p, "Use the list as a filter, not a shopping cart:"},
+          {:ol,
+           [
+             "Decide what you are buying: views for momentum, or a campaign with outcomes.",
+             "Cut the list to the providers that take M-Pesa, if that is how you pay.",
+             "Check the traffic source and the refill policy before the price.",
+             "Start with the smallest order and watch how it behaves.",
+             "Scale only once it did what it promised."
+           ]},
+          {:p,
+           "If you only take one step, take the third one — the [provider checklist](/blog/how-to-choose-a-youtube-views-provider) is that step, written out. And read [real vs fake YouTube views](/blog/real-vs-fake-youtube-views) so you know what you are looking at when the order lands."}
+        ]
+      },
+      %{
+        id: "next",
+        heading: "Where to Go Next",
+        toc: false,
+        blocks: [
+          {:p,
+           "This list is a spoke of our [comparison of YouTube views providers in Kenya](/blog/top-youtube-views-providers-kenya). To go deeper, see [where to buy](/blog/best-sites-to-buy-youtube-views-in-kenya), [what it costs](/blog/youtube-views-prices-in-kenya), or [the whole buying guide](/blog/buy-youtube-views-kenya)."},
+          {:cta,
+           %{
+             text:
+               "Tangi is number one on this list because it is ours — judge it against the same checklist as everyone else.",
+             href: "/shop",
+             label: "Check Tangi against the list"
+           }}
+        ]
+      }
+    ]
   end
 end

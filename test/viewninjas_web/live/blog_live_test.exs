@@ -86,6 +86,15 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     assert has_element?(view, "a[href='/blog/#{@pillar}']")
   end
 
+  test "the top 10 article renders, discloses Tangi and links to the pillar", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/top-10-youtube-views-providers-kenya")
+
+    assert has_element?(view, "h1.vn-article__title")
+    assert has_element?(view, ".vn-table-wrap")
+    assert render(view) =~ "Tangi"
+    assert has_element?(view, "a[href='/blog/top-youtube-views-providers-kenya']")
+  end
+
   test "an unknown slug returns to the hub", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/blog"}}} = live(conn, ~p"/blog/does-not-exist")
   end
