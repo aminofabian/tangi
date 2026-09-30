@@ -95,6 +95,26 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     assert has_element?(view, "a[href='/blog/top-youtube-views-providers-kenya']")
   end
 
+  test "the TikTok followers pillar compares Tangi and links to its spokes", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/top-tiktok-followers-providers-kenya")
+
+    assert has_element?(view, "#how-we-compare")
+    assert has_element?(view, "#tangi")
+    assert has_element?(view, ".vn-table-wrap")
+    assert render(view) =~ "Tangi"
+    assert has_element?(view, "a[href='/shop']")
+
+    for post <- Blog.spokes("top-tiktok-followers-providers-kenya") do
+      assert has_element?(view, "a[href='/blog/#{post.slug}']")
+    end
+  end
+
+  test "a spoke links back up to its TikTok pillar", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/tiktok-followers-vs-views")
+
+    assert has_element?(view, "a[href='/blog/top-tiktok-followers-providers-kenya']")
+  end
+
   test "an unknown slug returns to the hub", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/blog"}}} = live(conn, ~p"/blog/does-not-exist")
   end
