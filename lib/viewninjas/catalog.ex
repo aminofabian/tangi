@@ -51,14 +51,20 @@ defmodule ViewNinjas.Catalog do
     Repo.get_by(Offer, platform: platform, outcome: outcome)
   end
 
-  @doc "Supplier-service ids that a buyer can already see on the shop."
-  def shop_service_ids do
+  @doc """
+  Published grades a buyer can already see, keyed by supplier service id.
+
+  A service can sit on more than one offer, so the value is the grades it
+  sells as, cheapest first.
+  """
+  def shop_grades do
     Lane
     |> join(:inner, [l], o in assoc(l, :offer))
     |> where([l, o], l.published and o.published)
-    |> select([l], l.supplier_service_id)
+    |> select([l], {l.supplier_service_id, l.grade})
     |> Repo.all()
-    |> MapSet.new()
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Map.new(fn {id, grades} -> {id, Enum.sort_by(Enum.uniq(grades), &Grade.rank/1)} end)
   end
 
   # -- the market --------------------------------------------------------

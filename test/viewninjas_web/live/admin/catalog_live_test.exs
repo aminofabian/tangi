@@ -115,7 +115,12 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
     assert html =~ "KSh 0.37"
     refute html =~ ">KSh 0<"
 
-    html = lv |> element("#select-#{service.id}") |> render_click()
+    lv |> element("#select-#{service.id}") |> render_click()
+
+    assert has_element?(lv, "#grade-pick")
+    assert Catalog.list_market_offers() == []
+
+    html = lv |> element("#grade-cheap") |> render_click()
 
     assert html =~ "On the shop as Cheap"
     assert html =~ "Instagram views"
@@ -125,7 +130,25 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
     assert offer.title == "Instagram views"
     assert offer.published
     assert [%{published: true, grade: :cheap}] = offer.lanes
-    assert has_element?(lv, "#service-#{service.id} .vn-badge--ok", "on the shop")
+    assert has_element?(lv, "#placed-#{service.id}-cheap", "Cheap")
+    assert has_element?(lv, "#grade-cheap.vn-grade-card--on")
+  end
+
+  test "the placement card shows the conversion and the margin behind the price", %{conn: conn} do
+    service = service_fixture(%{name: "IG followers", rate_micros: 900_000})
+    conn = log_in_user(conn, admin_fixture())
+    {:ok, lv, _html} = live(conn, ~p"/admin/catalog")
+
+    html = lv |> element("#select-#{service.id}") |> render_click()
+
+    assert has_element?(lv, "#placement-price")
+    # Wholesale -> FX -> landed -> selling, with the knobs in force on screen.
+    assert html =~ "0.9 USD / 1,000"
+    assert html =~ "KSh 129.40 per USD"
+    assert html =~ "KSh 120"
+    assert html =~ "KSh 276"
+    assert html =~ "130% margin"
+    assert html =~ "3% float"
   end
 
   test "pinning a grade publishes a lane a buyer will eventually see", %{conn: conn} do

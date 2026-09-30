@@ -77,6 +77,18 @@ defmodule ViewNinjasWeb.WalletLiveTest do
     assert Wallet.balance(user) == 0
   end
 
+  test "any whole-shilling amount can be topped up, not only the shortcuts", %{conn: conn} do
+    user = verified_user_fixture()
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/wallet")
+
+    lv |> form("#topup-form", topup: %{amount: "15"}) |> render_submit()
+
+    payment = Payments.pending_topup(user)
+    assert payment.amount_cents == 1_500
+  end
+
   test "an amount chip fills the field and does not start a payment", %{conn: conn} do
     user = verified_user_fixture()
     conn = log_in_user(conn, user)
@@ -96,8 +108,8 @@ defmodule ViewNinjasWeb.WalletLiveTest do
 
     {:ok, lv, _html} = live(conn, ~p"/wallet")
 
-    html = lv |> form("#topup-form", topup: %{amount: "1"}) |> render_submit()
-    assert html =~ "smallest top-up"
+    html = lv |> form("#topup-form", topup: %{amount: "0"}) |> render_submit()
+    assert html =~ "whole number of shillings"
     assert Payments.pending_topup(user) == nil
 
     html = lv |> form("#topup-form", topup: %{amount: "lots"}) |> render_submit()

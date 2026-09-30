@@ -137,12 +137,54 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
       >
         <h2>Put this on the shop</h2>
         <p>{service_label(@selected)}</p>
-        <p class="vn-catalog-sell" id="placement-price">
-          {selling(@selected.rate_micros, @params)}
-        </p>
-        <p class="vn-muted">
-          {usd(@selected.rate_micros)} USD per 1,000, converted to the selling price above
-        </p>
+        <p class="vn-muted">Choose the grade a buyer will see this service as.</p>
+        <div class="vn-grades-pick" id="grade-pick">
+          <button
+            :for={grade <- Grade.all()}
+            type="button"
+            id={"grade-#{grade}"}
+            class={["vn-grade-card", grade_on?(@lane_form, grade) && "vn-grade-card--on"]}
+            phx-click="place"
+            phx-value-id={@selected.id}
+            phx-value-grade={grade}
+          >
+            <span class="vn-grade">{Grade.label(grade)}</span>
+            <span class="vn-muted">{grade_blurb(grade)}</span>
+            <span
+              :if={grade in grades_for(@on_shop, @selected.id)}
+              class="vn-badge vn-badge--ok"
+            >
+              on the shop
+            </span>
+          </button>
+        </div>
+        <%!-- The build-up, not just the answer: the wholesale rate, the FX it is
+              converted at, the landed cost and the margin are all on screen, so
+              the selling price can be trusted rather than taken on faith. --%>
+        <dl class="vn-build" id="placement-price">
+          <div>
+            <dt>Wholesale</dt>
+            <dd>{usd(@selected.rate_micros)} USD / 1,000</dd>
+          </div>
+          <div>
+            <dt>Converted at</dt>
+            <dd>KSh {Pricing.format_fx_ppm(@params.fx_ppm)} per USD</dd>
+          </div>
+          <div>
+            <dt>Landed cost</dt>
+            <dd>
+              {landed(@selected.rate_micros, @params)}
+              <span class="vn-muted">incl. {Pricing.format_bps(@params.buffer_bps)} float</span>
+            </dd>
+          </div>
+          <div class="vn-build__sell">
+            <dt>Selling price / 1,000</dt>
+            <dd>
+              <span class="vn-catalog-sell">{selling(@selected.rate_micros, @params)}</span>
+              <span class="vn-muted">+ {Pricing.format_bps(@params.margin_bps)} margin</span>
+            </dd>
+          </div>
+        </dl>
 
         <div :if={@suggestions != []} class="vn-suggestions">
           <p class="vn-muted">Suggestions — never published for you:</p>
@@ -173,6 +215,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
               type="select"
               label="Grade"
               options={grade_options()}
+              prompt="Choose a grade"
             />
           </div>
           <div class="vn-form-grid">
@@ -227,8 +270,12 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
                   <span class="vn-catalog-name">{service.name}</span>
                   <span :if={service.refill} class="vn-badge">refill</span>
                   <span :if={service.shortlisted_at} class="vn-badge vn-badge--ok">shortlisted</span>
-                  <span :if={MapSet.member?(@on_shop, service.id)} class="vn-badge vn-badge--ok">
-                    on the shop
+                  <span
+                    :for={grade <- grades_for(@on_shop, service.id)}
+                    class="vn-badge vn-badge--ok"
+                    id={"placed-#{service.id}-#{grade}"}
+                  >
+                    {Grade.label(grade)}
                   </span>
                 </td>
                 <td class="vn-catalog-price">
@@ -256,7 +303,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
                     phx-value-id={service.id}
                     id={"select-#{service.id}"}
                   >
-                    {if MapSet.member?(@on_shop, service.id), do: "Placed", else: "Place"}
+                    {place_label(@on_shop, service.id)}
                   </button>
                 </td>
               </tr>
@@ -380,25 +427,19 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
     end
   end
 
-  def handle_event("place", %{"id" => id}, socket) do
+  def handle_event("place", %{"id" => id} = params, socket) do
     case Catalog.get_service_with_supplier(id) do
       nil ->
         {:noreply, put_flash(socket, :error, "That service is gone.")}
 
       service ->
-        socket = open_placement(socket, service)
-        params = socket.assigns.lane_form.params
+        grade = params["grade"]
+        socket = open_placement(socket, service, grade)
 
-        case put_on_shop(service, params, socket.assigns.params, explicit: false) do
-          {:ok, lane, offer} ->
-            {:noreply,
-             socket
-             |> put_flash(:info, placed_message(service, lane, offer, socket.assigns.params))
-             |> refresh_offers()
-             |> refresh_services()}
-
-          {:error, message} ->
-            {:noreply, put_flash(socket, :error, message)}
+        if grade in [nil, ""] do
+          {:noreply, socket}
+        else
+          place_as(socket, service, grade)
         end
     end
   end
@@ -409,18 +450,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
         {:noreply, put_flash(socket, :error, "That service is gone.")}
 
       service ->
-        case Catalog.toggle_shortlist(service) do
-          {:ok, updated} ->
-            note =
-              if updated.shortlisted_at,
-                do: "Shortlisted.",
-                else: "Taken off the shortlist."
-
-            {:noreply, socket |> put_flash(:info, note) |> refresh_services()}
-
-          {:error, changeset} ->
-            {:noreply, put_flash(socket, :error, changeset_message(changeset))}
-        end
+        shortlist(socket, service)
     end
   end
 
@@ -430,23 +460,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
         {:noreply, put_flash(socket, :error, "Pick a service first.")}
 
       service ->
-        case put_on_shop(service, params, socket.assigns.params, explicit: true) do
-          {:ok, lane, offer} ->
-            note =
-              if lane.published,
-                do: placed_message(service, lane, offer, socket.assigns.params),
-                else: "#{Grade.label(lane.grade)} lane pinned."
-
-            {:noreply,
-             socket
-             |> put_flash(:info, note)
-             |> assign(:lane_form, to_form(params, as: "lane"))
-             |> refresh_offers()
-             |> refresh_services()}
-
-          {:error, message} ->
-            {:noreply, put_flash(socket, :error, message)}
-        end
+        pin(socket, service, params)
     end
   end
 
@@ -503,8 +517,11 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
   # -- internals ---------------------------------------------------------
 
-  defp open_placement(socket, service) do
+  defp open_placement(socket, service, grade \\ nil) do
     draft = offer_draft(service)
+    current = socket.assigns.lane_form.params
+
+    same? = socket.assigns.selected && socket.assigns.selected.id == service.id
 
     assign(socket,
       selected: service,
@@ -512,17 +529,69 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
       lane_form:
         to_form(
           %{
-            "offer_id" => "",
-            "grade" => "cheap",
-            "platform" => draft.platform,
-            "outcome" => draft.outcome,
-            "title" => draft.title,
-            "manual_kes" => "",
+            "offer_id" => if(same?, do: current["offer_id"], else: "") || "",
+            "grade" => grade || if(same?, do: current["grade"], else: "") || "",
+            "platform" =>
+              if(same?, do: current["platform"], else: draft.platform) || draft.platform,
+            "outcome" => if(same?, do: current["outcome"], else: draft.outcome) || draft.outcome,
+            "title" => if(same?, do: current["title"], else: draft.title) || draft.title,
+            "manual_kes" => if(same?, do: current["manual_kes"], else: "") || "",
             "published" => "true"
           },
           as: "lane"
         )
     )
+  end
+
+  defp place_as(socket, service, grade) do
+    params = Map.put(socket.assigns.lane_form.params, "grade", grade)
+
+    case put_on_shop(service, params, socket.assigns.params, explicit: true) do
+      {:ok, lane, offer} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, placed_message(service, lane, offer, socket.assigns.params))
+         |> assign(:lane_form, to_form(params, as: "lane"))
+         |> refresh_offers()
+         |> refresh_services()}
+
+      {:error, message} ->
+        {:noreply, put_flash(socket, :error, message)}
+    end
+  end
+
+  defp shortlist(socket, service) do
+    case Catalog.toggle_shortlist(service) do
+      {:ok, updated} ->
+        note = if updated.shortlisted_at, do: "Shortlisted.", else: "Taken off the shortlist."
+        {:noreply, socket |> put_flash(:info, note) |> refresh_services()}
+
+      {:error, changeset} ->
+        {:noreply, put_flash(socket, :error, changeset_message(changeset))}
+    end
+  end
+
+  defp pin(socket, service, params) do
+    case put_on_shop(service, params, socket.assigns.params, explicit: true) do
+      {:ok, lane, offer} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, pinned_note(service, lane, offer, socket.assigns.params))
+         |> assign(:lane_form, to_form(params, as: "lane"))
+         |> refresh_offers()
+         |> refresh_services()}
+
+      {:error, message} ->
+        {:noreply, put_flash(socket, :error, message)}
+    end
+  end
+
+  defp pinned_note(service, lane, offer, params) do
+    if lane.published do
+      placed_message(service, lane, offer, params)
+    else
+      "#{Grade.label(lane.grade)} lane pinned."
+    end
   end
 
   # Place writes a published lane on a published offer. Without both, the shop
@@ -543,10 +612,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
       case Catalog.pin_lane(attrs, pricing) do
         {:ok, %{published: true} = lane} ->
-          case ensure_published(offer) do
-            {:ok, offer} -> {:ok, lane, offer}
-            {:error, changeset} -> {:error, changeset_message(changeset)}
-          end
+          publish_pinned(offer, lane)
 
         {:ok, lane} when publish? ->
           {:error, unpublished_reason(lane, pricing)}
@@ -559,6 +625,14 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
       end
     else
       {:error, message} when is_binary(message) -> {:error, message}
+    end
+  end
+
+  # A pinned lane is only on the shop when its offer is published too.
+  defp publish_pinned(offer, lane) do
+    case ensure_published(offer) do
+      {:ok, offer} -> {:ok, lane, offer}
+      {:error, changeset} -> {:error, changeset_message(changeset)}
     end
   end
 
@@ -709,7 +783,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
     do: {:error, "The manual price must be a whole number of shillings."}
 
   defp refresh_offers(socket) do
-    assign(socket, offers: Catalog.list_offers(), on_shop: Catalog.shop_service_ids())
+    assign(socket, offers: Catalog.list_offers(), on_shop: Catalog.shop_grades())
   end
 
   defp refresh_services(socket) do
@@ -789,11 +863,34 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
   defp service_label(_), do: "unknown service"
 
+  defp grades_for(grades, id), do: Map.get(grades, id, [])
+
+  defp place_label(grades, id) do
+    case grades_for(grades, id) do
+      [] -> "Place"
+      placed -> placed |> Enum.map(&Grade.label/1) |> Enum.join(" · ")
+    end
+  end
+
+  defp grade_on?(form, grade), do: to_string(form[:grade].value) == Atom.to_string(grade)
+
+  defp grade_blurb(:cheap), do: "The lowest price on this offer."
+  defp grade_blurb(:moderate), do: "The middle grade."
+  defp grade_blurb(:quality), do: "The fastest and dearest."
+
   defp selling(nil, _params), do: "—"
 
   defp selling(rate_micros, params) do
     rate_micros
     |> Pricing.display_kes_cents(1000, params)
+    |> Pricing.format_selling_cents()
+  end
+
+  defp landed(nil, _params), do: "—"
+
+  defp landed(rate_micros, params) do
+    rate_micros
+    |> Pricing.landed_display_cents(1000, params)
     |> Pricing.format_selling_cents()
   end
 
@@ -804,6 +901,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
     |> Decimal.new()
     |> Decimal.div(1_000_000)
     |> Decimal.round(4)
+    |> Decimal.normalize()
     |> Decimal.to_string(:normal)
   end
 

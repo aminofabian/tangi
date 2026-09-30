@@ -19,16 +19,16 @@ defmodule ViewNinjasWeb.WalletLive do
   alias ViewNinjas.Workers.CreatePayment
   alias ViewNinjasWeb.Analytics
 
-  @min_topup_cents 1_000
-  @max_topup_cents 10_000_000
+  # One shilling is the smallest prompt M-Pesa will raise. The ceiling is a
+  # guard against a stray zero, not a menu of allowed amounts.
+  @min_topup_cents 100
+  @max_topup_cents 100_000_000
 
   @impl true
   def mount(_params, session, socket) do
     {:ok,
      socket
      |> assign(:analytics, Analytics.capture(socket, session))
-     |> assign(:min, @min_topup_cents)
-     |> assign(:max, @max_topup_cents)
      |> assign(:mode, :idle)
      |> assign(:payment, nil)
      |> assign(:failure, nil)
@@ -141,13 +141,7 @@ defmodule ViewNinjasWeb.WalletLive do
             closer="close_topup"
           />
         <% true -> %>
-          <.wallet_body
-            balance={@balance}
-            entries={@entries}
-            form={@form}
-            min={@min}
-            max={@max}
-          />
+          <.wallet_body balance={@balance} entries={@entries} form={@form} />
       <% end %>
     </Layouts.app>
     """
@@ -156,8 +150,6 @@ defmodule ViewNinjasWeb.WalletLive do
   attr :balance, :integer, required: true
   attr :entries, :list, required: true
   attr :form, :map, required: true
-  attr :min, :integer, required: true
-  attr :max, :integer, required: true
 
   defp wallet_body(assigns) do
     ~H"""
@@ -172,8 +164,17 @@ defmodule ViewNinjasWeb.WalletLive do
 
     <section class="vn-card" id="topup">
       <h2>{gettext("Add money")}</h2>
-      <p class="vn-muted">{gettext("Pick a handful, or type your own.")}</p>
+      <p class="vn-muted">{gettext("Type any amount in shillings, or start from one of these.")}</p>
       <.form for={@form} id="topup-form" phx-submit="topup">
+        <.input
+          field={@form[:amount]}
+          type="number"
+          inputmode="numeric"
+          step="1"
+          min="1"
+          label={gettext("Amount in shillings")}
+          placeholder={gettext("Any amount")}
+        />
         <div class="vn-chips" id="topup-amounts">
           <button
             :for={amount <- topup_amounts()}
@@ -186,18 +187,8 @@ defmodule ViewNinjasWeb.WalletLive do
             {kes(amount * 100)}
           </button>
         </div>
-        <.input
-          field={@form[:amount]}
-          type="number"
-          inputmode="numeric"
-          step="1"
-          min={div(@min, 100)}
-          max={div(@max, 100)}
-          label={gettext("Amount in shillings")}
-        />
         <button class="vn-button" id="topup-submit">{gettext("Top up with M-Pesa")}</button>
       </.form>
-      <p class="vn-muted">{gettext("Minimum %{min}.", min: kes(@min))}</p>
     </section>
 
     <section class="vn-card">
