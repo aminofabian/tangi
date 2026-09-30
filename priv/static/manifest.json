@@ -2,6 +2,7 @@
   "name": "ViewNinjas",
   "short_name": "ViewNinjas",
   "description": "Social media growth, priced in shillings.",
+  "lang": "en-KE",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

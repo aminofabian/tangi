@@ -15,7 +15,7 @@ defmodule ViewNinjasWeb.HomeLive do
 
   alias ViewNinjas.{Catalog, Orders, Pricing, Wallet}
   alias ViewNinjas.Catalog.Grade
-  alias ViewNinjasWeb.Analytics
+  alias ViewNinjasWeb.{Analytics, SEO}
 
   @impl true
   def mount(_params, session, socket) do
@@ -28,6 +28,9 @@ defmodule ViewNinjasWeb.HomeLive do
      |> assign(:section, section(socket))
      |> assign(:page_title, page_title(socket))
      |> assign(:market?, market?)
+     |> assign(:meta_title, market_meta_title(market?))
+     |> assign(:page_description, market_description(market?))
+     |> assign(:page_robots, if(market?, do: "index, follow", else: "noindex, nofollow"))
      |> assign(:stats, [])
      |> assign(:platform, nil)
      |> assign(:offers, [])
@@ -38,7 +41,12 @@ defmodule ViewNinjasWeb.HomeLive do
   @impl true
   def handle_params(_params, uri, socket) do
     Analytics.record_page_view(socket, uri)
-    {:noreply, socket}
+
+    # The dashboard is the same route (`/`) as the public market, but signed in
+    # it is nobody's landing page, so it carries no canonical URL.
+    canonical = if socket.assigns.market?, do: SEO.canonical_url(uri), else: nil
+
+    {:noreply, assign(socket, :canonical_url, canonical)}
   end
 
   @impl true
@@ -96,6 +104,17 @@ defmodule ViewNinjasWeb.HomeLive do
     end
   end
 
+  # The market's visible heading stays short ("Shop"); the document title and
+  # description carry the search terms instead.
+  defp market_meta_title(true), do: SEO.default_title()
+  defp market_meta_title(false), do: gettext("Home")
+
+  defp market_description(true), do: SEO.default_description()
+
+  defp market_description(false) do
+    gettext("Your ViewNinjas dashboard: wallet balance, orders in progress and the shop.")
+  end
+
   defp signed_in?(%{assigns: assigns}), do: signed_in?(assigns[:current_scope])
   defp signed_in?(%{user: %{}}), do: true
   defp signed_in?(_), do: false
@@ -118,8 +137,11 @@ defmodule ViewNinjasWeb.HomeLive do
         width="569"
         height="459"
       />
+      <h2 class="vn-hero__title">{gettext("Social media growth in Kenya")}</h2>
       <p class="vn-hero__tagline">
-        {gettext("Social media growth, priced in shillings.")}
+        {gettext(
+          "Buy Instagram followers, TikTok likes and YouTube views — priced in shillings, sold from your phone."
+        )}
       </p>
     </section>
 
@@ -170,6 +192,20 @@ defmodule ViewNinjasWeb.HomeLive do
       </ul>
       <p :if={@offers == []} class="vn-muted">
         {gettext("Nothing is on sale right now — check back soon.")}
+      </p>
+    </section>
+
+    <section class="vn-card" id="market-copy">
+      <h2>{gettext("Buy followers, likes and views in Kenya")}</h2>
+      <p class="vn-muted">
+        {gettext(
+          "Every offer is a platform and an outcome, in three grades: cheap, moderate and quality. The grade decides how fast it moves and whether it comes with a refill — the markup over cost is the same on all three."
+        )}
+      </p>
+      <p class="vn-muted">
+        {gettext(
+          "Pay in shillings by M-Pesa and watch the order from your phone. If a supplier finishes only part of an order, the unfinished share is credited back to your wallet automatically."
+        )}
       </p>
     </section>
 

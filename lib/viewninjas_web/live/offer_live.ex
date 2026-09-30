@@ -13,7 +13,7 @@ defmodule ViewNinjasWeb.OfferLive do
   alias ViewNinjas.Catalog
   alias ViewNinjas.Catalog.{Grade, Lane}
   alias ViewNinjas.{Links, Pricing}
-  alias ViewNinjasWeb.Analytics
+  alias ViewNinjasWeb.{Analytics, SEO}
 
   @impl true
   def mount(_params, session, socket) do
@@ -37,7 +37,7 @@ defmodule ViewNinjasWeb.OfferLive do
 
     case Catalog.get_market_offer(parse_id(id)) do
       nil -> {:noreply, to_market(socket)}
-      offer -> {:noreply, load_offer(socket, offer)}
+      offer -> {:noreply, load_offer(socket, offer, uri)}
     end
   end
 
@@ -85,6 +85,12 @@ defmodule ViewNinjasWeb.OfferLive do
       <section :if={@offer} class="vn-card" id="offer">
         <h2>{@offer.title}</h2>
         <p :if={@offer.description} class="vn-muted">{@offer.description}</p>
+        <p class="vn-muted">
+          {gettext(
+            "Buy %{title} in Kenya — priced in shillings and sold from your phone. Pick a grade, paste the link, choose how many, and pay by M-Pesa.",
+            title: @offer.title
+          )}
+        </p>
       </section>
 
       <div :if={@offer} class="vn-grades-pick">
@@ -150,19 +156,79 @@ defmodule ViewNinjasWeb.OfferLive do
 
   # -- internals ---------------------------------------------------------
 
-  defp load_offer(socket, offer) do
+  defp load_offer(socket, offer, uri) do
     grade = default_grade(offer)
     lane = selected_lane(offer, grade)
     quantity = default_quantity(lane)
+    canonical = SEO.canonical_url(uri)
+    from = Catalog.from_kes_cents(offer, socket.assigns.params)
 
     socket
     |> assign(:page_title, offer.title)
+    |> assign(:meta_title, offer_meta_title(offer, from))
+    |> assign(:page_description, offer_description(offer, from))
+    |> assign(:canonical_url, canonical)
+    |> assign(:og_type, "product")
+    |> assign(:structured_data, offer_structured_data(offer, socket.assigns.params, canonical))
     |> assign(:offer, offer)
     |> assign(:grade, grade)
     |> assign(:paused, Lane.paused?(lane))
     |> assign_bounds(lane)
     |> assign_form(%{"link" => "", "quantity" => Integer.to_string(quantity)})
     |> preview()
+  end
+
+  # -- search ------------------------------------------------------------
+
+  # The offer is a platform and an outcome ("Instagram followers"), so the meta
+  # title and description read as the buyer's query: "Buy Instagram followers in
+  # Kenya", with the cheapest price when one is published.
+  defp offer_meta_title(offer, nil), do: gettext("Buy %{title} in Kenya", title: offer.title)
+
+  defp offer_meta_title(offer, cents) do
+    gettext("Buy %{title} in Kenya — from %{price}",
+      title: offer.title,
+      price: Pricing.format_kes_cents(cents)
+    )
+  end
+
+  defp offer_description(offer, nil) do
+    gettext(
+      "Buy %{title} in Kenya in three grades — cheap, moderate and quality. Priced in shillings, paid by M-Pesa, with a refill if delivery falls short.",
+      title: offer.title
+    )
+  end
+
+  defp offer_description(offer, cents) do
+    gettext(
+      "Buy %{title} in Kenya from %{price} per 1,000, in three grades. Priced in shillings, paid by M-Pesa, with a refill if delivery falls short.",
+      title: offer.title,
+      price: Pricing.format_kes_cents(cents)
+    )
+  end
+
+  defp offer_structured_data(offer, params, canonical) do
+    description = offer.description || offer_description(offer, nil)
+
+    [
+      SEO.product(%{
+        name: offer.title,
+        description: description,
+        url: canonical,
+        prices: published_shillings(offer, params)
+      }),
+      SEO.breadcrumbs([
+        %{name: gettext("Shop"), url: SEO.absolutize("/shop")},
+        %{name: offer.title, url: canonical}
+      ])
+    ]
+  end
+
+  defp published_shillings(offer, params) do
+    offer.lanes
+    |> Enum.map(&Lane.retail_kes_cents(&1, params))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&div(&1 + 50, 100))
   end
 
   defp assign_form(socket, params), do: assign(socket, :form, to_form(params, as: "order"))

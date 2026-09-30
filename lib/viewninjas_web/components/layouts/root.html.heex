@@ -15,6 +15,58 @@
     <meta name="apple-mobile-web-app-title" content="ViewNinjas" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
+    <%!-- Search. The root layout is rendered once, on the server, for every URL
+          and a live navigation never touches it, so the title, description,
+          canonical URL, social cards and structured data are all in the initial
+          HTML a crawler receives without running JavaScript. A page assigns
+          `:meta_title`, `:page_description`, `:canonical_url`, `:page_robots`
+          and `:structured_data`; the fallbacks here keep every other page valid. --%>
+    <meta
+      name="description"
+      content={assigns[:page_description] || ViewNinjasWeb.SEO.default_description()}
+    />
+    <meta name="robots" content={assigns[:page_robots] || "index, follow"} />
+    <link :if={assigns[:canonical_url]} rel="canonical" href={assigns[:canonical_url]} />
+
+    <meta property="og:type" content={assigns[:og_type] || "website"} />
+    <meta property="og:site_name" content="ViewNinjas" />
+    <meta property="og:locale" content="en_KE" />
+    <meta
+      property="og:title"
+      content={assigns[:meta_title] || assigns[:page_title] || ViewNinjasWeb.SEO.default_title()}
+    />
+    <meta
+      property="og:description"
+      content={assigns[:page_description] || ViewNinjasWeb.SEO.default_description()}
+    />
+    <meta :if={assigns[:canonical_url]} property="og:url" content={assigns[:canonical_url]} />
+    <meta property="og:image" content={ViewNinjasWeb.SEO.absolutize("/images/icon-512.png")} />
+    <meta property="og:image:alt" content="ViewNinjas" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta
+      name="twitter:title"
+      content={assigns[:meta_title] || assigns[:page_title] || ViewNinjasWeb.SEO.default_title()}
+    />
+    <meta
+      name="twitter:description"
+      content={assigns[:page_description] || ViewNinjasWeb.SEO.default_description()}
+    />
+    <meta name="twitter:image" content={ViewNinjasWeb.SEO.absolutize("/images/icon-512.png")} />
+
+    <%!-- HEEx does not interpolate `{...}` inside a `<script>` tag, so these use
+          the `<%= %>` form. `SEO.encode!/1` escapes `<`, `>` and `&`, so a
+          title can never close the block early. --%>
+    <script type="application/ld+json">
+      <%= raw(ViewNinjasWeb.SEO.encode!(ViewNinjasWeb.SEO.organization())) %>
+    </script>
+    <script type="application/ld+json">
+      <%= raw(ViewNinjasWeb.SEO.encode!(ViewNinjasWeb.SEO.website())) %>
+    </script>
+    <script :for={data <- assigns[:structured_data] || []} type="application/ld+json">
+      <%= raw(ViewNinjasWeb.SEO.encode!(data)) %>
+    </script>
+
     <link rel="manifest" href={~p"/manifest.json"} />
     <link rel="apple-touch-icon" href={~p"/images/apple-touch-icon.png"} />
     <%!-- The mascot on its own, for the tab icon; the .ico is the raster
@@ -39,7 +91,11 @@
       crossorigin
     />
 
-    <.live_title default="ViewNinjas" suffix=" · ViewNinjas" phx-no-format>{assigns[:page_title]}</.live_title>
+    <.live_title
+      default="ViewNinjas"
+      suffix=" · ViewNinjas"
+      phx-no-format
+    >{assigns[:meta_title] || assigns[:page_title]}</.live_title>
 
     <%!-- default.css first so the hand-written shell in app.css can override it. --%>
     <link phx-track-static rel="stylesheet" href={~p"/assets/default.css"} />

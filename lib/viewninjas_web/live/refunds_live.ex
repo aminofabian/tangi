@@ -11,20 +11,27 @@ defmodule ViewNinjasWeb.RefundsLive do
 
   use ViewNinjasWeb, :live_view
 
-  alias ViewNinjasWeb.Analytics
+  alias ViewNinjasWeb.{Analytics, SEO}
 
   @impl true
   def mount(_params, session, socket) do
     {:ok,
      socket
      |> assign(:page_title, gettext("Refunds"))
+     |> assign(:meta_title, gettext("Refunds and refills for social media orders"))
+     |> assign(
+       :page_description,
+       gettext(
+         "How refunds and refills work at ViewNinjas: when an order does not fully arrive, the undelivered quantity comes back to your wallet in shillings, automatically."
+       )
+     )
      |> assign(:analytics, Analytics.capture(socket, session))}
   end
 
   @impl true
   def handle_params(_params, uri, socket) do
     Analytics.record_page_view(socket, uri)
-    {:noreply, socket}
+    {:noreply, assign(socket, :canonical_url, SEO.canonical_url(uri))}
   end
 
   @impl true

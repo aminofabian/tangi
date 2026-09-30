@@ -105,6 +105,25 @@ These are the things that make the shell feel deliberate rather than assembled:
 - Hover states live inside `@media (hover: hover)`, because a phone should never
   depend on one.
 
+### The back office, which is not a phone
+
+One breakpoint (`62rem`) separates the two shells. Below it the shop's phone
+shell is all there is; above it the header turns into a sidebar and the
+workspace turns into a desk tool:
+
+- **The workspace is a surface, not a page.** Panes sit flush and are divided by
+  single hairlines rather than floating as cards, and it owns its own scroll, so
+  the sidebar never moves.
+- **A pane's width is chosen for what it holds.** A reading column caps at 60rem,
+  a browser (list, detail, actions) takes the whole surface, and a board of small
+  panes tiles.
+- **Field labels are micro-headings** — 11 px, uppercase, letterspaced. That is
+  what stops a desktop form reading as one undifferentiated run of text.
+- **Selection in a list** wears a rule down its edge and a tint, and any mark
+  inside the row goes to paper so it does not vanish into the tint.
+- **Rare, page-level things fold away** behind a `<details>` (`vn-disclosure`)
+  rather than taking a row each.
+
 ## Artwork
 
 The artwork in `priv/static/images/` is the supplied Tangi logo, used as-is. The
@@ -135,7 +154,9 @@ The full lockup is what the shell header and the home hero draw, via
 
 The shell is reviewed by rendering it, not by reading the markup. See
 [`scripts/visual/`](scripts/visual/README.md): `shot.js` screenshots and measures
-one screen, `journey.js` walks market → offer → checkout 
+one screen, `tour.js` logs in once and walks every back-office section (the
+password form is rate-limited per IP, so this is the reliable way to capture a
+set), `journey.js` walks market → offer → checkout
 (`mix run priv/repo/demo_market.exs` first), and `stylebook.js` renders every
 component at once — including the M-Pesa sheet, which needs configured payments
 to reach for real.

@@ -17,7 +17,9 @@ defmodule ViewNinjasWeb do
   those modules here.
   """
 
-  def static_paths, do: ~w(assets fonts images favicon.ico robots.txt manifest.json)
+  # `robots.txt` is generated (ViewNinjasWeb.RobotsController) so its Sitemap
+  # line is absolute on the serving host; it is deliberately not a static file.
+  def static_paths, do: ~w(assets fonts images favicon.ico manifest.json)
 
   def router do
     quote do

@@ -25,6 +25,11 @@ defmodule ViewNinjasWeb.Router do
   pipeline :webhook do
   end
 
+  # Crawler surfaces (`/robots.txt`, `/sitemap.xml`) are plain text and XML, so
+  # they need no session, no CSRF token and no Accept negotiation.
+  pipeline :crawler do
+  end
+
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -33,6 +38,13 @@ defmodule ViewNinjasWeb.Router do
     pipe_through :health
 
     get "/health", HealthController, :show
+  end
+
+  scope "/", ViewNinjasWeb do
+    pipe_through :crawler
+
+    get "/robots.txt", RobotsController, :index
+    get "/sitemap.xml", SitemapController, :index
   end
 
   scope "/webhooks", ViewNinjasWeb do
