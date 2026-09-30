@@ -115,6 +115,85 @@ defmodule ViewNinjasWeb.SEO do
     }
   end
 
+  @doc """
+  A `BlogPosting` for one article.
+
+  `:date_published` and `:date_modified` are `Date`s; the publisher is the same
+  organization every page names, and the keywords the article targets are
+  carried through as a comma-separated string.
+  """
+  @spec article(map()) :: map()
+  def article(%{
+        headline: headline,
+        description: description,
+        url: url,
+        date_published: published,
+        date_modified: modified,
+        keywords: keywords
+      }) do
+    %{
+      "@context" => "https://schema.org",
+      "@type" => "BlogPosting",
+      "headline" => headline,
+      "description" => description,
+      "url" => url,
+      "mainEntityOfPage" => %{"@type" => "WebPage", "@id" => url},
+      "datePublished" => Date.to_iso8601(published),
+      "dateModified" => Date.to_iso8601(modified),
+      "inLanguage" => "en-KE",
+      "keywords" => Enum.join(keywords, ", "),
+      "image" => absolutize("/images/icon-512.png"),
+      "author" => %{"@type" => "Organization", "name" => @site_name},
+      "publisher" => Map.delete(organization(), "@context")
+    }
+  end
+
+  @doc """
+  A `FAQPage` for a list of `%{question: _, answer: _}`.
+
+  Only emit this for questions that are genuinely answered on the page — the
+  markup should describe what a reader sees, not add questions that are not
+  there.
+  """
+  @spec faq_page([map()]) :: map()
+  def faq_page(faqs) do
+    %{
+      "@context" => "https://schema.org",
+      "@type" => "FAQPage",
+      "mainEntity" =>
+        Enum.map(faqs, fn %{question: question, answer: answer} ->
+          %{
+            "@type" => "Question",
+            "name" => question,
+            "acceptedAnswer" => %{"@type" => "Answer", "text" => answer}
+          }
+        end)
+    }
+  end
+
+  @doc """
+  A `CollectionPage` naming the articles in a list, for the blog index.
+
+  `:items` is a list of `%{name: _, url: _}`; the order is the order they are
+  listed in.
+  """
+  @spec collection_page(map()) :: map()
+  def collection_page(%{name: name, description: description, url: url, items: items}) do
+    %{
+      "@context" => "https://schema.org",
+      "@type" => "CollectionPage",
+      "name" => name,
+      "description" => description,
+      "url" => url,
+      "inLanguage" => "en-KE",
+      "isPartOf" => %{"@type" => "WebSite", "name" => @site_name, "url" => Endpoint.url()},
+      "hasPart" =>
+        Enum.map(items, fn %{name: name, url: url} ->
+          %{"@type" => "BlogPosting", "headline" => name, "url" => url}
+        end)
+    }
+  end
+
   @doc "A breadcrumb trail from a list of `%{name: _, url: _}`, in order."
   @spec breadcrumbs([map()]) :: map()
   def breadcrumbs(items) do

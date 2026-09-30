@@ -2841,3 +2841,302 @@ p {
   font-size: 0.85rem;
   color: var(--vn-ink);
 }
+
+/* ------------------------------------------------------------------- blog */
+
+/* The hub's hero is left-aligned — it reads as the top of an article, not as the
+ * centred home flourish. */
+.vn-blog-hero {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.vn-cluster > p:first-of-type,
+.vn-cluster > h2 {
+  margin-top: 0;
+}
+
+.vn-cluster > h2 {
+  margin-bottom: var(--vn-space-2);
+}
+
+/* The pillar gets a filled, raised card so it reads as the start of the set. */
+.vn-feature {
+  display: block;
+  margin-top: var(--vn-space-3);
+  padding: var(--vn-space-4);
+  border: 1px solid color-mix(in srgb, var(--vn-accent) 24%, var(--vn-border));
+  border-radius: var(--vn-radius);
+  background: var(--vn-accent-soft);
+  color: var(--vn-text);
+  text-decoration: none;
+}
+
+.vn-feature__eyebrow {
+  display: block;
+  color: var(--vn-accent-text);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vn-feature__title {
+  display: block;
+  margin-top: var(--vn-space-1);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-lg);
+  font-weight: 700;
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-feature__excerpt {
+  display: block;
+  margin-top: var(--vn-space-2);
+  color: var(--vn-muted);
+  font-size: var(--vn-text-ui);
+  line-height: var(--vn-leading-ui);
+}
+
+/* A list of article links, used both on the hub and under an article. */
+.vn-post-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  margin: var(--vn-space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vn-post-list__link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--vn-space-3);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius-field);
+  background: var(--vn-surface);
+  color: var(--vn-text);
+  text-decoration: none;
+}
+
+.vn-post-list__eyebrow {
+  color: var(--vn-accent-text);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vn-post-list__title {
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+  line-height: var(--vn-leading-tight);
+}
+
+/* -- one article ------------------------------------------------------- */
+
+.vn-article {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-4);
+}
+
+.vn-crumbs {
+  display: flex;
+  align-items: center;
+  gap: var(--vn-space-2);
+  font-size: var(--vn-text-sm);
+  color: var(--vn-muted);
+}
+
+.vn-crumbs__link {
+  color: var(--vn-accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vn-article__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  padding-bottom: var(--vn-space-4);
+  border-bottom: 1px solid var(--vn-border);
+}
+
+.vn-article__title {
+  margin: 0;
+  font-size: var(--vn-text-2xl);
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-article__meta {
+  margin: 0;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+}
+
+/* The lead is a touch larger than body copy, so the opening three lines carry
+ * more than the paragraphs under them. */
+.vn-article__lead {
+  margin: 0;
+  color: color-mix(in srgb, var(--vn-text) 84%, var(--vn-muted));
+  font-size: var(--vn-text-lg);
+  line-height: var(--vn-leading-body);
+}
+
+.vn-article__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-3);
+  /* Anchored TOC links land under the sticky header, not behind it. */
+  scroll-margin-top: 4.5rem;
+}
+
+.vn-article__section > h2 {
+  margin: 0;
+  font-size: var(--vn-text-xl);
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-article__section > h3 {
+  margin: 0;
+  font-size: var(--vn-text-lg);
+}
+
+.vn-prose__p {
+  margin: 0;
+  line-height: var(--vn-leading-body);
+}
+
+.vn-prose__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  margin: 0;
+  padding-left: var(--vn-space-5);
+  line-height: var(--vn-leading-body);
+}
+
+.vn-callout {
+  margin: 0;
+  padding: var(--vn-space-3) var(--vn-space-4);
+  border-left: 3px solid var(--vn-accent);
+  border-radius: 0 var(--vn-radius-sm) var(--vn-radius-sm) 0;
+  background: var(--vn-accent-soft);
+  line-height: var(--vn-leading-body);
+}
+
+.vn-toc {
+  padding: var(--vn-space-4);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+}
+
+.vn-toc__title {
+  margin: 0 0 var(--vn-space-2);
+  color: var(--vn-muted);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vn-toc__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-1);
+  margin: 0;
+  padding-left: var(--vn-space-5);
+}
+
+.vn-toc__list a {
+  color: var(--vn-accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vn-toc__list a:hover {
+  text-decoration: underline;
+}
+
+.vn-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+}
+
+/* The admin table is built for full-width rows; inside an article the cells have
+ * to be allowed to wrap, or a four-column price table runs off the phone. */
+.vn-table-wrap .vn-table th,
+.vn-table-wrap .vn-table td {
+  white-space: normal;
+}
+
+.vn-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--vn-space-3);
+  padding: var(--vn-space-4);
+  border: 1px solid color-mix(in srgb, var(--vn-accent) 24%, var(--vn-border));
+  border-radius: var(--vn-radius);
+  background:
+    radial-gradient(
+      120% 120% at 0% 0%,
+      color-mix(in srgb, var(--tangi-cyan) 16%, transparent),
+      transparent 60%
+    ),
+    var(--vn-surface);
+}
+
+.vn-cta > p {
+  margin: 0;
+}
+
+.vn-faq {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-3);
+}
+
+.vn-faq__item {
+  padding: var(--vn-space-4);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+}
+
+.vn-faq__q {
+  margin: 0;
+  font-size: var(--vn-text-lg);
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-faq__a {
+  margin: var(--vn-space-2) 0 0;
+  color: var(--vn-muted);
+  line-height: var(--vn-leading-body);
+}
+
+.vn-related {
+  padding: var(--vn-space-4);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+}
+
+.vn-related > h2 {
+  margin: 0;
+  font-size: var(--vn-text-lg);
+}
+
+@media (hover: hover) {
+  .vn-feature:hover,
+  .vn-post-list__link:hover {
+    border-color: var(--vn-accent);
+  }
+}

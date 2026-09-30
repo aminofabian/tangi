@@ -209,6 +209,18 @@ defmodule ViewNinjasWeb.HomeLive do
       </p>
     </section>
 
+    <section class="vn-card" id="guides-card">
+      <h2>{gettext("Guides")}</h2>
+      <p class="vn-muted">
+        {gettext(
+          "New to buying views? Read our guides to buying YouTube views in Kenya, growing a channel organically and promoting your videos."
+        )}
+      </p>
+      <.link navigate={~p"/blog"} class="vn-button vn-button--muted">
+        {gettext("Read the guides")}
+      </.link>
+    </section>
+
     <section :if={not @signed_in?} class="vn-card">
       <h2>{gettext("Ready to buy?")}</h2>
       <p class="vn-muted">{gettext("Browsing is free; ordering needs an account.")}</p>

@@ -10,10 +10,11 @@ defmodule ViewNinjasWeb.SitemapController do
   """
   use ViewNinjasWeb, :controller
 
+  alias ViewNinjas.Blog
   alias ViewNinjas.Catalog
   alias ViewNinjasWeb.SEO
 
-  @static_paths ~w(/ /shop /refunds)
+  @static_paths ~w(/ /shop /refunds /blog)
 
   def index(conn, _params) do
     body = """
@@ -29,7 +30,9 @@ defmodule ViewNinjasWeb.SitemapController do
   end
 
   defp urls do
-    Enum.map(@static_paths, &{&1, nil}) ++ Enum.map(Catalog.list_market_offers(), &offer/1)
+    Enum.map(@static_paths, &{&1, nil}) ++
+      Enum.map(Blog.list_posts(), &{Blog.Post.path(&1), &1.updated_on}) ++
+      Enum.map(Catalog.list_market_offers(), &offer/1)
   end
 
   defp offer(offer), do: {"/offers/#{offer.id}", offer.updated_at}
@@ -41,6 +44,8 @@ defmodule ViewNinjasWeb.SitemapController do
   defp lastmod_tag(%DateTime{} = at) do
     "<lastmod>#{at |> DateTime.to_date() |> Date.to_iso8601()}</lastmod>"
   end
+
+  defp lastmod_tag(%Date{} = at), do: "<lastmod>#{Date.to_iso8601(at)}</lastmod>"
 
   defp lastmod_tag(_), do: ""
 

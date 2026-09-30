@@ -65,6 +65,8 @@ defmodule ViewNinjasWeb.Router do
       live "/offers/:id", OfferLive, :show
       live "/refunds", RefundsLive, :index
       live "/account", AccountLive, :index
+      live "/blog", BlogLive, :index
+      live "/blog/:slug", BlogLive, :show
     end
   end
 

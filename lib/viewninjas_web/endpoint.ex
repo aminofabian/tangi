@@ -76,5 +76,11 @@ defmodule ViewNinjasWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
+
+  # One address per page: a request for a path with a trailing slash is
+  # redirected to the path without it, before the router has to find a route
+  # for a URL that would otherwise 404.
+  plug ViewNinjasWeb.Plugs.TrailingSlash
+
   plug ViewNinjasWeb.Router
 end
