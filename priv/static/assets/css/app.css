@@ -1,0 +1,1837 @@
+/* ViewNinjas application styles.
+ *
+ * The hand-written shell (scope.md §14: hand-written CSS, no UI framework, a
+ * small budget for a 3G phone). It is loaded *after* default.css so these rules
+ * win on equal specificity, and every unlayered rule here also beats the
+ * daisyUI theme that default.css keeps inside `@layer`.
+ *
+ * The shell is themed with the Tangi brand system: Fredoka for display type,
+ * Nunito for everything else, and the seven-colour palette in "Brand palette"
+ * below. The `--tangi-*` primaries are the source of truth; the `--vn-*`
+ * working tokens alias them, so a rebrand is one edit to this block.
+ *
+ * House rules:
+ *   - templates never carry a colour literal; they use `--vn-*` or a class here
+ *   - every control is `--vn-control-h` tall, so buttons and inputs line up
+ *   - type comes from the `--vn-text-*` scale, never an ad-hoc rem
+ */
+
+/* --------------------------------------------------------------- fonts */
+
+/* Self-hosted, latin subset, variable weight, `swap` so text paints immediately
+ * on a 3G phone (scope.md §12: never block first paint on a web font).
+ * ~29 KB + ~39 KB. */
+@font-face {
+  font-family: "Fredoka";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("/fonts/fredoka-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Nunito";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("/fonts/nunito-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light;
+
+  /* --------------------------------------------------- brand palette */
+  /* The seven core colours, straight off the logo. */
+  --tangi-navy: #010649;
+  --tangi-blue: #03a2fc;
+  --tangi-cyan: #03cbfd;
+  --tangi-purple: #732bfb;
+  --tangi-pink: #fa1383;
+  --tangi-yellow: #fdb304;
+  --tangi-white: #fdf8fc;
+
+  /* Supporting tints from the same artwork. */
+  --tangi-electric: #027dfb;
+  --tangi-page: #f8fbff;
+  --tangi-muted: #4b5275;
+
+  /* ------------------------------------------------------ typography */
+  --vn-font-display: "Fredoka", ui-rounded, "Segoe UI Variable Display", system-ui,
+    sans-serif;
+  --vn-font-body: "Nunito", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+
+  /* One scale, six steps. Nothing in the shell invents a size. */
+  --vn-text-2xs: 0.6875rem; /* 11px — tab labels */
+  --vn-text-xs: 0.75rem; /* 12px — badges, meta */
+  --vn-text-sm: 0.8125rem; /* 13px — tables, captions, labels */
+  --vn-text-ui: 0.9375rem; /* 15px — the UI default */
+  --vn-text-body: 1rem; /* 16px — prose and inputs (iOS zoom floor) */
+  --vn-text-lg: 1.125rem; /* 18px — card titles */
+  --vn-text-xl: 1.375rem; /* 22px — page titles */
+  --vn-text-2xl: 1.75rem; /* 28px — the payment sheet amount */
+
+  --vn-leading-tight: 1.25;
+  --vn-leading-ui: 1.45;
+  --vn-leading-body: 1.6;
+
+  /* ----------------------------------------------------------- space */
+  /* A 4px rhythm. Section gaps are 4, card padding 4, micro-gaps 2. */
+  --vn-space-1: 0.25rem;
+  --vn-space-2: 0.5rem;
+  --vn-space-3: 0.75rem;
+  --vn-space-4: 1rem;
+  --vn-space-5: 1.25rem;
+  --vn-space-6: 1.5rem;
+  --vn-space-8: 2rem;
+
+  /* ----------------------------------------------------------- shape */
+  --vn-radius-sm: 0.75rem;
+  --vn-radius-field: 0.875rem;
+  --vn-radius: 1.125rem;
+  --vn-radius-lg: 1.375rem;
+  --vn-radius-pill: 999px;
+
+  /* Shadows are navy-tinted rather than grey, so they read as part of the
+   * palette instead of as dirt. */
+  --vn-shadow-1: 0 1px 2px rgba(1, 6, 73, 0.05), 0 1px 1px rgba(1, 6, 73, 0.04);
+  --vn-shadow-2: 0 2px 4px rgba(1, 6, 73, 0.05), 0 6px 16px rgba(1, 6, 73, 0.07);
+  --vn-shadow-3: 0 10px 30px rgba(1, 6, 73, 0.1), 0 2px 8px rgba(1, 6, 73, 0.05);
+
+  /* ---------------------------------------------------------- motion */
+  --vn-ease: cubic-bezier(0.2, 0.8, 0.3, 1);
+  --vn-fast: 120ms;
+  --vn-base: 200ms;
+
+  /* ------------------------------------------------- controls & misc */
+  --vn-control-h: 2.75rem; /* 44px — scope.md §12 tap target */
+  --vn-tap-target: var(--vn-control-h);
+  /* The bottom tab bar is fixed; every screen pads its content by this much
+   * plus the home-indicator inset so nothing is trapped underneath it. */
+  --vn-tabbar-h: 3.75rem;
+
+  /* ---------------------------------------------- working tokens */
+  --vn-bg: var(--tangi-page);
+  --vn-surface: #ffffff;
+  --vn-text: var(--tangi-navy);
+  --vn-muted: var(--tangi-muted);
+  --vn-border: #dbe7f7;
+  --vn-accent: var(--tangi-blue);
+  /* Bright brand blue only reaches ~2.8:1 on white, so link *text* uses the
+   * darker electric blue and navy carries body copy. */
+  --vn-accent-text: var(--tangi-electric);
+  --vn-accent-soft: #e6f4ff;
+  /* Type on a coloured fill is always the brand off-white. Navy only stays on
+   * the *light* fills (cyan, yellow), where white would disappear. */
+  --vn-on-accent: var(--tangi-white);
+  /* The palette's pink, darkened to reach 4.5:1 as error text on white. */
+  --vn-danger: #d11471;
+  --vn-danger-soft: #fdeaf4;
+  --vn-warn-soft: #fef2d6;
+  --vn-warn-text: #8a5b00;
+  /* Focus is the brand blue with a translucent halo, so it reads as "this is
+   * live" rather than as a third accent colour. */
+  --vn-focus: var(--vn-accent);
+  --vn-ring: 0 0 0 3px color-mix(in srgb, var(--vn-focus) 20%, transparent);
+
+  /* ------------------------------------------- daisyUI theme bridge */
+  /* default.css ships the stock daisyUI theme inside `@layer theme`; these
+   * unlayered overrides win, so the generated CoreComponents (buttons, inputs,
+   * alerts, tables) come out in brand colours and brand sizes too. */
+  --font-sans: var(--vn-font-body);
+  --default-font-family: var(--vn-font-body);
+
+  --color-base-100: #ffffff;
+  --color-base-200: var(--tangi-page);
+  --color-base-300: #dbe7f7;
+  --color-base-content: var(--tangi-navy);
+  --color-primary: var(--tangi-blue);
+  --color-primary-content: var(--vn-on-accent);
+  --color-secondary: var(--tangi-purple);
+  --color-secondary-content: var(--vn-on-accent);
+  --color-accent: var(--tangi-pink);
+  --color-accent-content: var(--vn-on-accent);
+  --color-neutral: var(--tangi-navy);
+  --color-neutral-content: var(--tangi-white);
+  /* Cyan and yellow are light enough that off-white type on them would be
+   * unreadable, so these two keep navy. */
+  --color-info: var(--tangi-cyan);
+  --color-info-content: var(--tangi-navy);
+  --color-success: var(--tangi-blue);
+  --color-success-content: var(--vn-on-accent);
+  --color-warning: var(--tangi-yellow);
+  --color-warning-content: var(--tangi-navy);
+  --color-error: var(--tangi-pink);
+  --color-error-content: var(--vn-on-accent);
+
+  /* Shape and size, so daisyUI's own components land on the same grid as the
+   * hand-written ones. */
+  --radius-selector: var(--vn-radius-pill);
+  --radius-field: var(--vn-radius-field);
+  --radius-box: var(--vn-radius);
+  --size-field: calc(var(--vn-control-h) / 10); /* .btn/.input height */
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* ------------------------------------------------------------------ base */
+
+html {
+  /* Prefer the dynamic viewport unit so the layout is not trapped behind the
+   * on-screen keyboard; fall back to vh on old browsers. */
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--vn-bg);
+  color: var(--vn-text);
+  font-family: var(--vn-font-body);
+  /* iOS zooms focused inputs below 16px; keep the base at 16px. */
+  font-size: var(--vn-text-body);
+  line-height: var(--vn-leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--vn-accent) 26%, transparent);
+  color: var(--vn-text);
+}
+
+/* Fredoka is the brand voice: headings, numbers that matter and controls.
+ * Nunito carries everything you actually read. */
+h1,
+h2,
+h3,
+h4,
+h5,
+.vn-header__title,
+.vn-hero__title,
+.vn-button,
+.vn-badge,
+.vn-grade,
+.vn-chip {
+  font-family: var(--vn-font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+h1,
+h2,
+h3 {
+  /* Headings hold two lines happily and go ragged only when they must. */
+  text-wrap: balance;
+}
+
+h1 {
+  margin: 0 0 var(--vn-space-3);
+  font-size: var(--vn-text-xl);
+  line-height: var(--vn-leading-tight);
+}
+
+h2 {
+  margin: 0 0 var(--vn-space-3);
+  font-size: var(--vn-text-lg);
+  line-height: var(--vn-leading-tight);
+}
+
+h3 {
+  margin: 0 0 var(--vn-space-2);
+  font-size: var(--vn-text-body);
+}
+
+h4,
+h5 {
+  margin: 0 0 var(--vn-space-2);
+  font-size: var(--vn-text-ui);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Figures that get compared — prices, totals, wallet rows — must not shuffle
+ * sideways as the digits change. */
+.vn-price,
+.vn-total__value,
+.vn-sheet__amount,
+.vn-ledger__amount,
+.vn-stat__value,
+.vn-table td {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ------------------------------------------------------------------ shell */
+
+.vn-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  /* One column, thumb-first, centred on tablet and desktop. */
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+}
+
+.vn-main {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-4);
+  padding: var(--vn-space-4);
+  /* Clear the fixed tab bar and the home indicator. */
+  padding-bottom: calc(var(--vn-tabbar-h) + env(safe-area-inset-bottom) + 1rem);
+}
+
+/* The sticky top of the shell. Wrapping the header and the back office's section
+ * nav in one sticky box means neither needs to know the other's height. */
+.vn-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.vn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  min-height: 3.5rem;
+  padding: var(--vn-space-2) var(--vn-space-4);
+  padding-top: calc(var(--vn-space-2) + env(safe-area-inset-top));
+  background: color-mix(in srgb, var(--vn-surface) 88%, transparent);
+  backdrop-filter: blur(12px) saturate(1.3);
+  border-bottom: 1px solid var(--vn-border);
+}
+
+.vn-brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--vn-tap-target);
+  text-decoration: none;
+  color: var(--vn-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vn-brand__logo {
+  display: block;
+  /* The lockup carries the wordmark, so it needs enough height to stay
+   * legible next to the page title. */
+  height: 2.25rem;
+  width: auto;
+}
+
+.vn-header__title {
+  margin: 0;
+  font-size: var(--vn-text-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--vn-muted);
+}
+
+/* The home flourish: two soft brand washes and the lockup. */
+.vn-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vn-space-2);
+  padding: var(--vn-space-6) var(--vn-space-4) var(--vn-space-5);
+  border-radius: var(--vn-radius-lg);
+  border: 1px solid color-mix(in srgb, var(--vn-accent) 16%, var(--vn-border));
+  background:
+    radial-gradient(
+      110% 80% at 12% 0%,
+      color-mix(in srgb, var(--tangi-cyan) 24%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      110% 80% at 88% 100%,
+      color-mix(in srgb, var(--tangi-purple) 18%, transparent),
+      transparent 62%
+    ),
+    var(--vn-surface);
+  box-shadow: var(--vn-shadow-2);
+  text-align: center;
+}
+
+.vn-hero__logo {
+  display: block;
+  width: 10.5rem;
+  max-width: 100%;
+  height: auto;
+}
+
+.vn-hero__title {
+  margin: 0;
+  font-size: var(--vn-text-xl);
+  color: var(--vn-text);
+}
+
+.vn-hero__tagline {
+  margin: 0;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-ui);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-card {
+  background: var(--vn-surface);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  box-shadow: var(--vn-shadow-1);
+  padding: var(--vn-space-4) var(--vn-space-4) var(--vn-space-4);
+}
+
+/* A card's own title should not float away from its top edge. */
+.vn-card > :first-child {
+  margin-top: 0;
+}
+
+.vn-card > :last-child {
+  margin-bottom: 0;
+}
+
+/* A sentence that explains a list, a table or a row of chips carries no margin
+ * of its own, so it ends up flush against the block above it. */
+.vn-card
+  > :is(.vn-detail, .vn-chips, .vn-lanes, .vn-offers, .vn-stats, .vn-ledger, .vn-scroll)
+  + p {
+  margin-top: var(--vn-space-3);
+}
+
+.vn-muted {
+  color: var(--vn-muted);
+}
+
+/* ------------------------------------------------------------ bottom tabs */
+
+.vn-tabbar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-inline: auto;
+  width: 100%;
+  max-width: 30rem;
+  background: var(--vn-surface);
+  border-top: 1px solid var(--vn-border);
+  /* Lift the bar off the content instead of cutting a hard line across it. */
+  box-shadow: 0 -2px 12px rgba(1, 6, 73, 0.05);
+  /* Keep the bar clear of the home indicator. */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.vn-tabbar__item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vn-space-1);
+  min-height: var(--vn-tap-target);
+  padding: var(--vn-space-2) var(--vn-space-1);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--vn-muted);
+  text-decoration: none;
+  transition: color var(--vn-fast) var(--vn-ease);
+  /* No hover-only affordances; give immediate press feedback instead. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The active tab reads as a soft pill behind the icon, then navy type — the
+ * blue is reserved for the glyph so the small label keeps its contrast. */
+.vn-tabbar__item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: var(--vn-space-2);
+  left: 50%;
+  width: 3.5rem;
+  height: 1.75rem;
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-accent-soft);
+  transform: translateX(-50%);
+}
+
+.vn-tabbar__item:active {
+  background: var(--vn-accent-soft);
+}
+
+.vn-tabbar__item[aria-current="page"] {
+  color: var(--vn-text);
+}
+
+.vn-tabbar__item[aria-current="page"] .vn-tabbar__icon {
+  color: var(--vn-accent);
+}
+
+.vn-tabbar__icon {
+  /* Positioned so it paints above the active pill. */
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.vn-tabbar__item:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: -3px;
+  border-radius: var(--vn-radius-sm);
+}
+
+/* A row of actions that wraps.
+ *
+ * Note: Tailwind's `flex flex-wrap` is *not* in default.css — it only ships the
+ * utilities the generated CoreComponents use — so a bare `flex` row overflows
+ * instead of wrapping. Reach for this class rather than those utilities. */
+.vn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vn-space-2);
+  margin: var(--vn-space-3) 0 0;
+}
+
+/* ------------------------------------------------------- the back office */
+
+/* The back office gives up the customer tabs: eight sections will not fit in
+ * four slots, and an operator should never see two screens both called
+ * "Orders". `Layouts.admin_nav/1` renders the strip. Below the breakpoint it is
+ * the phone's top bar; above it, the sidebar (see the wide block at the end of
+ * this file). */
+.vn-main--flush {
+  /* No tab bar to clear at the foot. */
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--vn-space-4));
+}
+
+/* The page's own heading, back office only. */
+.vn-page-title {
+  margin: 0;
+}
+
+.vn-admin-nav {
+  background: color-mix(in srgb, var(--vn-surface) 90%, transparent);
+  backdrop-filter: blur(12px) saturate(1.3);
+  border-bottom: 1px solid var(--vn-border);
+}
+
+.vn-admin-nav__list {
+  display: flex;
+  align-items: center;
+  /* Wrapped, not scrolled: every section stays visible, including the one you
+   * are on, and there is no scroll position for a page load to lose. */
+  flex-wrap: wrap;
+  gap: var(--vn-space-1);
+  margin: 0;
+  padding: var(--vn-space-2) var(--vn-space-3);
+  list-style: none;
+}
+
+/* On a phone the groups are just an organising idea: the labels are off and the
+ * wrappers dissolve, so the chips wrap as one run exactly as they always did.
+ * The sidebar (see the wide block at the foot of this file) puts them back. */
+.vn-admin-nav__group,
+.vn-admin-nav__items {
+  display: contents;
+}
+
+.vn-admin-nav__label {
+  display: none;
+}
+
+.vn-admin-nav__item {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0 var(--vn-space-3);
+  border-radius: var(--vn-radius-pill);
+  color: var(--vn-muted);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--vn-fast) var(--vn-ease),
+    color var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-admin-nav__item:hover {
+    background: var(--vn-accent-soft);
+    color: var(--vn-text);
+  }
+}
+
+/* "Where am I" wears the same selected treatment as a chip. */
+.vn-admin-nav__item[aria-current="page"] {
+  background: var(--vn-accent-soft);
+  color: var(--vn-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vn-accent) 55%, transparent);
+}
+
+.vn-admin-nav__item:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------- the panel browser */
+
+/* A small uppercase heading that names what a pane holds. */
+.vn-eyebrow {
+  margin: 0 0 var(--vn-space-2);
+  color: var(--vn-muted);
+  font-family: var(--vn-font-body);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* One row per panel: what it is called, how much of it is live, and the two
+ * facts worth seeing without opening it. */
+.vn-rail {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vn-rail__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--vn-space-2);
+  width: 100%;
+  padding: var(--vn-space-2);
+  border: 0;
+  border-bottom: 1px solid var(--vn-border);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--vn-fast) var(--vn-ease);
+}
+
+.vn-rail__name {
+  overflow: hidden;
+  color: var(--vn-text);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vn-rail__count {
+  color: var(--vn-text);
+  font-size: var(--vn-text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.vn-rail__meta {
+  grid-column: 1 / -1;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-2xs);
+}
+
+@media (hover: hover) {
+  .vn-rail__item:hover {
+    background: var(--vn-accent-soft);
+  }
+}
+
+/* "Which one am I looking at" wears a rule down its edge, the way a desktop
+ * list marks its selection. */
+.vn-rail__item[aria-current="true"] {
+  background: var(--vn-accent-soft);
+  box-shadow: inset 3px 0 0 var(--vn-accent);
+}
+
+.vn-rail__item:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.vn-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vn-space-2);
+  min-height: var(--vn-control-h);
+  padding: var(--vn-space-2) var(--vn-space-5);
+  border: 1px solid transparent;
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-accent);
+  color: var(--vn-on-accent);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-decoration: none;
+  cursor: pointer;
+  /* The shadow takes its hue from whatever the fill is, so the pink variant
+   * glows pink without a second rule. */
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--vn-accent) 80%, transparent);
+  transition:
+    background-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-button:hover {
+    background: color-mix(in srgb, var(--vn-accent) 88%, var(--tangi-navy));
+    box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--vn-accent) 90%, transparent);
+  }
+}
+
+.vn-button:active {
+  transform: translateY(1px);
+  box-shadow: var(--vn-shadow-1);
+}
+
+.vn-button:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+.vn-button:disabled,
+.vn-button[aria-disabled="true"] {
+  /* Neutral, not a faded brand fill — a disabled control must read as inert
+   * rather than as a lighter version of the primary action. */
+  background: var(--vn-border);
+  border-color: transparent;
+  color: var(--vn-muted);
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+}
+
+.vn-button--muted {
+  background: var(--vn-surface);
+  color: var(--vn-text);
+  border-color: var(--vn-border);
+  box-shadow: var(--vn-shadow-1);
+}
+
+@media (hover: hover) {
+  .vn-button--muted:hover {
+    background: var(--vn-accent-soft);
+    border-color: color-mix(in srgb, var(--vn-accent) 40%, var(--vn-border));
+  }
+}
+
+.vn-button--accent {
+  background: var(--tangi-pink);
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--tangi-pink) 80%, transparent);
+}
+
+/* Definition list used by the account and settings screens. */
+.vn-detail {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--vn-space-1) var(--vn-space-4);
+  margin: 0;
+}
+
+.vn-detail dt {
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+}
+
+.vn-detail dd {
+  margin: 0;
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+}
+
+/* The auth pages generated by phx.gen.auth use this class for links. */
+.text-brand {
+  color: var(--vn-accent-text);
+  font-weight: 600;
+  text-underline-offset: 0.15em;
+}
+
+.vn-badge {
+  display: inline-block;
+  margin-left: var(--vn-space-2);
+  padding: 0.125rem var(--vn-space-2);
+  border-radius: var(--vn-radius-pill);
+  font-size: var(--vn-text-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: middle;
+  background: var(--vn-border);
+  color: var(--vn-muted);
+}
+
+.vn-badge--ok {
+  background: var(--vn-accent-soft);
+  color: var(--vn-accent-text);
+}
+
+.vn-badge--warn {
+  background: var(--vn-warn-soft);
+  color: var(--vn-warn-text);
+}
+
+.vn-error {
+  margin: var(--vn-space-3) 0 0;
+  padding: var(--vn-space-3) var(--vn-space-4);
+  border-radius: var(--vn-radius-sm);
+  background: var(--vn-danger-soft);
+  border: 1px solid color-mix(in srgb, var(--vn-danger) 22%, transparent);
+  color: var(--vn-danger);
+  font-size: var(--vn-text-ui);
+  line-height: var(--vn-leading-ui);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------- forms (daisyUI bridge) */
+
+/* daisyUI ships 35px controls with 14px text. The shell's controls are 44px
+ * (§12 tap target) and inputs must be ≥16px or iOS zooms the page on focus. */
+/* The generated CoreComponents put an 8px `mb-2` under every field, which is
+ * too tight against a 44px control. */
+.fieldset {
+  margin-bottom: var(--vn-space-4);
+}
+
+.vn-main .label,
+.fieldset .label {
+  margin-bottom: var(--vn-space-1);
+  font-size: var(--vn-text-sm);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--vn-muted);
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-height: var(--vn-control-h);
+  font-family: var(--vn-font-body);
+  font-size: var(--vn-text-body);
+  color: var(--vn-text);
+  background: var(--vn-surface);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius-field);
+  box-shadow: none;
+  transition:
+    border-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: color-mix(in srgb, var(--vn-muted) 65%, transparent);
+}
+
+@media (hover: hover) {
+  .input:hover,
+  .select:hover,
+  .textarea:hover {
+    border-color: color-mix(in srgb, var(--vn-accent) 40%, var(--vn-border));
+  }
+}
+
+/* One focus treatment for the whole app: a brand-blue halo on bordered
+ * controls, never daisyUI's heavy navy outline. */
+.input:focus,
+.input:focus-within,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--vn-accent);
+  box-shadow: var(--vn-ring);
+}
+
+.input-error,
+.input-error:focus,
+.input-error:focus-within {
+  border-color: color-mix(in srgb, var(--vn-danger) 55%, var(--vn-border));
+}
+
+.checkbox {
+  border-radius: 0.375rem;
+  border-color: var(--vn-border);
+}
+
+.checkbox:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+.btn {
+  min-height: var(--vn-control-h);
+  height: auto;
+  padding: var(--vn-space-2) var(--vn-space-5);
+  border-radius: var(--vn-radius-pill);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: var(--vn-shadow-1);
+  transition:
+    background-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
+}
+
+.btn-primary {
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--vn-accent) 80%, transparent);
+}
+
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--vn-accent) 88%, var(--tangi-navy));
+  }
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled,
+.btn[disabled],
+.btn-disabled {
+  background: var(--vn-border);
+  border-color: transparent;
+  color: var(--vn-muted);
+  box-shadow: none;
+  transform: none;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+/* daisyUI paints errors with the raw accent pink, which is too light for small
+ * text on white; the darkened token keeps the same hue. */
+.text-error {
+  color: var(--vn-danger);
+  font-weight: 600;
+}
+
+/* daisyUI's soft button tints the fill but paints the label in the raw brand
+ * blue (2.6:1 on its own tint). The darker accent keeps it readable. The guard
+ * mirrors daisyUI's so the hover, active and focus states — which go solid —
+ * keep the off-white label. */
+.btn-soft:not(
+  .btn-active,
+  :hover,
+  :active:focus,
+  :focus-visible,
+  :disabled,
+  [disabled],
+  .btn-disabled
+) {
+  --btn-fg: var(--vn-accent-text);
+  box-shadow: none;
+}
+
+.alert {
+  border-radius: var(--vn-radius);
+  font-size: var(--vn-text-ui);
+  line-height: var(--vn-leading-ui);
+  box-shadow: var(--vn-shadow-1);
+}
+
+/* -------------------------------------------------------------- surfaces */
+
+/* The raw supplier catalog: a wide table that scrolls inside the phone column. */
+.vn-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vn-border) transparent;
+}
+
+.vn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--vn-text-sm);
+}
+
+.vn-table th,
+.vn-table td {
+  padding: var(--vn-space-2);
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--vn-border);
+}
+
+.vn-table th {
+  color: var(--vn-muted);
+  font-size: var(--vn-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vn-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* The catalog workspace (build-plan.md M4): an offer card, its three lanes, and
+ * the placement controls. */
+.vn-offer {
+  margin-top: var(--vn-space-3);
+  padding: var(--vn-space-3);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+}
+
+.vn-lanes {
+  margin: var(--vn-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-1);
+}
+
+.vn-lanes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--vn-space-2);
+  font-size: var(--vn-text-sm);
+}
+
+.vn-grade {
+  min-width: 4.5rem;
+  font-weight: 600;
+}
+
+.vn-link-btn {
+  min-height: var(--vn-tap-target);
+  padding: 0 var(--vn-space-1);
+  border: 0;
+  background: none;
+  color: var(--vn-accent-text);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  text-decoration-color: color-mix(in srgb, var(--vn-accent-text) 35%, transparent);
+  cursor: pointer;
+  transition: text-decoration-color var(--vn-fast) var(--vn-ease);
+}
+
+.vn-link-btn:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+  border-radius: var(--vn-radius-sm);
+}
+
+@media (hover: hover) {
+  .vn-link-btn:hover {
+    text-decoration-color: currentColor;
+  }
+}
+
+.vn-suggestions {
+  margin: var(--vn-space-3) 0;
+  padding: var(--vn-space-3);
+  border-radius: var(--vn-radius);
+  border: 1px solid color-mix(in srgb, var(--vn-accent) 20%, transparent);
+  background: var(--vn-accent-soft);
+  font-size: var(--vn-text-sm);
+}
+
+/* --------------------------------------------------------- market (M6) */
+
+.vn-grades {
+  margin: var(--vn-space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-3);
+}
+
+.vn-grades li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: var(--vn-text-ui);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vn-space-2);
+}
+
+.vn-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vn-space-1);
+  /* Wide enough that a one-word chip reads as a pill, not a dot. */
+  min-height: var(--vn-tap-target);
+  padding: 0 var(--vn-space-5);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-surface);
+  color: var(--vn-text);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+  box-shadow: var(--vn-shadow-1);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--vn-fast) var(--vn-ease),
+    border-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-chip:hover {
+    border-color: color-mix(in srgb, var(--vn-accent) 45%, var(--vn-border));
+  }
+}
+
+.vn-chip:focus-visible,
+.vn-grade-card:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+/* "Selected" is one treatment everywhere: soft blue fill, blue outline. */
+.vn-chip--on {
+  border-color: var(--vn-accent);
+  background: var(--vn-accent-soft);
+  color: var(--vn-text);
+}
+
+.vn-offers {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+}
+
+.vn-offer-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  min-height: var(--vn-tap-target);
+  padding: var(--vn-space-3) var(--vn-space-4);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+  text-decoration: none;
+  color: var(--vn-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-offer-link:hover {
+    border-color: color-mix(in srgb, var(--vn-accent) 45%, var(--vn-border));
+    box-shadow: var(--vn-shadow-2);
+  }
+}
+
+.vn-offer-link:active {
+  background: var(--vn-accent-soft);
+  transform: translateY(1px);
+}
+
+.vn-offer-link:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+.vn-offer-link__title {
+  font-weight: 700;
+}
+
+.vn-offer-link__from {
+  color: var(--vn-accent-text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.vn-grades-pick {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--vn-space-2);
+}
+
+/* There are always three grades, which on a phone's two-up grid would leave
+ * the last one orphaned beside a gap. Let the lone card take the whole row so
+ * the block stays square. */
+.vn-grade-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  /* A lone card has the width of two, so let it read as a row rather than leave
+   * two thirds of it empty. */
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+}
+
+.vn-grade-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-1);
+  padding: var(--vn-space-3);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-grade-card:hover {
+    border-color: color-mix(in srgb, var(--vn-accent) 45%, var(--vn-border));
+    box-shadow: var(--vn-shadow-2);
+  }
+}
+
+.vn-grade-card:active {
+  transform: translateY(1px);
+}
+
+.vn-grade-card--on {
+  border-color: var(--vn-accent);
+  background: var(--vn-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--vn-accent);
+}
+
+.vn-price {
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-lg);
+  font-weight: 700;
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vn-space-4);
+  margin: var(--vn-space-3) 0;
+}
+
+.vn-total__value {
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-xl);
+  font-weight: 700;
+  line-height: var(--vn-leading-tight);
+}
+
+/* The buyer dashboard's stats strip (scope.md §11). */
+.vn-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--vn-space-3);
+}
+
+.vn-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-1);
+}
+
+.vn-stat__label {
+  color: var(--vn-muted);
+  font-size: var(--vn-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vn-stat__value {
+  min-height: 1.75rem;
+  min-width: 4rem;
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-lg);
+  font-weight: 700;
+}
+
+/* The wallet ledger (scope.md §6): signed rows, newest first. */
+.vn-ledger {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vn-ledger__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  padding: var(--vn-space-2) 0;
+  border-bottom: 1px solid var(--vn-border);
+  font-size: var(--vn-text-ui);
+}
+
+.vn-ledger__row:last-child {
+  border-bottom: 0;
+}
+
+.vn-ledger__amount {
+  font-weight: 700;
+  color: var(--vn-accent-text);
+  white-space: nowrap;
+}
+
+.vn-ledger__amount--out {
+  color: var(--vn-muted);
+}
+
+.vn-breakall {
+  word-break: break-all;
+  font-size: var(--vn-text-sm);
+}
+
+/* ------------------------------------------------------------- feedback */
+
+/* Skeletons instead of spinners (scope.md §12): the shape of the answer before
+ * the answer arrives. */
+.vn-skeleton {
+  display: block;
+  border-radius: var(--vn-radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--vn-border) 25%,
+    color-mix(in srgb, var(--vn-border) 45%, #ffffff) 37%,
+    var(--vn-border) 63%
+  );
+  background-size: 400% 100%;
+  animation: vn-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes vn-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: 0 0;
+  }
+}
+
+/* Push/pop feel on every live navigation (scope.md §12). LiveView 1.2 has no
+ * built-in View Transitions hook, so the shell slides the incoming view; the
+ * direction comes from the navigation event (see assets/js/app.js). */
+.vn-main.vn-enter-forward {
+  animation: vn-slide-forward 180ms var(--vn-ease) both;
+}
+
+.vn-main.vn-enter-back {
+  animation: vn-slide-back 180ms var(--vn-ease) both;
+}
+
+@keyframes vn-slide-forward {
+  from {
+    opacity: 0.4;
+    transform: translateX(0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes vn-slide-back {
+  from {
+    opacity: 0.4;
+    transform: translateX(-0.75rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The full-screen M-Pesa sheet (scope.md §12): one calm instruction, the amount,
+ * and a waiting state fed by PubSub — never a spinner. */
+.vn-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--vn-space-3);
+  width: 100%;
+  max-width: 30rem;
+  margin-inline: auto;
+  padding: var(--vn-space-8) var(--vn-space-6)
+    calc(var(--vn-space-8) + env(safe-area-inset-bottom));
+  background: var(--vn-bg);
+  text-align: center;
+}
+
+.vn-sheet__amount {
+  margin: 0;
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-2xl);
+  font-weight: 700;
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-sheet__note {
+  margin: 0;
+  max-width: 24ch;
+  font-size: var(--vn-text-body);
+  line-height: var(--vn-leading-ui);
+  color: var(--vn-muted);
+}
+
+.vn-sheet__waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vn-space-2);
+  margin: 0;
+  font-weight: 600;
+}
+
+.vn-pulse {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--vn-accent) 55%, transparent);
+  animation: vn-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes vn-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--vn-accent) 45%, transparent);
+  }
+
+  50% {
+    opacity: 0.75;
+    transform: scale(0.8);
+    box-shadow: 0 0 0 0.35rem color-mix(in srgb, var(--vn-accent) 0%, transparent);
+  }
+}
+
+/* The Orders tab and the order page (build-plan.md M8): the state pill, the
+ * list row, and the timeline built from OrderEvent. */
+.vn-orders {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vn-order-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: var(--vn-tap-target);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  text-decoration: none;
+  color: var(--vn-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vn-order-link:active {
+  background: var(--vn-accent-soft);
+}
+
+.vn-order-link__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.vn-order-link__title {
+  font-weight: 700;
+}
+
+.vn-order-link__meta {
+  color: var(--vn-muted);
+  font-size: 0.8125rem;
+}
+
+.vn-state {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--vn-border);
+  color: var(--vn-muted);
+}
+
+.vn-state--placing,
+.vn-state--placed,
+.vn-state--in_progress,
+.vn-state--partial,
+.vn-state--needs_review {
+  background: var(--vn-warn-soft);
+  color: var(--vn-warn-text);
+}
+
+.vn-state--awaiting_payment,
+.vn-state--paid,
+.vn-state--completed {
+  background: var(--vn-accent-soft);
+  color: var(--vn-accent-text);
+}
+
+.vn-state--failed,
+.vn-state--canceled,
+.vn-state--refunded,
+.vn-state--abandoned {
+  background: var(--vn-danger-soft);
+  color: var(--vn-danger);
+}
+
+.vn-timeline {
+  margin: 0;
+  padding: 0 0 0 1rem;
+  list-style: none;
+  border-left: 2px solid var(--vn-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.vn-timeline__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  font-size: 0.875rem;
+}
+
+.vn-timeline__state {
+  font-weight: 700;
+}
+
+.vn-timeline__at {
+  font-size: 0.75rem;
+}
+
+/* ------------------------------------------------------------------ icons */
+
+/* The shell ships a handful of icons beyond the ones bundled in default.css,
+ * drawn with the same mask technique so <.icon name="hero-…"> keeps working
+ * and the glyph follows currentColor. */
+.hero-shopping-bag {
+  --hero-shopping-bag: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Cpath%20d%3D%22M6%208h12l1%2012H5L6%208Z%22%2F%3E%3Cpath%20d%3D%22M9%208V6a3%203%200%200%201%206%200v2%22%2F%3E%3C%2Fsvg%3E);
+  -webkit-mask: var(--hero-shopping-bag);
+  mask: var(--hero-shopping-bag);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  background-color: currentColor;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.hero-receipt-percent {
+  --hero-receipt-percent: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Cpath%20d%3D%22M6%203h12v18l-3-2-3%202-3-2-3%202V3Z%22%2F%3E%3Cpath%20d%3D%22M9.5%208h5M9.5%2012h5%22%2F%3E%3C%2Fsvg%3E);
+  -webkit-mask: var(--hero-receipt-percent);
+  mask: var(--hero-receipt-percent);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  background-color: currentColor;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.hero-wallet {
+  --hero-wallet: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Crect%20x%3D%223%22%20y%3D%226.5%22%20width%3D%2218%22%20height%3D%2212%22%20rx%3D%222%22%2F%3E%3Ccircle%20cx%3D%2216.5%22%20cy%3D%2212.5%22%20r%3D%221%22%2F%3E%3C%2Fsvg%3E);
+  -webkit-mask: var(--hero-wallet);
+  mask: var(--hero-wallet);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  background-color: currentColor;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.hero-user {
+  --hero-user: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%228%22%20r%3D%223.5%22%2F%3E%3Cpath%20d%3D%22M4.5%2020a7.5%207.5%200%200%201%2015%200%22%2F%3E%3C%2Fsvg%3E);
+  -webkit-mask: var(--hero-user);
+  mask: var(--hero-user);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  background-color: currentColor;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.hero-home {
+  --hero-home: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Cpath%20d%3D%22M4%2010.5%2012%204l8%206.5V20a1%201%200%200%201-1%201H5a1%201%200%200%201-1-1v-9.5Z%22%2F%3E%3Cpath%20d%3D%22M9.5%2021v-6h5v6%22%2F%3E%3C%2Fsvg%3E);
+  -webkit-mask: var(--hero-home);
+  mask: var(--hero-home);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  background-color: currentColor;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* ------------------------------------------------- the back office, at a desk */
+
+/* The shop is a phone app that happens to be HTML (scope.md §12). The back office
+ * is not: it is used at a desk, with a mouse and a keyboard, usually on a laptop,
+ * and a 30rem column wastes most of the screen. Above this width the shell turns
+ * into a sidebar and a workspace. Below it, it stays the phone layout — an
+ * operator on a phone still gets a working page, just not the intended one. */
+@media (min-width: 62rem) {
+  .vn-app--admin {
+    display: grid;
+    grid-template-columns: 16rem minmax(0, 1fr);
+    /* The one place the shell stops being a column. */
+    max-width: none;
+    align-items: start;
+  }
+
+  /* The sidebar is the sticky top bar, turned on its side. */
+  .vn-app--admin .vn-topbar {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    background: var(--vn-surface);
+    border-right: 1px solid var(--vn-border);
+  }
+
+  .vn-app--admin .vn-header {
+    padding: var(--vn-space-4);
+    background: none;
+    backdrop-filter: none;
+  }
+
+  .vn-app--admin .vn-admin-nav {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    background: none;
+    backdrop-filter: none;
+    border-bottom: 0;
+    /* The one line that makes the nav read as a list of sections rather than as
+     * a continuation of the brand. */
+    border-top: 1px solid var(--vn-border);
+  }
+
+  .vn-app--admin .vn-admin-nav__list {
+    /* Down the side instead of across the top. */
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--vn-space-4);
+    padding: var(--vn-space-4) var(--vn-space-2);
+  }
+
+  .vn-app--admin .vn-admin-nav__group,
+  .vn-app--admin .vn-admin-nav__items {
+    display: block;
+  }
+
+  .vn-admin-nav__label {
+    display: block;
+    margin: 0 0 var(--vn-space-1);
+    padding: 0 var(--vn-space-3);
+    color: var(--vn-muted);
+    font-family: var(--vn-font-body);
+    font-size: var(--vn-text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .vn-app--admin .vn-admin-nav__item {
+    justify-content: flex-start;
+    min-height: 2.375rem;
+    padding: 0 var(--vn-space-3);
+    border-radius: var(--vn-radius-sm);
+    font-size: var(--vn-text-ui);
+  }
+
+  /* The workspace is one uninterrupted surface: panes sit flush and are divided
+   * by hairlines, the way a desktop tool draws them, rather than floating as
+   * cards on a coloured page. It owns the scroll, so the sidebar never moves.
+   *
+   * One column is capped, because a list row or a form stretched the width of a
+   * monitor is hard to read; the leftover is simply more of the same surface. */
+  .vn-app--admin .vn-main {
+    display: grid;
+    grid-template-columns: minmax(0, 60rem);
+    justify-content: start;
+    align-content: start;
+    gap: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    overflow-y: auto;
+    padding: 0;
+    background: var(--vn-surface);
+  }
+
+  /* Boards are herds of small panes — a stat each, an order each — so those
+   * pages tile them across the whole surface. A page whose panes all live inside
+   * one form (Settings) cannot tile, so it stays one column. */
+  .vn-app--admin-overview .vn-main,
+  .vn-app--admin-orders .vn-main,
+  .vn-app--admin-insight .vn-main {
+    grid-template-columns: repeat(auto-fit, minmax(26rem, 1fr));
+    justify-content: stretch;
+  }
+
+  /* Suppliers is a browser, not a reading column: the list, the panel you picked
+   * and the things you can do to it each get a column, in one row. */
+  .vn-app--admin-suppliers .vn-main {
+    grid-template-columns: 15rem minmax(0, 1fr) 21rem;
+  }
+
+  /* Anything that is not one of those three columns — the panel-wide triggers,
+   * the add form, the raw feed — takes the whole width. */
+  .vn-app--admin-suppliers .vn-wide {
+    grid-column: 1 / -1;
+  }
+
+  /* Panes butt together, so each one draws only its own bottom edge: a single
+   * hairline between neighbours, never doubled. The bar at the top of the
+   * workspace supplies the line under itself, and a form is a pass-through so
+   * its panes sit flush with the ones outside it. */
+  .vn-app--admin .vn-main > form {
+    display: contents;
+  }
+
+  .vn-app--admin .vn-main .vn-card {
+    padding: var(--vn-space-4) var(--vn-space-5);
+    border: 0;
+    border-bottom: 1px solid var(--vn-border);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Only tiled panes have a neighbour to the side worth dividing from. */
+  .vn-app--admin-overview .vn-main .vn-card,
+  .vn-app--admin-orders .vn-main .vn-card,
+  .vn-app--admin-suppliers .vn-main .vn-card,
+  .vn-app--admin-insight .vn-main .vn-card {
+    border-right: 1px solid var(--vn-border);
+  }
+
+  /* A loose line — a sentence between two panes, the form's own Save — is a pane
+   * too, and needs the gutter a card gets from its padding. */
+  .vn-app--admin .vn-main > :not(.vn-card) {
+    padding: var(--vn-space-3) var(--vn-space-5);
+    border-bottom: 1px solid var(--vn-border);
+  }
+
+  /* The page's name rides a slim bar, like a tool's title bar. Its own gutter
+   * and hairline come from the loose-line rule above. */
+  .vn-app--admin .vn-page-title {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    grid-column: 1 / -1;
+    margin: 0;
+    background: var(--vn-surface);
+    font-size: var(--vn-text-lg);
+    font-weight: 600;
+    line-height: var(--vn-leading-tight);
+  }
+
+  /* A field stretched to the width of a monitor is hard to read and harder to
+   * aim at. Forms get a column; tables keep the row. */
+  .vn-app--admin .vn-card .fieldset {
+    max-width: 34rem;
+  }
+
+  /* Labels are micro-headings. That is what stops a desktop form from reading
+   * as one undifferentiated run of text. */
+  .vn-app--admin .vn-card .fieldset .label,
+  .vn-app--admin .vn-card legend {
+    display: block;
+    margin-bottom: var(--vn-space-1);
+    color: var(--vn-muted);
+    font-size: var(--vn-text-2xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* A page's own toolbar — the overview's greeting — is a banner across the top
+   * of the workspace, not a pane that stretches to the height of whatever it
+   * happens to sit beside. */
+  .vn-app--admin-overview .vn-main > .vn-card:first-of-type {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* The Sunday message, previewed on the insight screen (M10). */
+.vn-digest {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--vn-ink);
+}

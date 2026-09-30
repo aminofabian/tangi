@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <%!-- viewport-fit=cover lets the shell pad against the notch and home
+          indicator via env(safe-area-inset-*). Maximum-scale is left alone so
+          pinch-zoom stays available (accessibility). --%>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+
+    <meta name="theme-color" content="#03A2FC" />
+    <meta name="color-scheme" content="light" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ViewNinjas" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+    <link rel="manifest" href={~p"/manifest.json"} />
+    <link rel="apple-touch-icon" href={~p"/images/apple-touch-icon.png"} />
+    <%!-- The mascot on its own, for the tab icon; the .ico is the raster
+          fallback. --%>
+    <link rel="icon" href={~p"/images/logo-mark.png"} type="image/png" />
+    <link rel="icon" href={~p"/favicon.ico"} sizes="any" />
+
+    <%!-- Fredoka and Nunito, self-hosted and non-blocking (scope.md §12: never
+          block first paint on a web font on a 3G phone). --%>
+    <link
+      rel="preload"
+      href={~p"/fonts/fredoka-latin.woff2"}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href={~p"/fonts/nunito-latin.woff2"}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <.live_title default="ViewNinjas" suffix=" · ViewNinjas" phx-no-format>{assigns[:page_title]}</.live_title>
+
+    <%!-- default.css first so the hand-written shell in app.css can override it. --%>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/default.css"} />
+    <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
+    </script>
+  </head>
+  <body>
+    {@inner_content}
+  </body>
+</html>

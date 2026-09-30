@@ -1,0 +1,13 @@
+{
+  "name": "viewninjas-visual",
+  "private": true,
+  "description": "Screenshot and measure the running app. Dev-only; nothing here ships.",
+  "type": "commonjs",
+  "scripts": {
+    "shot": "node shot.js",
+    "stylebook": "node stylebook.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.0.0"
+  }
+}

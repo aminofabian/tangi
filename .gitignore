@@ -1,0 +1,49 @@
+# The directory Mix will write compiled artifacts to.
+/_build/
+
+# If you run "mix test --cover", coverage assets end up here.
+/cover/
+
+# The directory Mix downloads your dependencies sources to.
+/deps/
+
+# Where 3rd-party dependencies like ExDoc output generated docs.
+/doc/
+
+# Ignore .fetch files in case you like to edit your project deps locally.
+/.fetch
+
+# If the VM crashes, it generates a dump, let's ignore it too.
+erl_crash.dump
+
+# Also ignore archive artifacts (built via "mix archive.build").
+*.ez
+
+# Temporary files, for example, from tests.
+/tmp/
+
+# Ignore package tarball (built via "mix hex.build").
+viewninjas-*.tar
+
+# Ignore only the esbuild output. With `--no-tailwind` the CSS in
+# priv/static/assets/css/ and priv/static/assets/default.css is hand-written
+# source and must be committed.
+/priv/static/assets/js/
+
+# Ignore digested assets cache.
+/priv/static/cache_manifest.json
+
+# The visual-check scripts are dev-only; their deps and output are not source.
+/scripts/visual/node_modules/
+/scripts/visual/*.png
+/.shots/
+
+# Local environment/secrets files. Config only; never commit secrets.
+/.env
+/.env.*
+*.env
+
+# In case you use Node.js/npm, you want to ignore these.
+npm-debug.log
+/assets/node_modules/
+

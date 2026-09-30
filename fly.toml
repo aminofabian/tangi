@@ -1,0 +1,44 @@
+# Fly.io configuration for the ViewNinjas staging deploy (build-plan.md M0).
+#
+# Deploy with:
+#
+#   fly launch --no-deploy --copy-config   # first time, then edit `app`
+#   fly secrets set SECRET_KEY_BASE=... DATABASE_URL=... PHX_HOST=...
+#   fly deploy
+#
+# One app, one BEAM node, a managed Postgres (Fly Postgres or any managed
+# instance reachable over DATABASE_URL).
+
+app = "viewninjas-staging"
+primary_region = "jnb"
+
+[build]
+
+[deploy]
+  # Overlay from rel/overlays/bin/migrate, run before booting the new release.
+  release_command = "/app/bin/migrate"
+
+[env]
+  PHX_HOST = "viewninjas-staging.fly.dev"
+  PORT = "4000"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+  # /health is excluded from force_ssl in config/prod.exs so this plain-HTTP
+  # check is not redirected.
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
