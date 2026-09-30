@@ -58,6 +58,20 @@ defmodule ViewNinjasWeb.WalletLive do
     start_topup(socket, to_string(div(socket.assigns.payment.amount_cents, 100)))
   end
 
+  def handle_event("pick_amount", %{"amount" => amount}, socket) do
+    {:noreply, assign(socket, form: to_form(%{"amount" => amount}, as: "topup"))}
+  end
+
+  def handle_event("close_topup", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:mode, :idle)
+     |> assign(:payment, nil)
+     |> assign(:failure, nil)
+     |> assign(:form, to_form(%{"amount" => ""}, as: "topup"))
+     |> load_wallet()}
+  end
+
   defp start_topup(socket, raw_amount) do
     if Payments.configured?() do
       with {:ok, amount_cents} <- validate_amount(raw_amount),
@@ -113,12 +127,19 @@ defmodule ViewNinjasWeb.WalletLive do
           />
         <% @mode == :succeeded -> %>
           <.succeeded
-            title={gettext("Top-up complete")}
+            title={gettext("It's in")}
             amount_cents={@receipt_amount}
             receipt={@receipt}
+            celebrate
+            balance={kes(@balance)}
+            closer="close_topup"
           />
         <% @mode == :failed -> %>
-          <.failed amount_cents={@payment.amount_cents} failure={@failure} />
+          <.failed
+            amount_cents={@payment.amount_cents}
+            failure={@failure}
+            closer="close_topup"
+          />
         <% true -> %>
           <.wallet_body
             balance={@balance}
@@ -140,15 +161,31 @@ defmodule ViewNinjasWeb.WalletLive do
 
   defp wallet_body(assigns) do
     ~H"""
-    <section class="vn-card" id="wallet-balance">
-      <h2>{gettext("Balance")}</h2>
-      <p class="vn-total__value">{kes(@balance)}</p>
-      <p class="vn-muted">{gettext("Spendable now — the sum of your ledger.")}</p>
+    <section class="vn-purse" id="wallet-balance">
+      <span class="vn-purse__coin vn-purse__coin--a" aria-hidden="true"></span>
+      <span class="vn-purse__coin vn-purse__coin--b" aria-hidden="true"></span>
+      <span class="vn-purse__coin vn-purse__coin--c" aria-hidden="true"></span>
+      <p class="vn-purse__label">{gettext("Balance")}</p>
+      <p class="vn-purse__amount">{kes(@balance)}</p>
+      <p class="vn-purse__note">{gettext("Spendable now — the sum of your ledger.")}</p>
     </section>
 
-    <section class="vn-card">
-      <h2>{gettext("Top up")}</h2>
+    <section class="vn-card" id="topup">
+      <h2>{gettext("Add money")}</h2>
+      <p class="vn-muted">{gettext("Pick a handful, or type your own.")}</p>
       <.form for={@form} id="topup-form" phx-submit="topup">
+        <div class="vn-chips" id="topup-amounts">
+          <button
+            :for={amount <- topup_amounts()}
+            type="button"
+            id={"topup-amount-#{amount}"}
+            class={["vn-chip", picked?(@form, amount) && "vn-chip--on"]}
+            phx-click="pick_amount"
+            phx-value-amount={amount}
+          >
+            {kes(amount * 100)}
+          </button>
+        </div>
         <.input
           field={@form[:amount]}
           type="number"
@@ -258,6 +295,10 @@ defmodule ViewNinjasWeb.WalletLive do
   defp check_bounds(cents), do: {:ok, cents}
 
   defp kes(cents), do: Pricing.format_kes_cents(cents)
+
+  defp topup_amounts, do: [50, 100, 200, 500, 1_000]
+
+  defp picked?(form, amount), do: to_string(form[:amount].value) == to_string(amount)
 
   defp signed(cents) when cents < 0, do: "−" <> Pricing.format_kes_cents(-cents)
   defp signed(cents), do: "+" <> Pricing.format_kes_cents(cents)

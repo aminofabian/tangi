@@ -77,6 +77,19 @@ defmodule ViewNinjasWeb.WalletLiveTest do
     assert Wallet.balance(user) == 0
   end
 
+  test "an amount chip fills the field and does not start a payment", %{conn: conn} do
+    user = verified_user_fixture()
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/wallet")
+
+    html = lv |> element("#topup-amount-200") |> render_click()
+
+    assert html =~ ~s(value="200")
+    assert has_element?(lv, "#topup-amount-200.vn-chip--on")
+    assert Payments.pending_topup(user) == nil
+  end
+
   test "the amount is validated before any prompt", %{conn: conn} do
     user = verified_user_fixture()
     conn = log_in_user(conn, user)
