@@ -42,5 +42,11 @@ erl_crash.dump
 # Static artifacts - These should be fetched and built inside the Docker image
 # https://phoenix.hexdocs.pm/Mix.Tasks.Phx.Gen.Release.html#module-docker
 /assets/node_modules/
-/priv/static/assets/
+# esbuild writes priv/static/assets/js during `mix assets.deploy`. The CSS in
+# this tree is hand-written source (there is no Tailwind step), so it has to
+# stay in the build context or the release ships with no stylesheets.
+/priv/static/assets/*
+!/priv/static/assets/css
+!/priv/static/assets/css/**
+!/priv/static/assets/default.css
 /priv/static/cache_manifest.json
