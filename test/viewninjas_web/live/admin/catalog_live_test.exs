@@ -96,8 +96,18 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
 
     lv |> element("#select-#{subject.id}") |> render_click()
 
+    assert has_element?(lv, "#placement")
     assert has_element?(lv, "#lane-form")
+    assert has_element?(lv, "#grade-cheap", "Lowest")
+    assert has_element?(lv, "#grade-moderate", "Middle")
+    assert has_element?(lv, "#grade-quality", "Expensive")
     assert has_element?(lv, "#suggest-#{cheaper.id}")
+    assert has_element?(lv, "#service-#{subject.id}")
+
+    lv |> element("#placement-close") |> render_click()
+
+    refute has_element?(lv, "#placement")
+    assert has_element?(lv, "#service-#{subject.id}")
   end
 
   test "placing a row puts it on the shop at the converted selling price", %{conn: conn} do

@@ -1419,21 +1419,26 @@ p {
 
 .vn-grades-pick {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  /* Three tracks, always. auto-fit plus a full-width last card collapsed the
+   * expensive grade on a wide desk, so Cheap and Moderate were all you saw. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--vn-space-2);
 }
 
-/* There are always three grades, which on a phone's two-up grid would leave
- * the last one orphaned beside a gap. Let the lone card take the whole row so
- * the block stays square. */
-.vn-grade-card:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-  /* A lone card has the width of two, so let it read as a row rather than leave
-   * two thirds of it empty. */
-  flex-direction: row;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--vn-space-3);
+/* On a phone, two cards fit and the third would sit alone in a hole. Give that
+ * last card the whole row so Quality stays readable. */
+@media (max-width: 40rem) {
+  .vn-grades-pick {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .vn-grade-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--vn-space-3);
+  }
 }
 
 .vn-grade-card {
@@ -1468,6 +1473,189 @@ p {
   border-color: var(--vn-accent);
   background: var(--vn-accent-soft);
   box-shadow: inset 0 0 0 1px var(--vn-accent);
+}
+
+/* Placement is a sheet over the catalog, not another page. The list stays
+ * where it was; closing the sheet (or the scrim, or Escape) brings it back. */
+.vn-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.vn-drawer__scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--tangi-navy) 46%, transparent);
+  cursor: pointer;
+  animation: vn-drawer-fade var(--vn-fast) var(--vn-ease);
+}
+
+.vn-drawer__sheet {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(28rem, 100%);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-2);
+  overflow: auto;
+  animation: vn-drawer-in 220ms var(--vn-ease);
+}
+
+.vn-drawer__sheet:focus {
+  outline: none;
+}
+
+.vn-drawer__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  padding: var(--vn-space-4) var(--vn-space-4) var(--vn-space-3);
+  border-bottom: 1px solid var(--vn-border);
+  background: var(--vn-surface);
+}
+
+.vn-drawer__head h2 {
+  margin: 0;
+  font-size: var(--vn-text-lg);
+}
+
+.vn-drawer__kicker {
+  margin: 0 0 var(--vn-space-1);
+  color: var(--vn-accent-text);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.vn-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--vn-tap-target);
+  height: var(--vn-tap-target);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-surface);
+  color: var(--vn-text);
+  cursor: pointer;
+}
+
+.vn-drawer__close:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+.vn-drawer__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.vn-drawer__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-3);
+  padding: var(--vn-space-4);
+}
+
+.vn-drawer__sell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin: 0;
+}
+
+.vn-drawer__amount {
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-2xl);
+  font-weight: 700;
+  line-height: var(--vn-leading-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+/* One grade per row, so Quality (the expensive shelf) cannot fall off a wide grid. */
+.vn-drawer__grades {
+  grid-template-columns: 1fr;
+}
+
+.vn-drawer__grade {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vn-space-2);
+}
+
+.vn-drawer .vn-grade-card:last-child:nth-child(odd) {
+  grid-column: auto;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+@keyframes vn-drawer-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes vn-drawer-in {
+  from {
+    transform: translateX(1.25rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes vn-sheet-up {
+  from {
+    transform: translateY(1.25rem);
+    opacity: 0;
+  }
+
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (max-width: 40rem) {
+  .vn-drawer__sheet {
+    top: auto;
+    width: 100%;
+    height: min(92dvh, 100%);
+    border-radius: var(--vn-radius-lg) var(--vn-radius-lg) 0 0;
+    animation-name: vn-sheet-up;
+  }
+
+  .vn-drawer__grades {
+    grid-template-columns: 1fr;
+  }
 }
 
 .vn-price {
@@ -2331,6 +2519,13 @@ p {
   .vn-app--admin .vn-main > :not(.vn-card) {
     padding: var(--vn-space-3) var(--vn-space-5);
     border-bottom: 1px solid var(--vn-border);
+  }
+
+  /* The placement sheet is fixed over the desk. It is not a pane in the grid,
+   * so the loose-line gutter must not inset it. */
+  .vn-app--admin .vn-main > .vn-drawer {
+    padding: 0;
+    border: 0;
   }
 
   /* The page's name rides a slim bar, like a tool's title bar. Its own gutter
