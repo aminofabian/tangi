@@ -1227,6 +1227,45 @@ p {
   font-variant-numeric: tabular-nums;
 }
 
+/* The price build-up on the placement card: the label on the left, the figure
+ * on the right, and the selling price as the one line that matters. */
+.vn-build {
+  margin: var(--vn-space-3) 0;
+  padding: var(--vn-space-3);
+  border-radius: var(--vn-radius);
+  border: 1px solid var(--vn-border);
+  background: var(--vn-accent-soft);
+  font-size: var(--vn-text-sm);
+}
+
+.vn-build > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+}
+
+.vn-build dt {
+  color: var(--vn-muted);
+}
+
+.vn-build dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.vn-build__sell {
+  margin-top: var(--vn-space-3);
+  padding-top: var(--vn-space-3);
+  border-top: 1px solid var(--vn-border);
+}
+
+.vn-build__sell .vn-catalog-sell {
+  display: inline;
+  font-size: var(--vn-text-lg);
+}
+
 .vn-catalog-actions {
   display: flex;
   flex-wrap: wrap;

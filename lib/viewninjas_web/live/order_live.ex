@@ -92,7 +92,7 @@ defmodule ViewNinjasWeb.OrderLive do
           <dd :if={@order.remains}>{@order.remains}</dd>
         </dl>
         <p :if={@order.state == :needs_review} class="vn-muted">
-          {gettext("We are checking this order with the supplier by hand. Nothing is lost.")}
+          {gettext("We are checking this order by hand. Nothing is lost.")}
         </p>
       </section>
 
@@ -145,15 +145,15 @@ defmodule ViewNinjasWeb.OrderLive do
       )
 
   defp refill_message(%{state: :requested}),
-    do: gettext("We have asked the supplier. This updates on its own.")
+    do: gettext("We have requested the refill. This updates on its own.")
 
   defp refill_message(%{state: :completed}), do: gettext("The refill is done.")
 
   defp refill_message(%{state: :rejected, reason: reason}) when is_binary(reason),
-    do: gettext("The supplier could not refill this order: %{reason}", reason: reason)
+    do: gettext("The refill could not go through: %{reason}", reason: reason)
 
   defp refill_message(%{state: :rejected}),
-    do: gettext("The supplier could not refill this order.")
+    do: gettext("The refill could not go through.")
 
   defp refill_message(_refill), do: ""
 

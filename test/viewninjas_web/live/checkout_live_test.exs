@@ -136,4 +136,38 @@ defmodule ViewNinjasWeb.CheckoutLiveTest do
     assert Wallet.balance(user) == 0
     assert all_enqueued(worker: CreatePayment) == []
   end
+
+  test "a wallet short of the order tops up, then pays the order from it", %{conn: conn} do
+    user = verified_user_fixture()
+    order = order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/checkout/#{order.id}")
+
+    # An empty wallet cannot pay, so checkout offers the top-up instead.
+    refute has_element?(lv, "#pay-wallet")
+    assert has_element?(lv, "#topup-wallet")
+
+    lv |> element("#topup-wallet") |> render_click()
+    assert has_element?(lv, "#payment-sheet")
+
+    payment = Payments.pending_topup(user)
+    assert payment.purpose == :topup
+    assert payment.amount_cents == order.retail_cents
+
+    assert :ok = perform_job(CreatePayment, %{"payment_id" => payment.id})
+    Test.settle!(Payments.get_payment!(payment.id).malipo_payment_id, "TOPUP123")
+    assert :ok = perform_job(ConfirmPayment, %{"payment_id" => payment.id})
+    _ = :sys.get_state(lv.pid)
+
+    # Back on the review, the wallet now covers the order and pays it.
+    assert Wallet.balance(user) == order.retail_cents
+    assert has_element?(lv, "#pay-wallet")
+    refute has_element?(lv, "#topup-wallet")
+
+    lv |> element("#pay-wallet") |> render_click()
+
+    assert has_element?(lv, "#payment-succeeded")
+    assert Orders.get_order!(order.id).state == :paid
+  end
 end

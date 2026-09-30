@@ -106,12 +106,12 @@ defmodule ViewNinjas.Pricing do
   end
 
   @doc """
-  The per-quantity selling price in KES cents, kept to the cent when rounding
-  to a shilling would hide it.
+  The price to show a person: the whole-shilling quote, or the cent quote when
+  that shilling quote would round to zero.
 
   A `0.90` USD service is `KSh 276`. A `0.0012` USD view service is about
-  `KSh 0.37` — `retail_kes_cents/3` rounds that to `KSh 0`, which reads as if
-  the rate was never converted.
+  `KSh 0.37` — `retail_kes_cents/3` rounds that to `KSh 0`, which would read as
+  if the rate had never been converted.
   """
   @spec display_kes_cents(integer() | nil, integer(), Params.t()) :: integer() | nil
   def display_kes_cents(rate_ppm, quantity \\ 1000, params \\ Params.defaults())
@@ -125,6 +125,23 @@ defmodule ViewNinjas.Pricing do
 
       _ ->
         exact_retail_cents(rate_ppm, quantity, params)
+    end
+  end
+
+  @doc """
+  The landed cost to show a person, in cents — the same rule as
+  `display_kes_cents/3`, so the cost and the selling price can sit side by side in
+  a build-up without one of them rounding sub-shilling to zero.
+  """
+  @spec landed_display_cents(integer() | nil, integer(), Params.t()) :: integer() | nil
+  def landed_display_cents(rate_ppm, quantity \\ 1000, params \\ Params.defaults())
+
+  def landed_display_cents(nil, _quantity, _params), do: nil
+
+  def landed_display_cents(rate_ppm, quantity, params) when is_integer(rate_ppm) do
+    case landed_kes_cents(rate_ppm, quantity, params) do
+      cents when is_integer(cents) and cents >= 100 -> cents
+      _ -> exact_landed_cents(rate_ppm, quantity, params)
     end
   end
 
@@ -177,6 +194,50 @@ defmodule ViewNinjas.Pricing do
 
     cents = div(ppm + 5_000, 10_000)
     if ppm > 0 and cents == 0, do: 1, else: cents
+  end
+
+  defp exact_landed_cents(rate_ppm, quantity, params) do
+    ppm =
+      rate_ppm
+      |> cost_usd_ppm(quantity)
+      |> cost_kes_ppm(params)
+      |> landed_ppm(params)
+
+    cents = div(ppm + 5_000, 10_000)
+    if ppm > 0 and cents == 0, do: 1, else: cents
+  end
+
+  @doc "A USD→KES rate in micros as `129.40` — the figure a build-up prints."
+  @spec format_fx_ppm(integer() | nil) :: String.t()
+  def format_fx_ppm(nil), do: "—"
+
+  def format_fx_ppm(fx_ppm) when is_integer(fx_ppm) do
+    whole = div(fx_ppm, 1_000_000)
+
+    frac =
+      fx_ppm
+      |> rem(1_000_000)
+      |> div(10_000)
+      |> Integer.to_string()
+      |> String.pad_leading(2, "0")
+
+    "#{whole}.#{frac}"
+  end
+
+  @doc "Basis points as a percentage, so 13_000 prints 130% and 300 prints 3%."
+  @spec format_bps(integer() | nil) :: String.t()
+  def format_bps(nil), do: "—"
+
+  def format_bps(bps) when is_integer(bps) do
+    value =
+      bps
+      |> Decimal.new()
+      |> Decimal.div(100)
+      |> Decimal.round(2)
+      |> Decimal.normalize()
+      |> Decimal.to_string(:normal)
+
+    "#{value}%"
   end
 
   # -- the settings in force ---------------------------------------------

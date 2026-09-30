@@ -147,21 +147,25 @@ defmodule ViewNinjasWeb.OfferLiveTest do
     assert {:error, {:live_redirect, %{to: "/shop"}}} = live(conn, ~p"/offers/999999")
   end
 
-  test "a paused grade says so and refuses checkout", %{conn: conn} do
+  test "a high-demand grade says so and refuses checkout, without naming a supplier", %{
+    conn: conn
+  } do
     offer = three_grade_offer()
     cheap = Enum.find(offer.lanes, &(&1.grade == :cheap))
     {:ok, _} = ViewNinjas.Suppliers.pause(cheap.supplier_service.supplier, "under the float")
 
-    {:ok, view, _html} = live(conn, ~p"/offers/#{offer.id}")
+    {:ok, view, html} = live(conn, ~p"/offers/#{offer.id}")
 
     assert has_element?(view, "#grade-paused")
+    assert html =~ "In demand"
+    refute html =~ "supplier"
 
     html =
       view
       |> form("#order-form", order: %{link: "https://instagram.com/x", quantity: "1000"})
       |> render_submit()
 
-    assert html =~ "paused right now"
+    assert html =~ "high demand"
     assert ViewNinjas.Repo.aggregate(ViewNinjas.Orders.Order, :count) == 0
   end
 end

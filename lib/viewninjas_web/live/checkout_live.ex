@@ -2,10 +2,12 @@ defmodule ViewNinjasWeb.CheckoutLive do
   @moduledoc """
   Checkout and the M-Pesa sheet (scope.md §8, §12).
 
-  Two ways to pay, one page. **Pay with M-Pesa** starts an attempt and shows the
-  sheet; the money moves only when a confirming `GET` says `settled`, which flips
-  the sheet over PubSub. **Pay from the wallet** debits the ledger and marks the
-  order paid in one transaction, with no prompt at all.
+  Two ways to pay, and either one of them. **Pay with M-Pesa** starts an attempt and
+  shows the sheet; the money moves only when a confirming `GET` says `settled`,
+  which flips the sheet over PubSub. **Pay from the wallet** debits the ledger and
+  marks the order paid in one transaction, with no prompt at all. When the wallet
+  is short, a third button tops it up by the shortfall (the same prompt) and hands
+  the buyer the wallet button back.
 
   The account's phone must be verified first, because that is where the prompt
   goes. A failure leaves the order exactly where it was — `awaiting_payment` —
@@ -24,6 +26,9 @@ defmodule ViewNinjasWeb.CheckoutLive do
   alias ViewNinjas.Wallet
   alias ViewNinjas.Workers.CreatePayment
   alias ViewNinjasWeb.Analytics
+
+  # The wallet will not take a smaller top-up than this (matches the wallet screen).
+  @min_topup_cents 1_000
 
   @impl true
   def mount(_params, session, socket) do
@@ -73,6 +78,7 @@ defmodule ViewNinjasWeb.CheckoutLive do
   @impl true
   def handle_event("retry", params, socket), do: handle_event("pay_mpesa", params, socket)
 
+  @impl true
   def handle_event("pay_wallet", _params, socket) do
     case Orders.pay_from_wallet(socket.assigns.order) do
       {:ok, order} ->
@@ -83,6 +89,27 @@ defmodule ViewNinjasWeb.CheckoutLive do
 
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, gettext("Could not pay from the wallet just now."))}
+    end
+  end
+
+  # The other way to buy: top the wallet up by the shortfall (same M-Pesa prompt), and
+  # the order is then paid from the wallet — one purchase, either route.
+  def handle_event("topup", _params, socket) do
+    amount = topup_amount(socket)
+
+    with :ok <- check_limits(socket),
+         {:ok, payment} <- start_topup(socket, amount) do
+      {:noreply, watch(socket, payment)}
+    else
+      {:error, :rate_limited} ->
+        {:noreply,
+         put_flash(socket, :error, gettext("Too many attempts just now — try again shortly."))}
+
+      {:error, message} when is_binary(message) ->
+        {:noreply, put_flash(socket, :error, message)}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, gettext("Could not start the top-up just now."))}
     end
   end
 
@@ -163,31 +190,64 @@ defmodule ViewNinjasWeb.CheckoutLive do
       <.link navigate={~p"/users/verify-phone"} class="vn-button">{gettext("Verify now")}</.link>
     </section>
 
-    <section :if={@user.phone_verified_at} class="vn-card">
+    <section :if={@user.phone_verified_at} class="vn-card" id="pay">
       <h2>{gettext("Pay")}</h2>
       <p :if={not @payments_configured} class="vn-error" id="payments-unconfigured">
         {gettext(
           "Payments need the secret key that starts with sk_live_. The client id cannot take a payment."
         )}
       </p>
-      <p :if={@payments_configured} class="vn-muted">
-        {gettext("The prompt goes to %{phone}.", phone: phone(@user))}
-      </p>
+
+      <dl class="vn-detail">
+        <dt>{gettext("Total")}</dt>
+        <dd>
+          <span class="vn-total__value">{kes(@order.retail_cents)}</span>
+        </dd>
+        <dt>{gettext("Wallet")}</dt>
+        <dd>{kes(@wallet_balance)}</dd>
+      </dl>
+
       <div :if={@payments_configured} class="flex flex-col gap-2">
         <button class="vn-button" phx-click="pay_mpesa" id="pay-mpesa">
           {gettext("Pay %{amount} with M-Pesa", amount: kes(@order.retail_cents))}
         </button>
+
         <button
-          :if={@wallet_balance >= @order.retail_cents}
+          :if={wallet_covers?(@order, @wallet_balance)}
           class="vn-button vn-button--muted"
           phx-click="pay_wallet"
           id="pay-wallet"
         >
-          {gettext("Pay from wallet (%{balance})", balance: kes(@wallet_balance))}
+          {gettext("Pay %{amount} from wallet", amount: kes(@order.retail_cents))}
+        </button>
+
+        <button
+          :if={not wallet_covers?(@order, @wallet_balance)}
+          class="vn-button vn-button--muted"
+          phx-click="topup"
+          id="topup-wallet"
+        >
+          {gettext("Top up %{amount} and pay from wallet",
+            amount: kes(shortfall(@order, @wallet_balance))
+          )}
         </button>
       </div>
+
       <p :if={@payments_configured} class="vn-muted mt-3">
-        {gettext("Nothing is sent to the supplier until the payment settles.")}
+        <%= if wallet_covers?(@order, @wallet_balance) do %>
+          {gettext("Your wallet covers this order — no prompt, paid straight away.")}
+        <% else %>
+          {gettext(
+            "The wallet holds %{balance}. Add %{short} to cover this order, or pay with M-Pesa — the prompt goes to %{phone}.",
+            balance: kes(@wallet_balance),
+            short: kes(shortfall(@order, @wallet_balance)),
+            phone: phone(@user)
+          )}
+        <% end %>
+      </p>
+
+      <p :if={@payments_configured} class="vn-muted mt-3">
+        {gettext("Your order starts the moment the payment settles.")}
       </p>
     </section>
     """
@@ -211,12 +271,39 @@ defmodule ViewNinjasWeb.CheckoutLive do
 
   defp resume_or_review(socket, order) do
     case Payments.pending_for_order(order) do
+      nil -> resume_topup_or_review(socket)
+      payment -> watch(socket, payment)
+    end
+  end
+
+  # A top-up started from checkout (or the wallet) still shows its sheet on return.
+  defp resume_topup_or_review(socket) do
+    case Payments.pending_topup(socket.assigns.current_scope.user) do
       nil -> assign(socket, mode: :review, payment: nil)
       payment -> watch(socket, payment)
     end
   end
 
   defp watch(socket, nil), do: assign(socket, mode: :review, payment: nil)
+
+  # A top-up inside checkout is a means, not the end: credit the wallet, then hand
+  # the buyer the "pay from wallet" button instead of a success screen.
+  defp watch(socket, %Payment{purpose: :topup, status: :settled}) do
+    socket
+    |> assign(:payment, nil)
+    |> assign(:wallet_balance, Wallet.balance(socket.assigns.current_scope.user))
+    |> assign(:mode, :review)
+    |> put_flash(:info, gettext("Top-up received — pay from your wallet below."))
+  end
+
+  defp watch(socket, %Payment{purpose: :topup, status: :failed} = payment) do
+    socket
+    |> assign(:payment, nil)
+    |> assign(:mode, :review)
+    |> put_flash(:error, Payments.failure_copy(payment.failure_kind, payment.failure_message))
+  end
+
+  defp watch(socket, %Payment{purpose: :topup} = payment), do: waiting(socket, payment)
 
   defp watch(socket, %Payment{status: :settled} = payment) do
     # The success screen needs the amount (already on the order we loaded) and the
@@ -235,7 +322,9 @@ defmodule ViewNinjasWeb.CheckoutLive do
     |> assign(:mode, :failed)
   end
 
-  defp watch(socket, %Payment{} = payment) do
+  defp watch(socket, %Payment{} = payment), do: waiting(socket, payment)
+
+  defp waiting(socket, %Payment{} = payment) do
     if socket.assigns[:watching] != payment.id do
       Payments.subscribe(payment.id)
     end
@@ -255,6 +344,33 @@ defmodule ViewNinjasWeb.CheckoutLive do
       {:error, _reason} -> {:error, :enqueue_failed}
     end
   end
+
+  # One top-up at a time: a pending one is reused rather than prompting twice.
+  defp start_topup(socket, amount) do
+    user = socket.assigns.current_scope.user
+
+    case Payments.pending_topup(user) do
+      %Payment{} = pending ->
+        {:ok, pending}
+
+      nil ->
+        with {:ok, payment} <- Payments.start_topup_payment(user, amount),
+             {:ok, _job} <- CreatePayment.new(%{payment_id: payment.id}) |> Oban.insert() do
+          {:ok, payment}
+        else
+          {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset_message(changeset)}
+          {:error, _reason} -> {:error, :enqueue_failed}
+        end
+    end
+  end
+
+  defp topup_amount(socket) do
+    shortfall(socket.assigns.order, socket.assigns.wallet_balance)
+  end
+
+  defp wallet_covers?(order, balance), do: balance >= order.retail_cents
+
+  defp shortfall(order, balance), do: max(order.retail_cents - balance, @min_topup_cents)
 
   defp check_limits(socket) do
     user = socket.assigns.current_scope.user

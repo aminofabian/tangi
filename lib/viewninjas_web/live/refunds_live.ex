@@ -51,7 +51,7 @@ defmodule ViewNinjasWeb.RefundsLive do
         <h2>{gettext("If it does not fully arrive")}</h2>
         <p class="vn-muted">
           {gettext(
-            "Undelivered quantity comes back to you. If a supplier finishes only part of an order, the unfinished share is credited to your wallet automatically — you do not have to ask."
+            "Undelivered quantity comes back to you. If an order only partly arrives, the unfinished share is credited to your wallet automatically — you do not have to ask."
           )}
         </p>
         <p class="vn-muted">

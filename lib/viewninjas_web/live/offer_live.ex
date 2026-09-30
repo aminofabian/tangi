@@ -106,12 +106,14 @@ defmodule ViewNinjasWeb.OfferLive do
           <span class="vn-grade">{Grade.label(lane.grade)}</span>
           <span class="vn-price">{price_label(lane, @params)}</span>
           <span class="vn-muted">{meta_label(lane)}</span>
-          <span :if={Lane.paused?(lane)} class="vn-error">{gettext("Paused")}</span>
+          <span :if={Lane.paused?(lane)} class="vn-badge vn-badge--warn">
+            {gettext("In demand")}
+          </span>
         </button>
       </div>
 
-      <p :if={@paused} class="vn-error" id="grade-paused">
-        {gettext("This grade is paused while we top up the supplier. Please pick another.")}
+      <p :if={@paused} class="vn-muted" id="grade-paused">
+        {demand_note()}
       </p>
 
       <.form :if={@offer} for={@form} id="order-form" phx-change="update" phx-submit="checkout">
@@ -279,7 +281,7 @@ defmodule ViewNinjasWeb.OfferLive do
         {:noreply, push_navigate(socket, to: ~p"/checkout/#{order.id}")}
 
       {:error, :lane_paused} ->
-        {:noreply, put_flash(socket, :error, gettext("This grade is paused right now."))}
+        {:noreply, put_flash(socket, :error, demand_message())}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, put_flash(socket, :error, changeset_message(changeset))}
@@ -351,8 +353,22 @@ defmodule ViewNinjasWeb.OfferLive do
     end
   end
 
+  # A full queue reads as popularity, not as a supply-chain problem: the buyer
+  # never hears about panels, floats or a supplier.
+  defp demand_message do
+    gettext(
+      "This grade is in high demand right now. We'll let you know as soon as the queue frees up."
+    )
+  end
+
+  defp demand_note do
+    gettext(
+      "This grade is in high demand right now, so the queue is full. Pick another grade, or check back — we'll update you the moment it frees up."
+    )
+  end
+
   defp ensure_on_sale(lane) do
-    if Lane.on_sale?(lane), do: :ok, else: {:error, gettext("This grade is paused right now.")}
+    if Lane.on_sale?(lane), do: :ok, else: {:error, demand_message()}
   end
 
   defp signed_in?(socket) do

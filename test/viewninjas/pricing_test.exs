@@ -103,6 +103,28 @@ defmodule ViewNinjas.PricingTest do
     end
   end
 
+  describe "the build-up figures" do
+    test "the landed cost is shown with the same rule as the selling price" do
+      # 0.90 USD per 1,000: landed is KSh 120, the selling price KSh 276.
+      assert Pricing.landed_display_cents(900_000) == 12_000
+      assert Pricing.format_selling_cents(Pricing.landed_display_cents(900_000)) == "KSh 120"
+      assert Pricing.display_kes_cents(900_000) == 27_600
+    end
+
+    test "a sub-shilling landed cost stays visible in cents" do
+      assert Pricing.landed_display_cents(1_200) == 16
+      assert Pricing.format_selling_cents(16) == "KSh 0.16"
+    end
+
+    test "the FX rate and the basis points print the way a build-up shows them" do
+      assert Pricing.format_fx_ppm(129_400_000) == "129.40"
+      assert Pricing.format_fx_ppm(nil) == "—"
+      assert Pricing.format_bps(13_000) == "130%"
+      assert Pricing.format_bps(300) == "3%"
+      assert Pricing.format_bps(nil) == "—"
+    end
+  end
+
   describe "format_kes_cents/1" do
     test "renders KES as whole shillings with thousands separators, never decimals" do
       assert Pricing.format_kes_cents(125_000) == "KSh 1,250"

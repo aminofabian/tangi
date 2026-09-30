@@ -204,7 +204,7 @@ defmodule ViewNinjasWeb.HomeLive do
       </p>
       <p class="vn-muted">
         {gettext(
-          "Pay in shillings by M-Pesa and watch the order from your phone. If a supplier finishes only part of an order, the unfinished share is credited back to your wallet automatically."
+          "Pay in shillings by M-Pesa and watch the order from your phone. If an order only partly arrives, the unfinished share is credited back to your wallet automatically."
         )}
       </p>
     </section>
