@@ -128,8 +128,10 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
         </.form>
       </section>
 
-      <%!-- Placement stays on the catalog. The sheet covers the list; it does not
-            navigate away, and it does not scroll the inventory out from under you. --%>
+      <%!-- Placement is a drawer, not another page: the inventory stays put behind
+            it, and the scrim, the close button or Escape bring it back. The body is
+            a short, numbered walk — price, shelf, where it lives, fine tuning — and
+            the primary action sticks to the foot, always saying what it will do. --%>
       <div
         :if={@selected}
         class="vn-drawer"
@@ -143,6 +145,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
           phx-click="close_placement"
           aria-label="Close placement"
         ></button>
+
         <aside
           id="placement"
           class="vn-drawer__sheet"
@@ -153,130 +156,187 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
           tabindex="-1"
           data-service={@selected.id}
         >
+          <span class="vn-drawer__grabber" aria-hidden="true"></span>
           <header class="vn-drawer__head">
-            <div>
+            <div class="vn-drawer__headline">
               <p class="vn-drawer__kicker">Place on the shop</p>
-              <h2 id="placement-title">{clip_title(@selected.name)}</h2>
-              <p class="vn-muted">{service_label(@selected)}</p>
+              <h2 id="placement-title">{drawer_title(@lane_form, @selected)}</h2>
+              <p class="vn-drawer__source">
+                <span class="vn-drawer__panel">{@selected.supplier.slug}</span>
+                <span aria-hidden="true">·</span>
+                <span>#{@selected.external_id}</span>
+                <span aria-hidden="true">·</span>
+                <span>{clip_title(@selected.name)}</span>
+              </p>
             </div>
             <button
               type="button"
               id="placement-close"
               class="vn-drawer__close"
               phx-click="close_placement"
-              aria-label="Close"
+              aria-label={gettext("Close")}
             >
               <.icon name="hero-x-mark" class="vn-drawer__icon" />
             </button>
           </header>
 
-          <div class="vn-drawer__body">
-            <p class="vn-drawer__sell">
-              <span class="vn-drawer__amount">{selling(@selected.rate_micros, @params)}</span>
-              <span class="vn-muted">selling price / 1,000 · {usd(@selected.rate_micros)} USD</span>
-            </p>
+          <.form
+            for={@lane_form}
+            id="lane-form"
+            class="vn-drawer__form"
+            phx-change="lane_preview"
+            phx-submit="pin"
+          >
+            <div class="vn-drawer__body">
+              <%!-- The grade is chosen by the shelf cards below, not a dropdown. --%>
+              <.input type="hidden" field={@lane_form[:grade]} />
 
-            <p class="vn-muted">Which shelf should a buyer find this on?</p>
-            <div class="vn-grades-pick vn-drawer__grades" id="grade-pick">
-              <button
-                :for={grade <- Grade.all()}
-                type="button"
-                id={"grade-#{grade}"}
-                class={["vn-grade-card", grade_on?(@lane_form, grade) && "vn-grade-card--on"]}
-                phx-click="place"
-                phx-value-id={@selected.id}
-                phx-value-grade={grade}
-              >
-                <span class="vn-drawer__grade">
-                  <span class="vn-grade">{Grade.label(grade)}</span>
-                  <span class={["vn-badge", grade == :quality && "vn-badge--warn"]}>
-                    {grade_role(grade)}
-                  </span>
-                </span>
-                <span class="vn-muted">{grade_blurb(grade)}</span>
-                <span
-                  :if={grade in grades_for(@on_shop, @selected.id)}
-                  class="vn-badge vn-badge--ok"
-                >
-                  on the shop
-                </span>
-              </button>
-            </div>
+              <section class="vn-drawer__price">
+                <p class="vn-drawer__amount">{selling(@selected.rate_micros, @params)}</p>
+                <p class="vn-muted">selling price per 1,000 — the number a buyer sees</p>
 
-            <%!-- The build-up, not just the answer: the wholesale rate, the FX it is
-                  converted at, the landed cost and the margin are all on screen, so
-                  the selling price can be trusted rather than taken on faith. --%>
-            <dl class="vn-build" id="placement-price">
-              <div>
-                <dt>Wholesale</dt>
-                <dd>{usd(@selected.rate_micros)} USD / 1,000</dd>
-              </div>
-              <div>
-                <dt>Converted at</dt>
-                <dd>KSh {Pricing.format_fx_ppm(@params.fx_ppm)} per USD</dd>
-              </div>
-              <div>
-                <dt>Landed cost</dt>
-                <dd>
-                  {landed(@selected.rate_micros, @params)}
-                  <span class="vn-muted">incl. {Pricing.format_bps(@params.buffer_bps)} float</span>
-                </dd>
-              </div>
-              <div class="vn-build__sell">
-                <dt>Selling price / 1,000</dt>
-                <dd>
-                  <span class="vn-catalog-sell">{selling(@selected.rate_micros, @params)}</span>
-                  <span class="vn-muted">+ {Pricing.format_bps(@params.margin_bps)} margin</span>
-                </dd>
-              </div>
-            </dl>
+                <%!-- The build-up, not just the answer: the wholesale rate, the FX it is
+                      converted at, the landed cost and the margin are all on screen, so
+                      the selling price can be trusted rather than taken on faith. --%>
+                <dl class="vn-build" id="placement-price">
+                  <div>
+                    <dt>Wholesale</dt>
+                    <dd>{usd(@selected.rate_micros)} USD / 1,000</dd>
+                  </div>
+                  <div>
+                    <dt>Converted at</dt>
+                    <dd>KSh {Pricing.format_fx_ppm(@params.fx_ppm)} per USD</dd>
+                  </div>
+                  <div>
+                    <dt>Landed cost</dt>
+                    <dd>
+                      {landed(@selected.rate_micros, @params)}
+                      <span class="vn-muted">incl. {Pricing.format_bps(@params.buffer_bps)} float</span>
+                    </dd>
+                  </div>
+                  <div class="vn-build__sell">
+                    <dt>Selling price / 1,000</dt>
+                    <dd>
+                      <span class="vn-catalog-sell">{selling(@selected.rate_micros, @params)}</span>
+                      <span class="vn-muted">+ {Pricing.format_bps(@params.margin_bps)} margin</span>
+                    </dd>
+                  </div>
+                </dl>
+              </section>
 
-            <div :if={@suggestions != []} class="vn-suggestions">
-              <p class="vn-muted">Suggestions — never published for you:</p>
-              <button
-                :for={{reason, service} <- @suggestions}
-                type="button"
-                class="vn-chip"
-                phx-click="select"
-                phx-value-id={service.id}
-                id={"suggest-#{service.id}"}
-              >
-                {Suggestions.label(reason)}: {service.supplier.slug}
-                {service.external_id} · {selling(service.rate_micros, @params)}
-              </button>
-            </div>
+              <section class="vn-drawer__section">
+                <h3 class="vn-drawer__legend">
+                  <span class="vn-drawer__step">1</span> Which shelf?
+                </h3>
+                <p class="vn-muted">
+                  A grade is a shelf a buyer chooses between. This service will stand behind the one you pick.
+                </p>
+                <div class="vn-drawer__grades" id="grade-pick" role="radiogroup" aria-label="Grade">
+                  <button
+                    :for={grade <- Grade.all()}
+                    type="button"
+                    id={"grade-#{grade}"}
+                    class={[
+                      "vn-grade-card",
+                      "vn-drawer__grade-card",
+                      grade_on?(@lane_form, grade) && "vn-grade-card--on"
+                    ]}
+                    phx-click="pick_grade"
+                    phx-value-grade={grade}
+                    aria-pressed={to_string(grade_on?(@lane_form, grade))}
+                  >
+                    <span class="vn-drawer__grade">
+                      <span class="vn-drawer__radio" aria-hidden="true"></span>
+                      <span class="vn-grade">{Grade.label(grade)}</span>
+                      <span class="vn-drawer__role">{grade_role(grade)}</span>
+                    </span>
+                    <span class="vn-drawer__grade-blurb">{grade_blurb(grade)}</span>
+                    <span
+                      :if={grade in grades_for(@on_shop, @selected.id)}
+                      class="vn-badge vn-badge--ok"
+                    >
+                      on the shop
+                    </span>
+                  </button>
+                </div>
+              </section>
 
-            <.form for={@lane_form} id="lane-form" phx-submit="pin">
-              <div class="vn-form-grid">
+              <section class="vn-drawer__section">
+                <h3 class="vn-drawer__legend">
+                  <span class="vn-drawer__step">2</span> Where does it live?
+                </h3>
                 <.input
                   field={@lane_form[:offer_id]}
                   type="select"
-                  label="Offer"
+                  label="Add to an offer already on the shop"
                   options={offer_options(@offers)}
-                  prompt="New offer from this service"
+                  prompt="None — start a new one"
                 />
+                <p class="vn-drawer__or"><span>or start a new offer</span></p>
+                <div class="vn-form-grid">
+                  <.input field={@lane_form[:platform]} label="Platform" placeholder="instagram" />
+                  <.input field={@lane_form[:outcome]} label="Outcome" placeholder="views" />
+                </div>
                 <.input
-                  field={@lane_form[:grade]}
-                  type="select"
-                  label="Grade"
-                  options={grade_options()}
-                  prompt="Choose a grade"
+                  field={@lane_form[:title]}
+                  label="Title a buyer sees"
+                  placeholder="Instagram views"
                 />
-              </div>
-              <div class="vn-form-grid">
-                <.input field={@lane_form[:platform]} label="Platform" placeholder="instagram" />
-                <.input field={@lane_form[:outcome]} label="Outcome" placeholder="views" />
-                <.input field={@lane_form[:title]} label="Title" placeholder="Instagram views" />
-              </div>
-              <.input
-                field={@lane_form[:manual_kes]}
-                type="number"
-                label="Manual price (KSh, optional)"
-              />
-              <.input field={@lane_form[:published]} type="checkbox" label="Show it on the shop" />
-              <button class="vn-button" id="pin-submit">Put on the shop</button>
-            </.form>
-          </div>
+              </section>
+
+              <section class="vn-drawer__section">
+                <h3 class="vn-drawer__legend">
+                  <span class="vn-drawer__step">3</span> Fine tuning
+                </h3>
+                <.input
+                  field={@lane_form[:manual_kes]}
+                  type="number"
+                  label="Manual price (KSh per 1,000, optional)"
+                />
+                <p class="vn-muted">
+                  Leave it blank to sell at the price above; a manual price is pinned to the shilling.
+                </p>
+                <.input
+                  field={@lane_form[:published]}
+                  type="checkbox"
+                  label="Show it on the shop right away"
+                />
+              </section>
+
+              <section :if={@suggestions != []} class="vn-drawer__section">
+                <h3 class="vn-drawer__legend">Cheaper elsewhere</h3>
+                <p class="vn-muted">Same job, another panel — tap one to swap it in.</p>
+                <ul class="vn-drawer__suggest">
+                  <li :for={{reason, service} <- @suggestions}>
+                    <button
+                      type="button"
+                      class="vn-drawer__suggest-item"
+                      phx-click="select"
+                      phx-value-id={service.id}
+                      id={"suggest-#{service.id}"}
+                    >
+                      <span class="vn-drawer__suggest-price">
+                        {selling(service.rate_micros, @params)}
+                      </span>
+                      <span class="vn-drawer__suggest-body">
+                        <span class="vn-drawer__suggest-reason">{Suggestions.label(reason)}</span>
+                        <span class="vn-drawer__suggest-src">
+                          {service.supplier.slug} · {service.external_id}
+                        </span>
+                      </span>
+                    </button>
+                  </li>
+                </ul>
+              </section>
+            </div>
+
+            <footer class="vn-drawer__foot">
+              <p class="vn-drawer__footnote">{footnote(@lane_form, @offers)}</p>
+              <button type="submit" class="vn-button" id="pin-submit">
+                {submit_label(@lane_form)}
+              </button>
+            </footer>
+          </.form>
         </aside>
       </div>
       <script :type={Phoenix.LiveView.ColocatedHook} name=".Drawer">
@@ -343,7 +403,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
                   <button
                     type="button"
                     class="vn-button"
-                    phx-click="place"
+                    phx-click="select"
                     phx-value-id={service.id}
                     id={"select-#{service.id}"}
                   >
@@ -464,6 +524,8 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
      |> refresh_services()}
   end
 
+  # "select" is the row's Place button and every suggestion: it opens the drawer,
+  # it never places on its own. Placing is the drawer's confirm — one action.
   def handle_event("select", %{"id" => id}, socket) do
     case Catalog.get_service_with_supplier(id) do
       nil -> {:noreply, put_flash(socket, :error, "That service is gone.")}
@@ -475,21 +537,15 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
     {:noreply, assign(socket, selected: nil, suggestions: [])}
   end
 
-  def handle_event("place", %{"id" => id} = params, socket) do
-    case Catalog.get_service_with_supplier(id) do
-      nil ->
-        {:noreply, put_flash(socket, :error, "That service is gone.")}
+  # Choosing a shelf only arms the confirm; the footer button does the placing.
+  def handle_event("pick_grade", %{"grade" => grade}, socket) do
+    {:noreply, assign_form(socket, "grade", grade)}
+  end
 
-      service ->
-        grade = params["grade"]
-        socket = open_placement(socket, service, grade)
-
-        if grade in [nil, ""] do
-          {:noreply, socket}
-        else
-          place_as(socket, service, grade)
-        end
-    end
+  # The drawer's preview follows the form: the header title and the foot's
+  # "Goes into …" line re-render as the operator changes the offer or the title.
+  def handle_event("lane_preview", %{"lane" => params}, socket) do
+    {:noreply, assign(socket, :lane_form, to_form(params, as: "lane"))}
   end
 
   def handle_event("shortlist", %{"id" => id}, socket) do
@@ -565,47 +621,66 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
   # -- internals ---------------------------------------------------------
 
-  defp open_placement(socket, service, grade \\ nil) do
+  defp open_placement(socket, service) do
     draft = offer_draft(service)
     current = socket.assigns.lane_form.params
-
-    same? = socket.assigns.selected && socket.assigns.selected.id == service.id
+    same? = not is_nil(socket.assigns.selected) and socket.assigns.selected.id == service.id
 
     assign(socket,
       selected: service,
       suggestions: Suggestions.for_service(service),
-      lane_form:
-        to_form(
-          %{
-            "offer_id" => if(same?, do: current["offer_id"], else: "") || "",
-            "grade" => grade || if(same?, do: current["grade"], else: "") || "",
-            "platform" =>
-              if(same?, do: current["platform"], else: draft.platform) || draft.platform,
-            "outcome" => if(same?, do: current["outcome"], else: draft.outcome) || draft.outcome,
-            "title" => if(same?, do: current["title"], else: draft.title) || draft.title,
-            "manual_kes" => if(same?, do: current["manual_kes"], else: "") || "",
-            "published" => "true"
-          },
-          as: "lane"
-        )
+      lane_form: to_form(placement_params(current, draft, same?), as: "lane")
     )
   end
 
-  defp place_as(socket, service, grade) do
-    params = Map.put(socket.assigns.lane_form.params, "grade", grade)
+  # Re-selecting the same row keeps whatever the operator had typed; a new row
+  # starts from the service's draft (platform, outcome, title) and a free shelf.
+  defp placement_params(current, draft, true) do
+    %{
+      "offer_id" => current["offer_id"] || "",
+      "grade" => kept_grade(current, draft),
+      "platform" => current["platform"] || draft.platform,
+      "outcome" => current["outcome"] || draft.outcome,
+      "title" => current["title"] || draft.title,
+      "manual_kes" => current["manual_kes"] || "",
+      "published" => "true"
+    }
+  end
 
-    case put_on_shop(service, params, socket.assigns.params, explicit: true) do
-      {:ok, lane, offer} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, placed_message(service, lane, offer, socket.assigns.params))
-         |> assign(:lane_form, to_form(params, as: "lane"))
-         |> refresh_offers()
-         |> refresh_services()}
+  defp placement_params(_current, draft, _same?) do
+    %{
+      "offer_id" => "",
+      "grade" => Atom.to_string(free_grade(draft)),
+      "platform" => draft.platform,
+      "outcome" => draft.outcome,
+      "title" => draft.title,
+      "manual_kes" => "",
+      "published" => "true"
+    }
+  end
 
-      {:error, message} ->
-        {:noreply, put_flash(socket, :error, message)}
+  defp kept_grade(current, draft) do
+    case current["grade"] do
+      grade when grade in [nil, ""] -> Atom.to_string(free_grade(draft))
+      grade -> grade
     end
+  end
+
+  # The shelf a fresh placement lands on: the first free grade of the draft's
+  # offer, so Cheap by default and Moderate once Cheap is taken.
+  defp free_grade(draft) do
+    taken =
+      case Catalog.get_offer_by_slot(draft.platform, draft.outcome) do
+        nil -> []
+        offer -> Catalog.get_offer!(offer.id).lanes |> Enum.map(& &1.grade)
+      end
+
+    Enum.find(Grade.all(), &(&1 not in taken)) || :cheap
+  end
+
+  defp assign_form(socket, key, value) do
+    params = Map.put(socket.assigns.lane_form.params, key, value)
+    assign(socket, :lane_form, to_form(params, as: "lane"))
   end
 
   defp shortlist(socket, service) do
@@ -904,10 +979,6 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
   defp panel_options(panels), do: Enum.map(panels, &{&1.slug, &1.slug})
   defp offer_options(offers), do: Enum.map(offers, &{&1.title, &1.id})
 
-  defp grade_options do
-    Enum.map(Grade.all(), &{"#{Grade.label(&1)} — #{grade_role(&1)}", Atom.to_string(&1)})
-  end
-
   defp service_label(%{supplier: %{slug: slug}, external_id: external_id, name: name}) do
     "#{slug} #{external_id} — #{name}"
   end
@@ -919,9 +990,57 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
   defp place_label(grades, id) do
     case grades_for(grades, id) do
       [] -> "Place"
-      placed -> placed |> Enum.map(&Grade.label/1) |> Enum.join(" · ")
+      _placed -> "Place again"
     end
   end
+
+  # The drawer's header names what a buyer will see, and the foot says plainly
+  # where it lands and whether it is live — so the confirm button is never a guess.
+  defp drawer_title(form, selected) do
+    case trim(form[:title].value) do
+      "" -> clip_title(selected.name)
+      title -> title
+    end
+  end
+
+  defp submit_label(form) do
+    case Grade.parse(form[:grade].value) do
+      {:ok, grade} -> "Put on the shop as #{Grade.label(grade)}"
+      :error -> "Put on the shop"
+    end
+  end
+
+  defp footnote(form, offers) do
+    destination =
+      case offer_at(form, offers) do
+        %{title: title} -> "Goes into #{title}"
+        nil -> "Starts a new offer: #{title_value(form)}"
+      end
+
+    visibility =
+      if to_string(form[:published].value) == "true",
+        do: "visible to buyers right away",
+        else: "hidden until you publish"
+
+    "#{destination} — #{visibility}."
+  end
+
+  defp offer_at(form, offers) do
+    case form[:offer_id].value do
+      id when id in [nil, ""] -> nil
+      id -> Enum.find(offers, &(to_string(&1.id) == to_string(id)))
+    end
+  end
+
+  defp title_value(form) do
+    case trim(form[:title].value) do
+      "" -> "untitled"
+      title -> title
+    end
+  end
+
+  defp trim(value) when is_binary(value), do: String.trim(value)
+  defp trim(_value), do: ""
 
   defp grade_on?(form, grade) do
     value = form[:grade].value

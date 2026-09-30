@@ -128,9 +128,15 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
     lv |> element("#select-#{service.id}") |> render_click()
 
     assert has_element?(lv, "#grade-pick")
+    # Opening the drawer places nothing; the first free grade is armed by default.
+    assert has_element?(lv, "#grade-cheap.vn-grade-card--on")
     assert Catalog.list_market_offers() == []
 
-    html = lv |> element("#grade-cheap") |> render_click()
+    # Choosing a shelf only arms the confirm — nothing lands until it is submitted.
+    lv |> element("#grade-cheap") |> render_click()
+    assert Catalog.list_market_offers() == []
+
+    html = lv |> form("#lane-form") |> render_submit()
 
     assert html =~ "On the shop as Cheap"
     assert html =~ "Instagram views"
@@ -168,6 +174,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
     {:ok, lv, _html} = live(conn, ~p"/admin/catalog")
 
     lv |> element("#select-#{service.id}") |> render_click()
+    lv |> element("#grade-quality") |> render_click()
 
     lv
     |> form("#lane-form",
