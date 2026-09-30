@@ -161,7 +161,7 @@ defmodule ViewNinjasWeb.OfferLive do
     lane = selected_lane(offer, grade)
     quantity = default_quantity(lane)
     canonical = SEO.canonical_url(uri)
-    from = Catalog.from_kes_cents(offer, socket.assigns.params)
+    from = Catalog.from_selling_cents(offer, socket.assigns.params)
 
     socket
     |> assign(:page_title, offer.title)
@@ -188,7 +188,7 @@ defmodule ViewNinjasWeb.OfferLive do
   defp offer_meta_title(offer, cents) do
     gettext("Buy %{title} in Kenya — from %{price}",
       title: offer.title,
-      price: Pricing.format_kes_cents(cents)
+      price: Pricing.format_selling_cents(cents)
     )
   end
 
@@ -203,7 +203,7 @@ defmodule ViewNinjasWeb.OfferLive do
     gettext(
       "Buy %{title} in Kenya from %{price} per 1,000, in three grades. Priced in shillings, paid by M-Pesa, with a refill if delivery falls short.",
       title: offer.title,
-      price: Pricing.format_kes_cents(cents)
+      price: Pricing.format_selling_cents(cents)
     )
   end
 
@@ -363,7 +363,7 @@ defmodule ViewNinjasWeb.OfferLive do
   end
 
   defp price_label(lane, params),
-    do: Pricing.format_kes_cents(Lane.retail_kes_cents(lane, params))
+    do: Pricing.format_selling_cents(Lane.selling_cents(lane, params))
 
   defp meta_label(%{supplier_service: %{min: min, max: max, refill: refill}}) do
     bounds = if is_integer(min) and is_integer(max), do: "#{min}–#{max}", else: "—"

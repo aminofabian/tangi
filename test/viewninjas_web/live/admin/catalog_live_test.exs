@@ -100,6 +100,34 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
     assert has_element?(lv, "#suggest-#{cheaper.id}")
   end
 
+  test "placing a row puts it on the shop at the converted selling price", %{conn: conn} do
+    service =
+      service_fixture(%{
+        name: "Instagram Views [Max: 60K]",
+        category: "Instagram",
+        rate_micros: 1_200,
+        external_id: "339"
+      })
+
+    conn = log_in_user(conn, admin_fixture())
+    {:ok, lv, html} = live(conn, ~p"/admin/catalog")
+
+    assert html =~ "KSh 0.37"
+    refute html =~ ">KSh 0<"
+
+    html = lv |> element("#select-#{service.id}") |> render_click()
+
+    assert html =~ "On the shop as Cheap"
+    assert html =~ "Instagram views"
+    assert html =~ "KSh 0.37"
+
+    assert [offer] = Catalog.list_market_offers()
+    assert offer.title == "Instagram views"
+    assert offer.published
+    assert [%{published: true, grade: :cheap}] = offer.lanes
+    assert has_element?(lv, "#service-#{service.id} .vn-badge--ok", "on the shop")
+  end
+
   test "pinning a grade publishes a lane a buyer will eventually see", %{conn: conn} do
     service = service_fixture(%{rate_micros: 900_000})
     offer = offer_fixture()

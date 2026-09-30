@@ -1217,6 +1217,16 @@ p {
   font-weight: 700;
 }
 
+.vn-catalog-price {
+  white-space: nowrap;
+}
+
+.vn-catalog-sell {
+  display: block;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .vn-catalog-actions {
   display: flex;
   flex-wrap: wrap;

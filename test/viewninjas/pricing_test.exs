@@ -85,6 +85,24 @@ defmodule ViewNinjas.PricingTest do
     end
   end
 
+  describe "display_kes_cents/3" do
+    test "keeps a sub-shilling conversion visible" do
+      # 0.0012 USD per 1,000. Nearest shilling is 0; the selling price is 37 cents.
+      assert Pricing.retail_kes_cents(1_200) == 0
+      assert Pricing.display_kes_cents(1_200) == 37
+      assert Pricing.format_selling_cents(37) == "KSh 0.37"
+    end
+
+    test "a shilling quote stays a whole-shilling quote" do
+      assert Pricing.display_kes_cents(900_000) == Pricing.retail_kes_cents(900_000)
+      assert Pricing.format_selling_cents(27_600) == "KSh 276"
+    end
+
+    test "a positive margin beats landed even when both round to zero shillings" do
+      assert Pricing.beats_landed?(1_200)
+    end
+  end
+
   describe "format_kes_cents/1" do
     test "renders KES as whole shillings with thousands separators, never decimals" do
       assert Pricing.format_kes_cents(125_000) == "KSh 1,250"

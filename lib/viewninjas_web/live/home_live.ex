@@ -272,9 +272,9 @@ defmodule ViewNinjasWeb.HomeLive do
   defp grade_blurb(_), do: ""
 
   defp from_label(offer, params) do
-    case Catalog.from_kes_cents(offer, params) do
+    case Catalog.from_selling_cents(offer, params) do
       nil -> gettext("price on request")
-      cents -> gettext("from %{price}", price: Pricing.format_kes_cents(cents))
+      cents -> gettext("from %{price}", price: Pricing.format_selling_cents(cents))
     end
   end
 

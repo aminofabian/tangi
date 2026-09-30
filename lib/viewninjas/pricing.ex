@@ -105,6 +105,80 @@ defmodule ViewNinjas.Pricing do
        |> String.reverse())
   end
 
+  @doc """
+  The per-quantity selling price in KES cents, kept to the cent when rounding
+  to a shilling would hide it.
+
+  A `0.90` USD service is `KSh 276`. A `0.0012` USD view service is about
+  `KSh 0.37` — `retail_kes_cents/3` rounds that to `KSh 0`, which reads as if
+  the rate was never converted.
+  """
+  @spec display_kes_cents(integer() | nil, integer(), Params.t()) :: integer() | nil
+  def display_kes_cents(rate_ppm, quantity \\ 1000, params \\ Params.defaults())
+
+  def display_kes_cents(nil, _quantity, _params), do: nil
+
+  def display_kes_cents(rate_ppm, quantity, params) when is_integer(rate_ppm) do
+    case retail_kes_cents(rate_ppm, quantity, params) do
+      cents when is_integer(cents) and cents >= 100 ->
+        cents
+
+      _ ->
+        exact_retail_cents(rate_ppm, quantity, params)
+    end
+  end
+
+  @doc """
+  Formats a selling price. Whole shillings from one shilling up; cents below
+  that, so a sub-shilling quote stays visible.
+  """
+  @spec format_selling_cents(integer() | nil) :: String.t() | nil
+  def format_selling_cents(nil), do: nil
+
+  def format_selling_cents(cents) when is_integer(cents) and cents >= 100,
+    do: format_kes_cents(cents)
+
+  def format_selling_cents(cents) when is_integer(cents) and cents > 0 do
+    whole = div(cents, 100)
+    frac = cents |> rem(100) |> Integer.to_string() |> String.pad_leading(2, "0")
+    "KSh #{whole}.#{frac}"
+  end
+
+  def format_selling_cents(cents) when is_integer(cents), do: format_kes_cents(cents)
+
+  @doc """
+  Whether the flat-margin quote sits strictly above landed cost.
+
+  Compared before shilling rounding, so a view service whose landed cost and
+  retail both round to KSh 0 is still a real price and can be published.
+  """
+  @spec beats_landed?(integer() | nil, Params.t()) :: boolean()
+  def beats_landed?(rate_ppm, params \\ Params.defaults())
+
+  def beats_landed?(rate_ppm, params) when is_integer(rate_ppm) and rate_ppm > 0 do
+    landed =
+      rate_ppm
+      |> cost_usd_ppm(1000)
+      |> cost_kes_ppm(params)
+      |> landed_ppm(params)
+
+    retail_ppm(landed, params) > landed
+  end
+
+  def beats_landed?(_rate_ppm, _params), do: false
+
+  defp exact_retail_cents(rate_ppm, quantity, params) do
+    ppm =
+      rate_ppm
+      |> cost_usd_ppm(quantity)
+      |> cost_kes_ppm(params)
+      |> landed_ppm(params)
+      |> retail_ppm(params)
+
+    cents = div(ppm + 5_000, 10_000)
+    if ppm > 0 and cents == 0, do: 1, else: cents
+  end
+
   # -- the settings in force ---------------------------------------------
 
   @doc """

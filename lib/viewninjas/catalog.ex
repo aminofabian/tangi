@@ -45,6 +45,22 @@ defmodule ViewNinjas.Catalog do
 
   def get_offer(id), do: Repo.get(Offer, id)
 
+  @doc "The offer for a platform and outcome, if one has been created."
+  def get_offer_by_slot(platform, outcome)
+      when is_binary(platform) and is_binary(outcome) do
+    Repo.get_by(Offer, platform: platform, outcome: outcome)
+  end
+
+  @doc "Supplier-service ids that a buyer can already see on the shop."
+  def shop_service_ids do
+    Lane
+    |> join(:inner, [l], o in assoc(l, :offer))
+    |> where([l, o], l.published and o.published)
+    |> select([l], l.supplier_service_id)
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
   # -- the market --------------------------------------------------------
 
   @doc """
@@ -90,6 +106,17 @@ defmodule ViewNinjas.Catalog do
   def from_kes_cents(%Offer{lanes: lanes}, params) do
     lanes
     |> Enum.map(&Lane.retail_kes_cents(&1, params))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.min(fn -> nil end)
+  end
+
+  @doc """
+  The lowest price to show, in cents. Uses the cent-precise quote when the
+  shilling quote would be zero, so the shop does not say "from KSh 0".
+  """
+  def from_selling_cents(%Offer{lanes: lanes}, params) do
+    lanes
+    |> Enum.map(&Lane.selling_cents(&1, params))
     |> Enum.reject(&is_nil/1)
     |> Enum.min(fn -> nil end)
   end

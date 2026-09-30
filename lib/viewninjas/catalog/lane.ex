@@ -78,6 +78,23 @@ defmodule ViewNinjas.Catalog.Lane do
 
   def retail_kes_cents(_lane, _params, _quantity), do: nil
 
+  @doc """
+  The price to show a person: the shilling quote, or the cent quote when that
+  shilling quote would be zero.
+  """
+  @spec selling_cents(t() | map(), Pricing.Params.t(), integer()) :: integer() | nil
+  def selling_cents(lane, params, quantity \\ 1000)
+
+  def selling_cents(%{manual_kes_cents: cents}, _params, quantity) when is_integer(cents) do
+    cents |> Kernel.*(quantity) |> div(1000)
+  end
+
+  def selling_cents(%{supplier_service: %{rate_micros: rate}}, params, quantity)
+      when is_integer(rate),
+      do: Pricing.display_kes_cents(rate, quantity, params)
+
+  def selling_cents(_lane, _params, _quantity), do: nil
+
   defp round_cents_to_shilling(cents), do: div(cents + 50, 100) * 100
 
   @doc """
@@ -85,12 +102,19 @@ defmodule ViewNinjas.Catalog.Lane do
   The publish guardrail refuses such a lane; the workspace warns as you pin.
   """
   @spec underpriced?(t() | map(), Pricing.Params.t()) :: boolean()
-  def underpriced?(%{supplier_service: %{rate_micros: rate}} = lane, params)
-      when is_integer(rate) do
-    case retail_kes_cents(lane, params) do
+  # A hand-set price is compared in shillings, the same way a buyer is charged.
+  def underpriced?(%{manual_kes_cents: cents, supplier_service: %{rate_micros: rate}}, params)
+      when is_integer(cents) and is_integer(rate) do
+    case Pricing.landed_kes_cents(rate, 1000, params) do
       nil -> false
-      cents -> cents <= Pricing.landed_kes_cents(rate, 1000, params)
+      floor -> cents <= floor
     end
+  end
+
+  # The formula already includes the margin. Compare it before shilling
+  # rounding, or a sub-shilling service looks free and cannot be published.
+  def underpriced?(%{supplier_service: %{rate_micros: rate}}, params) when is_integer(rate) do
+    not Pricing.beats_landed?(rate, params)
   end
 
   def underpriced?(_lane, _params), do: false
