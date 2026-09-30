@@ -246,9 +246,9 @@ defmodule ViewNinjasWeb.OfferLive do
       value ->
         case validate_quantity(value, current_lane(socket)) do
           {:ok, quantity} ->
-            total = Lane.retail_kes_cents(current_lane(socket), socket.assigns.params, quantity)
+            total = Lane.selling_cents(current_lane(socket), socket.assigns.params, quantity)
 
-            assign(socket, total: Pricing.format_kes_cents(total), quantity_error: nil)
+            assign(socket, total: Pricing.format_selling_cents(total), quantity_error: nil)
 
           {:error, message} ->
             assign(socket, total: nil, quantity_error: message)
