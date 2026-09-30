@@ -1173,6 +1173,78 @@ p {
   font-size: var(--vn-text-sm);
 }
 
+/* The catalog desk: filters in one band, the inventory readable without a
+ * sideways scroll, and a shortlisted row that is obvious. */
+.vn-catalog-filters__grid,
+.vn-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--vn-space-3);
+  align-items: end;
+}
+
+.vn-catalog-filters .fieldset,
+.vn-form-grid .fieldset,
+.vn-catalog-filters__flags .fieldset {
+  max-width: none;
+}
+
+.vn-catalog-filters__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vn-space-2) var(--vn-space-4);
+  margin-top: var(--vn-space-3);
+}
+
+.vn-catalog-filters__flags .fieldset {
+  width: auto;
+}
+
+.vn-offer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+}
+
+.vn-catalog-table th,
+.vn-catalog-table td {
+  white-space: normal;
+  vertical-align: middle;
+}
+
+.vn-catalog-name {
+  font-weight: 700;
+}
+
+.vn-catalog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vn-space-2);
+}
+
+.vn-catalog-row--picked td {
+  background: var(--vn-accent-soft);
+}
+
+.vn-catalog-row--open td {
+  box-shadow: inset 3px 0 0 var(--vn-accent);
+}
+
+.vn-star--on {
+  background: var(--vn-accent);
+  border-color: var(--vn-accent);
+  color: var(--vn-on-accent);
+}
+
+@media (hover: hover) {
+  .vn-button--muted.vn-star--on:hover {
+    background: color-mix(in srgb, var(--vn-accent) 88%, var(--tangi-navy));
+    border-color: var(--vn-accent);
+    color: var(--vn-on-accent);
+  }
+}
+
 /* --------------------------------------------------------- market (M6) */
 
 .vn-grades {
@@ -2166,6 +2238,13 @@ p {
    * takes what is left, because it is the one that holds a table. */
   .vn-app--admin-suppliers .vn-main {
     grid-template-columns: 14rem minmax(0, 1fr) 19rem;
+  }
+
+  /* The catalog is a browser of thousands of rows, so it takes the whole desk
+   * instead of a reading column. */
+  .vn-app--admin-catalog .vn-main {
+    grid-template-columns: minmax(0, 1fr);
+    justify-content: stretch;
   }
 
   /* Anything that is not one of those three columns — the panel-wide triggers,

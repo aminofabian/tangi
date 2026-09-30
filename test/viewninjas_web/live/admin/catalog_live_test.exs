@@ -78,10 +78,12 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
     conn = log_in_user(conn, admin_fixture())
     {:ok, lv, _html} = live(conn, ~p"/admin/catalog")
 
-    lv |> element("#shortlist-#{service.id}") |> render_click()
+    html = lv |> element("#shortlist-#{service.id}") |> render_click()
 
     assert Catalog.get_service(service.id).shortlisted_at
-    assert has_element?(lv, "#service-#{service.id}")
+    assert html =~ "Shortlisted."
+    assert has_element?(lv, "#service-#{service.id}.vn-catalog-row--picked")
+    assert has_element?(lv, "#shortlist-#{service.id}.vn-star--on")
   end
 
   test "selecting a row opens the placement form with suggestions", %{conn: conn} do

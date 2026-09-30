@@ -35,13 +35,170 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
       title={gettext("Catalog")}
       admin={:catalog}
     >
-      <section class="vn-card">
+      <section class="vn-card vn-catalog-filters">
+        <h2>Inventory</h2>
+        <p class="vn-muted">
+          {@total} matching · showing {length(@services)} · {@shortlisted_count} shortlisted
+        </p>
+
+        <.form for={@filter_form} id="filters" phx-change="filter" phx-submit="filter">
+          <div class="vn-catalog-filters__grid">
+            <.input field={@filter_form[:q]} label="Search" placeholder="follower" />
+            <.input
+              field={@filter_form[:supplier]}
+              type="select"
+              label="Panel"
+              options={panel_options(@panels)}
+              prompt="All panels"
+            />
+            <.input
+              field={@filter_form[:category]}
+              type="select"
+              label="Category"
+              options={@categories}
+              prompt="All categories"
+            />
+            <.input field={@filter_form[:max_kes]} type="number" label="Max KSh" />
+            <.input
+              field={@filter_form[:sort]}
+              type="select"
+              label="Sort"
+              options={[
+                {"Cost (low first)", "cost"},
+                {"Cost (high first)", "cost_desc"},
+                {"Name", "name"},
+                {"Panel", "panel"},
+                {"Newest", "recent"}
+              ]}
+            />
+          </div>
+          <div class="vn-catalog-filters__flags">
+            <.input field={@filter_form[:refill]} type="checkbox" label="Refill" />
+            <.input field={@filter_form[:cancel]} type="checkbox" label="Cancel" />
+            <.input field={@filter_form[:bounds]} type="checkbox" label="Sells 1,000" />
+            <.input field={@filter_form[:shortlisted]} type="checkbox" label="Shortlisted only" />
+          </div>
+        </.form>
+      </section>
+
+      <section class="vn-card vn-catalog-inventory">
+        <div class="vn-scroll">
+          <table class="vn-table vn-catalog-table">
+            <thead>
+              <tr>
+                <th>Panel</th>
+                <th>ID</th>
+                <th>Service</th>
+                <th>KSh / 1k</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                :for={service <- @services}
+                id={"service-#{service.id}"}
+                class={[
+                  service.shortlisted_at && "vn-catalog-row--picked",
+                  @selected && @selected.id == service.id && "vn-catalog-row--open"
+                ]}
+              >
+                <td>{service.supplier.slug}</td>
+                <td>{service.external_id}</td>
+                <td>
+                  <span class="vn-catalog-name">{service.name}</span>
+                  <span :if={service.refill} class="vn-badge">refill</span>
+                  <span :if={service.shortlisted_at} class="vn-badge vn-badge--ok">shortlisted</span>
+                </td>
+                <td>
+                  {kes(service.rate_micros, @params)}
+                  <span class="vn-muted">{usd(service.rate_micros)} USD</span>
+                </td>
+                <td class="vn-catalog-actions">
+                  <button
+                    type="button"
+                    class={[
+                      "vn-button vn-button--muted",
+                      service.shortlisted_at && "vn-star--on"
+                    ]}
+                    phx-click="shortlist"
+                    phx-value-id={service.id}
+                    id={"shortlist-#{service.id}"}
+                    aria-pressed={not is_nil(service.shortlisted_at)}
+                  >
+                    {if service.shortlisted_at, do: "Shortlisted", else: "Shortlist"}
+                  </button>
+                  <button
+                    type="button"
+                    class="vn-button"
+                    phx-click="select"
+                    phx-value-id={service.id}
+                    id={"select-#{service.id}"}
+                  >
+                    Place
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p :if={@services == []} class="vn-muted">
+          Nothing matches. Sync a panel from the Suppliers screen first.
+        </p>
+      </section>
+
+      <section :if={@selected} class="vn-card" id="placement">
+        <h2>Place this service</h2>
+        <p>{service_label(@selected)}</p>
+        <p class="vn-muted">
+          {usd(@selected.rate_micros)} USD/1k · {kes(@selected.rate_micros, @params)} · min {@selected.min} · max {@selected.max}
+        </p>
+
+        <div :if={@suggestions != []} class="vn-suggestions">
+          <p class="vn-muted">Suggestions — never published for you:</p>
+          <button
+            :for={{reason, service} <- @suggestions}
+            type="button"
+            class="vn-chip"
+            phx-click="select"
+            phx-value-id={service.id}
+            id={"suggest-#{service.id}"}
+          >
+            {Suggestions.label(reason)}: {service.supplier.slug}
+            {service.external_id} · {kes(service.rate_micros, @params)}
+          </button>
+        </div>
+
+        <.form for={@lane_form} id="lane-form" phx-submit="pin">
+          <div class="vn-form-grid">
+            <.input
+              field={@lane_form[:offer_id]}
+              type="select"
+              label="Offer"
+              options={offer_options(@offers)}
+              prompt="Choose an offer"
+            />
+            <.input
+              field={@lane_form[:grade]}
+              type="select"
+              label="Grade"
+              options={grade_options()}
+            />
+          </div>
+          <.input field={@lane_form[:manual_kes]} type="number" label="Manual price (KSh, optional)" />
+          <.input field={@lane_form[:published]} type="checkbox" label="Publish this lane" />
+          <button class="vn-button" id="pin-submit">Pin as this grade</button>
+        </.form>
+      </section>
+
+      <section class="vn-card" id="offers">
         <h2>Offers</h2>
 
         <div :for={offer <- @offers} class="vn-offer" id={"offer-#{offer.id}"}>
-          <div class="flex items-center justify-between gap-2">
+          <div class="vn-offer__head">
             <strong>{offer.title}</strong>
             <button
+              type="button"
               class="vn-button vn-button--muted"
               phx-click="toggle_offer"
               phx-value-id={offer.id}
@@ -88,153 +245,12 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
         <p :if={@offers == []} class="vn-muted">No offers yet. Create one below.</p>
 
         <.form for={@offer_form} id="offer-form" phx-submit="new_offer">
-          <div class="grid grid-cols-2 gap-2">
+          <div class="vn-form-grid">
             <.input field={@offer_form[:platform]} label="Platform" placeholder="instagram" />
             <.input field={@offer_form[:outcome]} label="Outcome" placeholder="followers" />
           </div>
           <.input field={@offer_form[:title]} label="Title" placeholder="Instagram followers" />
           <button class="vn-button" id="offer-create">Create offer</button>
-        </.form>
-      </section>
-
-      <section class="vn-card">
-        <h2>Inventory</h2>
-
-        <.form for={@filter_form} id="filters" phx-change="filter" phx-submit="filter">
-          <.input field={@filter_form[:q]} label="Search" placeholder="follower" />
-          <div class="grid grid-cols-2 gap-2">
-            <.input
-              field={@filter_form[:supplier]}
-              type="select"
-              label="Panel"
-              options={panel_options(@panels)}
-              prompt="All panels"
-            />
-            <.input
-              field={@filter_form[:category]}
-              type="select"
-              label="Category"
-              options={@categories}
-              prompt="All categories"
-            />
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <.input field={@filter_form[:max_kes]} type="number" label="Max KSh" />
-            <.input
-              field={@filter_form[:sort]}
-              type="select"
-              label="Sort"
-              options={[
-                {"Cost (low first)", "cost"},
-                {"Cost (high first)", "cost_desc"},
-                {"Name", "name"},
-                {"Panel", "panel"},
-                {"Newest", "recent"}
-              ]}
-            />
-          </div>
-          <div class="flex gap-3">
-            <.input field={@filter_form[:refill]} type="checkbox" label="Refill" />
-            <.input field={@filter_form[:cancel]} type="checkbox" label="Cancel" />
-            <.input field={@filter_form[:bounds]} type="checkbox" label="Sells 1,000" />
-            <.input field={@filter_form[:shortlisted]} type="checkbox" label="Shortlisted only" />
-          </div>
-        </.form>
-
-        <p class="vn-muted">{@total} matching · showing {@service_limit}</p>
-
-        <div class="vn-scroll">
-          <table class="vn-table">
-            <thead>
-              <tr>
-                <th>Panel</th>
-                <th>ID</th>
-                <th>Name</th>
-                <th>USD/1k</th>
-                <th>KSh</th>
-                <th>Refill</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={service <- @services} id={"service-#{service.id}"}>
-                <td>{service.supplier.slug}</td>
-                <td>{service.external_id}</td>
-                <td>
-                  {service.name}
-                  <span :if={service.shortlisted_at} class="vn-badge">shortlisted</span>
-                </td>
-                <td>{usd(service.rate_micros)}</td>
-                <td>{kes(service.rate_micros, @params)}</td>
-                <td>{service.refill}</td>
-                <td>
-                  <button
-                    class="vn-link-btn"
-                    phx-click="select"
-                    phx-value-id={service.id}
-                    id={"select-#{service.id}"}
-                  >
-                    Select
-                  </button>
-                  <button
-                    class="vn-link-btn"
-                    phx-click="shortlist"
-                    phx-value-id={service.id}
-                    id={"shortlist-#{service.id}"}
-                  >
-                    {if service.shortlisted_at, do: "Unshortlist", else: "Shortlist"}
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <p :if={@services == []} class="vn-muted">
-          Nothing matches. Sync a panel from the Suppliers screen first.
-        </p>
-      </section>
-
-      <section :if={@selected} class="vn-card" id="placement">
-        <h2>Placement</h2>
-        <p>{service_label(@selected)}</p>
-        <p class="vn-muted">
-          {usd(@selected.rate_micros)} USD/1k · {kes(@selected.rate_micros, @params)} · min {@selected.min} · max {@selected.max}
-        </p>
-
-        <div :if={@suggestions != []} class="vn-suggestions">
-          <p class="vn-muted">Suggestions — never published for you:</p>
-          <button
-            :for={{reason, service} <- @suggestions}
-            class="vn-chip"
-            phx-click="select"
-            phx-value-id={service.id}
-            id={"suggest-#{service.id}"}
-          >
-            {Suggestions.label(reason)}: {service.supplier.slug}
-            {service.external_id} · {kes(service.rate_micros, @params)}
-          </button>
-        </div>
-
-        <.form for={@lane_form} id="lane-form" phx-submit="pin">
-          <div class="grid grid-cols-2 gap-2">
-            <.input
-              field={@lane_form[:offer_id]}
-              type="select"
-              label="Offer"
-              options={offer_options(@offers)}
-              prompt="Choose an offer"
-            />
-            <.input
-              field={@lane_form[:grade]}
-              type="select"
-              label="Grade"
-              options={grade_options()}
-            />
-          </div>
-          <.input field={@lane_form[:manual_kes]} type="number" label="Manual price (KSh, optional)" />
-          <.input field={@lane_form[:published]} type="checkbox" label="Publish this lane" />
-          <button class="vn-button" id="pin-submit">Pin as this grade</button>
         </.form>
       </section>
     </Layouts.app>
@@ -291,11 +307,23 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
   def handle_event("shortlist", %{"id" => id}, socket) do
     case Catalog.get_service(id) do
-      nil -> {:noreply, put_flash(socket, :error, "That service is gone.")}
-      service -> Catalog.toggle_shortlist(service)
-    end
+      nil ->
+        {:noreply, put_flash(socket, :error, "That service is gone.")}
 
-    {:noreply, refresh_services(socket)}
+      service ->
+        case Catalog.toggle_shortlist(service) do
+          {:ok, updated} ->
+            note =
+              if updated.shortlisted_at,
+                do: "Shortlisted.",
+                else: "Taken off the shortlist."
+
+            {:noreply, socket |> put_flash(:info, note) |> refresh_services()}
+
+          {:error, changeset} ->
+            {:noreply, put_flash(socket, :error, changeset_message(changeset))}
+        end
+    end
   end
 
   def handle_event("pin", %{"lane" => params}, socket) do
@@ -418,7 +446,8 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
     assign(socket,
       services: Catalog.list_services(filters, limit: @service_limit, params: params),
-      total: Catalog.count_services(filters, params: params)
+      total: Catalog.count_services(filters, params: params),
+      shortlisted_count: Catalog.count_services(%{shortlisted: true}, params: params)
     )
   end
 
