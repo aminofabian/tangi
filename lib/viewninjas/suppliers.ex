@@ -349,17 +349,29 @@ defmodule ViewNinjas.Suppliers do
     )
   end
 
-  @doc "The newest raw rows across every panel, for the M3 admin view."
+  @doc """
+  The newest raw rows, for the M3 admin view.
+
+  Pass `:supplier` to read one panel's feed rather than every panel's.
+  """
   def list_recent_services(opts \\ []) do
     limit = Keyword.get(opts, :limit, 50)
+    panel = Keyword.get(opts, :supplier)
 
-    Repo.all(
+    query =
       from s in SupplierService,
         join: supplier in assoc(s, :supplier),
         order_by: [desc: s.last_seen_at, asc: s.external_id],
         limit: ^limit,
         preload: [supplier: supplier]
-    )
+
+    query =
+      case panel do
+        nil -> query
+        %Supplier{id: id} -> from s in query, where: s.supplier_id == ^id
+      end
+
+    Repo.all(query)
   end
 
   # -- pubsub ------------------------------------------------------------

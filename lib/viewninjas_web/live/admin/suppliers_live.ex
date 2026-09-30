@@ -23,6 +23,7 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
   alias ViewNinjas.Workers.{CheckSupplierBalance, SyncSupplierServices}
 
   @raw_limit 50
+  @panel_limit 12
 
   @impl true
   def render(assigns) do
@@ -61,11 +62,10 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
               id={"supplier-#{row.supplier.slug}"}
               aria-current={if @selected_slug == row.supplier.slug, do: "true", else: nil}
             >
+              <span class="vn-rail__mark" aria-hidden="true">{String.first(row.supplier.slug)}</span>
               <span class="vn-rail__name">{row.supplier.slug}</span>
               <span class="vn-rail__count">{row.active_services}/{row.total_services}</span>
-              <span class="vn-rail__meta">
-                {state_label(row.supplier)} · {balance_short(row.supplier)}
-              </span>
+              <span class="vn-rail__meta">{row.state_label} · {balance_short(row.supplier)}</span>
             </button>
           </li>
         </ul>
@@ -78,19 +78,55 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
       <%!-- Columns two and three: what the chosen panel is, and what it takes. --%>
       <%= if @selected do %>
         <section class="vn-card" id="supplier-detail">
-          <h2>{@selected.supplier.slug}</h2>
-          <p class="vn-muted">{state_label(@selected.supplier)}</p>
+          <header class="vn-pane__head">
+            <h2>{@selected.supplier.slug}</h2>
+            <span class={["vn-badge", @selected.state_class]}>{@selected.state_label}</span>
+          </header>
 
           <dl class="vn-detail">
-            <dt>Base URL</dt>
-            <dd>{@selected.supplier.base_url}</dd>
             <dt>Balance</dt>
             <dd>{balance(@selected.supplier)}</dd>
             <dt>Services</dt>
-            <dd>{@selected.active_services} active / {@selected.total_services} ingested</dd>
+            <dd>{@selected.active_services} active · {@selected.total_services} ingested</dd>
             <dt>Last sync</dt>
             <dd>{format_at(@selected.last_seen_at)}</dd>
           </dl>
+
+          <p class="vn-eyebrow">
+            {gettext("Services")}
+            <span class="vn-muted">
+              {gettext("newest %{count}", count: length(@panel_services))}
+            </span>
+          </p>
+
+          <div :if={@panel_services != []} class="vn-scroll">
+            <table class="vn-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>USD/1k</th>
+                  <th>Min</th>
+                  <th>Max</th>
+                  <th>Refill</th>
+                  <th>Live</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={service <- @panel_services} id={"service-#{service.id}"}>
+                  <td>{service.name}</td>
+                  <td>{Suppliers.format_usd_micros(service.rate_micros)}</td>
+                  <td>{service.min}</td>
+                  <td>{service.max}</td>
+                  <td>{service.refill}</td>
+                  <td>{service.active}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p :if={@panel_services == []} class="vn-muted">
+            {gettext("Nothing ingested yet. Set the key, then sync this panel's catalog.")}
+          </p>
         </section>
 
         <section class="vn-card" id="supplier-config">
@@ -115,7 +151,7 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
 
             <p :if={message = @errors[@selected.supplier.slug]} class="vn-error">{message}</p>
 
-            <div class="vn-actions">
+            <div class="vn-pane__actions">
               <button class="vn-button" type="submit" id={"save-#{@selected.supplier.slug}"}>
                 {gettext("Save")}
               </button>
@@ -143,69 +179,82 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
       <% end %>
 
       <section class="vn-card vn-wide" id="new-supplier">
-        <h2>{gettext("Add a panel")}</h2>
-        <p class="vn-muted">
-          {gettext("A fourth panel is a row plus a key, not a new integration.")}
-        </p>
+        <details class="vn-disclosure" open={@suppliers == []}>
+          <summary>
+            <span>{gettext("Add a panel")}</span>
+            <span class="vn-muted">
+              {gettext("a fourth panel is a row plus a key, not a new integration")}
+            </span>
+          </summary>
 
-        <.form for={@new_form} id="new-supplier-form" phx-submit="create_supplier">
-          <.input field={@new_form["slug"]} label={gettext("Slug")} />
-          <.input field={@new_form["base_url"]} label={gettext("Base URL")} />
-          <.input
-            type="password"
-            field={@new_form["api_key"]}
-            label={gettext("API key")}
-            autocomplete="new-password"
-          />
-          <.input type="checkbox" field={@new_form["active"]} label={gettext("Active")} />
-          <.capability_fields form={@new_form} flags={@capability_flags} />
-          <button class="vn-button" type="submit" id="create-supplier">
-            {gettext("Create panel")}
-          </button>
-        </.form>
+          <div class="vn-disclosure__body">
+            <.form for={@new_form} id="new-supplier-form" phx-submit="create_supplier">
+              <.input field={@new_form["slug"]} label={gettext("Slug")} />
+              <.input field={@new_form["base_url"]} label={gettext("Base URL")} />
+              <.input
+                type="password"
+                field={@new_form["api_key"]}
+                label={gettext("API key")}
+                autocomplete="new-password"
+              />
+              <.input type="checkbox" field={@new_form["active"]} label={gettext("Active")} />
+              <.capability_fields form={@new_form} flags={@capability_flags} />
+              <button class="vn-button" type="submit" id="create-supplier">
+                {gettext("Create panel")}
+              </button>
+            </.form>
+          </div>
+        </details>
       </section>
 
       <section class="vn-card vn-wide">
-        <h2>Raw catalog</h2>
-        <p class="vn-muted">
-          The newest {length(@services)} ingested rows from every panel. Curation — shortlist,
-          pin, publish — arrives in M4.
-        </p>
+        <details class="vn-disclosure">
+          <summary>
+            <span>{gettext("Raw feed")}</span>
+            <span class="vn-muted">
+              {gettext("the newest %{count} ingested rows from every panel",
+                count: length(@services)
+              )}
+            </span>
+          </summary>
 
-        <div class="vn-scroll">
-          <table class="vn-table">
-            <thead>
-              <tr>
-                <th>Panel</th>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>USD/1k</th>
-                <th>Min</th>
-                <th>Max</th>
-                <th>Refill</th>
-                <th>Active</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={service <- @services} id={"service-#{service.id}"}>
-                <td>{service.supplier.slug}</td>
-                <td>{service.external_id}</td>
-                <td>{service.name}</td>
-                <td>{service.type}</td>
-                <td>{Suppliers.format_usd_micros(service.rate_micros)}</td>
-                <td>{service.min}</td>
-                <td>{service.max}</td>
-                <td>{service.refill}</td>
-                <td>{service.active}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          <div class="vn-disclosure__body">
+            <div :if={@services != []} class="vn-scroll">
+              <table class="vn-table">
+                <thead>
+                  <tr>
+                    <th>Panel</th>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>USD/1k</th>
+                    <th>Min</th>
+                    <th>Max</th>
+                    <th>Refill</th>
+                    <th>Live</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={service <- @services} id={"feed-#{service.id}"}>
+                    <td>{service.supplier.slug}</td>
+                    <td>{service.external_id}</td>
+                    <td>{service.name}</td>
+                    <td>{service.type}</td>
+                    <td>{Suppliers.format_usd_micros(service.rate_micros)}</td>
+                    <td>{service.min}</td>
+                    <td>{service.max}</td>
+                    <td>{service.refill}</td>
+                    <td>{service.active}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-        <p :if={@services == []} class="vn-muted">
-          Nothing ingested yet. Add the keys and press “Sync services”.
-        </p>
+            <p :if={@services == []} class="vn-muted">
+              {gettext("Nothing ingested yet. Add the keys, then sync every catalog.")}
+            </p>
+          </div>
+        </details>
       </section>
     </Layouts.app>
     """
@@ -320,12 +369,14 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
     ~H"""
     <fieldset class="mt-3">
       <legend class="vn-muted">{gettext("Capabilities")}</legend>
-      <.input
-        :for={flag <- @flags}
-        type="checkbox"
-        field={@form["cap_" <> flag]}
-        label={flag}
-      />
+      <div class="vn-flags">
+        <.input
+          :for={flag <- @flags}
+          type="checkbox"
+          field={@form["cap_" <> flag]}
+          label={flag}
+        />
+      </div>
       <.input
         field={@form["multi_status_limit"]}
         type="number"
@@ -385,7 +436,9 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
           form: panel_form(supplier),
           active_services: Suppliers.count_active_services(supplier),
           total_services: Suppliers.count_services(supplier),
-          last_seen_at: Suppliers.last_seen_at(supplier)
+          last_seen_at: Suppliers.last_seen_at(supplier),
+          state_label: state_label(supplier),
+          state_class: state_class(supplier)
         }
       end
 
@@ -395,9 +448,15 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
       suppliers: suppliers,
       selected: selected,
       selected_slug: selected && selected.supplier.slug,
+      panel_services: panel_services(selected),
       services: Suppliers.list_recent_services(limit: @raw_limit)
     )
   end
+
+  defp panel_services(nil), do: []
+
+  defp panel_services(row),
+    do: Suppliers.list_recent_services(supplier: row.supplier, limit: @panel_limit)
 
   # The panel on show: whatever was picked, or the first one. A pick that no
   # longer exists falls back too, so the detail panes are never blank while there
@@ -488,6 +547,11 @@ defmodule ViewNinjasWeb.Admin.SuppliersLive do
     state = if active, do: "active", else: "inactive"
     if is_nil(paused_at), do: state, else: state <> " · paused"
   end
+
+  # The same three states, worn as a badge rather than said in a sentence.
+  defp state_class(%{active: true, paused_at: nil}), do: "vn-badge--ok"
+  defp state_class(%{active: true}), do: "vn-badge--warn"
+  defp state_class(_supplier), do: nil
 
   defp format_at(nil), do: "never"
   defp format_at(datetime), do: Calendar.strftime(datetime, "%Y-%m-%d %H:%M")

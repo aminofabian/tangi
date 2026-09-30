@@ -614,7 +614,8 @@ p {
 
 .vn-rail__item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: 0 var(--vn-space-2);
   width: 100%;
   padding: var(--vn-space-2);
@@ -627,6 +628,23 @@ p {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background-color var(--vn-fast) var(--vn-ease);
+}
+
+/* A panel's initial, so the list has something to aim at the way a thumbnail
+ * would. It is decoration: the slug beside it is the name. */
+.vn-rail__mark {
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--vn-radius-sm);
+  background: var(--vn-accent-soft);
+  color: var(--vn-text);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
 .vn-rail__name {
@@ -646,10 +664,89 @@ p {
 }
 
 .vn-rail__meta {
-  grid-column: 1 / -1;
+  grid-column: 2 / 4;
+  overflow: hidden;
   color: var(--vn-muted);
   font-size: var(--vn-text-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+/* The head of a pane: what it is on the left, what state it is in on the right. */
+.vn-pane__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vn-space-2);
+  margin-bottom: var(--vn-space-2);
+}
+
+.vn-pane__head > h2 {
+  margin: 0;
+}
+
+/* Capability flags are short words, so they pair up instead of running down the
+ * whole column. */
+.vn-flags {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 0 var(--vn-space-3);
+}
+
+.vn-flags .fieldset {
+  margin-bottom: 0;
+}
+
+/* Something folded away: the page-level extras you rarely reach for. */
+.vn-disclosure > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--vn-space-2);
+  cursor: pointer;
+  list-style: none;
+}
+
+.vn-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.vn-disclosure > summary::before {
+  content: "+";
+  flex: none;
+  width: 1ch;
+  color: var(--vn-muted);
+  font-weight: 700;
+}
+
+.vn-disclosure[open] > summary::before {
+  content: "–";
+}
+
+.vn-disclosure > summary > :first-child {
+  color: var(--vn-text);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+}
+
+@media (hover: hover) {
+  .vn-disclosure > summary:hover > :first-child {
+    color: var(--vn-accent-text);
+  }
+}
+
+.vn-disclosure > summary:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+.vn-disclosure__body {
+  margin-top: var(--vn-space-3);
+}
+
+/* ---------------------------------------------------------------- buttons */
 
 @media (hover: hover) {
   .vn-rail__item:hover {
@@ -658,15 +755,28 @@ p {
 }
 
 /* "Which one am I looking at" wears a rule down its edge, the way a desktop
- * list marks its selection. */
+ * list marks its selection. The mark goes to paper so it does not vanish into
+ * the tint. */
 .vn-rail__item[aria-current="true"] {
   background: var(--vn-accent-soft);
   box-shadow: inset 3px 0 0 var(--vn-accent);
 }
 
+.vn-rail__item[aria-current="true"] .vn-rail__mark {
+  background: var(--vn-surface);
+}
+
 .vn-rail__item:focus-visible {
   outline: 2px solid var(--vn-focus);
   outline-offset: -2px;
+}
+
+/* A pane's actions, stacked: the one that commits, then the two that go and ask
+ * the panel something. A narrow pane has no room for labels side by side. */
+.vn-pane__actions {
+  display: grid;
+  gap: var(--vn-space-2);
+  margin-top: var(--vn-space-4);
 }
 
 /* ---------------------------------------------------------------- buttons */
@@ -1733,9 +1843,10 @@ p {
   }
 
   /* Suppliers is a browser, not a reading column: the list, the panel you picked
-   * and the things you can do to it each get a column, in one row. */
+   * and the things you can do to it each get a column, in one row. The middle
+   * takes what is left, because it is the one that holds a table. */
   .vn-app--admin-suppliers .vn-main {
-    grid-template-columns: 15rem minmax(0, 1fr) 21rem;
+    grid-template-columns: 14rem minmax(0, 1fr) 19rem;
   }
 
   /* Anything that is not one of those three columns — the panel-wide triggers,
