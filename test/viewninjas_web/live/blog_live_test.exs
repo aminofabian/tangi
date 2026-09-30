@@ -26,6 +26,39 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     end
   end
 
+  test "the hub lists every cluster", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog")
+
+    for cluster <- Blog.list_clusters() do
+      assert has_element?(view, "#cluster-#{cluster.slug}")
+    end
+  end
+
+  test "every post slug is unique across clusters" do
+    slugs = Enum.map(Blog.list_posts(), & &1.slug)
+
+    assert slugs == Enum.uniq(slugs)
+  end
+
+  test "the providers pillar compares Tangi and links to its own shop", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/top-youtube-views-providers-kenya")
+
+    assert has_element?(view, "#tangi")
+    assert has_element?(view, ".vn-table-wrap")
+    assert render(view) =~ "Tangi"
+    assert has_element?(view, "a[href='/shop']")
+  end
+
+  test "the providers pillar links down to every spoke and across to the guide", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/top-youtube-views-providers-kenya")
+
+    for post <- Blog.spokes("top-youtube-views-providers-kenya") do
+      assert has_element?(view, "a[href='/blog/#{post.slug}']")
+    end
+
+    assert has_element?(view, "a[href='/blog/#{@pillar}']")
+  end
+
   test "an article renders its title, contents, a section and its FAQ", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/blog/#{@pillar}")
 

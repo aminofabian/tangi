@@ -16,7 +16,8 @@ defmodule ViewNinjas.Blog do
   alias ViewNinjas.Blog.{Cluster, Post}
 
   @clusters [
-    ViewNinjas.Blog.Clusters.BuyYoutubeViewsKenya
+    ViewNinjas.Blog.Clusters.BuyYoutubeViewsKenya,
+    ViewNinjas.Blog.Clusters.TopYoutubeViewsProvidersKenya
   ]
 
   @doc "Every cluster, in the order they are published."
