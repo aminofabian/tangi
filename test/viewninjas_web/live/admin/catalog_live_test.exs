@@ -86,6 +86,31 @@ defmodule ViewNinjasWeb.Admin.CatalogLiveTest do
     assert has_element?(lv, "#shortlist-#{service.id}.vn-star--on")
   end
 
+  test "the filters fold away, and the summary counts what is on", %{conn: conn} do
+    service_fixture(%{name: "IG followers", external_id: "111"})
+    service_fixture(%{name: "TikTok likes", external_id: "222"})
+    conn = log_in_user(conn, admin_fixture())
+    {:ok, lv, html} = live(conn, ~p"/admin/catalog")
+
+    assert has_element?(lv, "#filters-panel")
+    # The form is still in the DOM (just folded), so the filters keep working.
+    assert has_element?(lv, "#filters")
+    assert html =~ "none — search, panel, category"
+    refute has_element?(lv, "#filters-clear")
+
+    html = lv |> form("#filters", filters: %{q: "TikTok"}) |> render_change()
+
+    assert html =~ "1 on"
+    assert has_element?(lv, "#filters-clear")
+
+    lv |> element("#filters-clear") |> render_click()
+
+    html = render(lv)
+    assert html =~ "none — search, panel, category"
+    assert html =~ "IG followers"
+    refute has_element?(lv, "#filters-clear")
+  end
+
   test "selecting a row opens the placement form with suggestions", %{conn: conn} do
     cheaper = service_fixture(%{external_id: "1", rate_micros: 100_000, refill: true})
     subject = service_fixture(%{external_id: "9", name: "IG followers", rate_micros: 900_000})

@@ -83,49 +83,76 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
       admin={:catalog}
     >
       <section class="vn-card vn-catalog-filters">
-        <h2>Inventory</h2>
-        <p class="vn-muted">
-          {@total} matching · showing {length(@services)} · {@shortlisted_count} shortlisted
-        </p>
+        <div class="vn-filters__intro">
+          <div>
+            <h2>Inventory</h2>
+            <p class="vn-muted">
+              {@total} matching · showing {length(@services)} · {@shortlisted_count} shortlisted
+            </p>
+          </div>
+          <button
+            :if={@active_filters > 0}
+            type="button"
+            class="vn-link-btn"
+            phx-click="clear_filters"
+            id="filters-clear"
+          >
+            Clear filters
+          </button>
+        </div>
 
-        <.form for={@filter_form} id="filters" phx-change="filter" phx-submit="filter">
-          <div class="vn-catalog-filters__grid">
-            <.input field={@filter_form[:q]} label="Search" placeholder="follower" />
-            <.input
-              field={@filter_form[:supplier]}
-              type="select"
-              label="Panel"
-              options={panel_options(@panels)}
-              prompt="All panels"
-            />
-            <.input
-              field={@filter_form[:category]}
-              type="select"
-              label="Category"
-              options={@categories}
-              prompt="All categories"
-            />
-            <.input field={@filter_form[:max_kes]} type="number" label="Max KSh" />
-            <.input
-              field={@filter_form[:sort]}
-              type="select"
-              label="Sort"
-              options={[
-                {"Cost (low first)", "cost"},
-                {"Cost (high first)", "cost_desc"},
-                {"Name", "name"},
-                {"Panel", "panel"},
-                {"Newest", "recent"}
-              ]}
-            />
-          </div>
-          <div class="vn-catalog-filters__flags">
-            <.input field={@filter_form[:refill]} type="checkbox" label="Refill" />
-            <.input field={@filter_form[:cancel]} type="checkbox" label="Cancel" />
-            <.input field={@filter_form[:bounds]} type="checkbox" label="Sells 1,000" />
-            <.input field={@filter_form[:shortlisted]} type="checkbox" label="Shortlisted only" />
-          </div>
-        </.form>
+        <%!-- The filters fold away so the table starts high on the page. The summary
+              keeps a count, so an applied filter is never invisible. --%>
+        <details class="vn-filters" id="filters-panel">
+          <summary class="vn-filters__summary">
+            <span>Filters</span>
+            <span :if={@active_filters > 0} class="vn-badge vn-badge--ok">
+              {@active_filters} on
+            </span>
+            <span :if={@active_filters == 0} class="vn-filters__hint">
+              none — search, panel, category
+            </span>
+          </summary>
+
+          <.form for={@filter_form} id="filters" phx-change="filter" phx-submit="filter">
+            <div class="vn-catalog-filters__grid">
+              <.input field={@filter_form[:q]} label="Search" placeholder="follower" />
+              <.input
+                field={@filter_form[:supplier]}
+                type="select"
+                label="Panel"
+                options={panel_options(@panels)}
+                prompt="All panels"
+              />
+              <.input
+                field={@filter_form[:category]}
+                type="select"
+                label="Category"
+                options={@categories}
+                prompt="All categories"
+              />
+              <.input field={@filter_form[:max_kes]} type="number" label="Max KSh" />
+              <.input
+                field={@filter_form[:sort]}
+                type="select"
+                label="Sort"
+                options={[
+                  {"Cost (low first)", "cost"},
+                  {"Cost (high first)", "cost_desc"},
+                  {"Name", "name"},
+                  {"Panel", "panel"},
+                  {"Newest", "recent"}
+                ]}
+              />
+            </div>
+            <div class="vn-catalog-filters__flags">
+              <.input field={@filter_form[:refill]} type="checkbox" label="Refill" />
+              <.input field={@filter_form[:cancel]} type="checkbox" label="Cancel" />
+              <.input field={@filter_form[:bounds]} type="checkbox" label="Sells 1,000" />
+              <.input field={@filter_form[:shortlisted]} type="checkbox" label="Shortlisted only" />
+            </div>
+          </.form>
+        </details>
       </section>
 
       <%!-- Placement is a drawer, not another page: the inventory stays put behind
@@ -493,8 +520,6 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
     {:ok,
      socket
      |> assign(:page_title, gettext("Catalog"))
-     |> assign(:filter_params, @blank_filters)
-     |> assign(:filter_form, to_form(@blank_filters, as: "filters"))
      |> assign(:offer_form, to_form(%{}, as: "offer"))
      |> assign(:lane_form, to_form(%{}, as: "lane"))
      |> assign(:selected, nil)
@@ -504,7 +529,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
      |> assign(:categories, Catalog.list_categories())
      |> assign(:params, Pricing.current())
      |> refresh_offers()
-     |> refresh_services()}
+     |> apply_filters(@blank_filters)}
   end
 
   @impl true
@@ -517,11 +542,11 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
   @impl true
   def handle_event("filter", %{"filters" => params}, socket) do
-    {:noreply,
-     socket
-     |> assign(:filter_params, Map.merge(@blank_filters, params))
-     |> assign(:filter_form, to_form(Map.merge(@blank_filters, params), as: "filters"))
-     |> refresh_services()}
+    {:noreply, apply_filters(socket, Map.merge(@blank_filters, params))}
+  end
+
+  def handle_event("clear_filters", _params, socket) do
+    {:noreply, apply_filters(socket, @blank_filters)}
   end
 
   # "select" is the row's Place button and every suggestion: it opens the drawer,
@@ -907,6 +932,31 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
 
   defp refresh_offers(socket) do
     assign(socket, offers: Catalog.list_offers(), on_shop: Catalog.shop_grades())
+  end
+
+  # One place to set the filters: the params, the form, the "how many are on"
+  # count the folded summary shows, and the rows themselves.
+  defp apply_filters(socket, params) do
+    socket
+    |> assign(:filter_params, params)
+    |> assign(:filter_form, to_form(params, as: "filters"))
+    |> assign(:active_filters, active_filter_count(params))
+    |> refresh_services()
+  end
+
+  defp active_filter_count(params) do
+    [
+      params["q"] not in [nil, ""],
+      params["supplier"] not in [nil, ""],
+      params["category"] not in [nil, ""],
+      params["max_kes"] not in [nil, ""],
+      params["sort"] not in [nil, "", "cost"],
+      params["refill"] == "true",
+      params["cancel"] == "true",
+      params["bounds"] == "true",
+      params["shortlisted"] == "true"
+    ]
+    |> Enum.count(& &1)
   end
 
   defp refresh_services(socket) do

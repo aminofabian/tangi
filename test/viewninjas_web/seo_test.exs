@@ -37,6 +37,13 @@ defmodule ViewNinjasWeb.SeoTest do
     assert html =~ ~s("@type":"WebSite")
   end
 
+  test "every page carries the Search Console verification tag", %{conn: conn} do
+    html = conn |> get(~p"/") |> html_response(200)
+
+    assert html =~ ~s(content="WDnKb4dvZxdQyOUiSsfB94HWTdVcOmwDfnsCV7iY8bU")
+    assert html =~ ~s(name="google-site-verification")
+  end
+
   test "an offer page names the offer, its price and a product", %{conn: conn} do
     offer = published_offer_fixture(%{title: "Instagram followers"})
 

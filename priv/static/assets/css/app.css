@@ -1189,6 +1189,69 @@ p {
   max-width: none;
 }
 
+/* The filters fold away, so the table starts high on the page. The summary keeps
+ * a count of what is on; the caret turns as it opens. */
+.vn-filters__intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+}
+
+.vn-filters {
+  margin-top: var(--vn-space-3);
+}
+
+.vn-filters__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--vn-space-2);
+  min-height: var(--vn-tap-target);
+  padding: 0 var(--vn-space-3);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vn-filters__summary::-webkit-details-marker {
+  display: none;
+}
+
+.vn-filters__summary::after {
+  content: "";
+  margin-left: auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-right: 2px solid var(--vn-muted);
+  border-bottom: 2px solid var(--vn-muted);
+  transform: rotate(45deg);
+  transition: transform var(--vn-fast) var(--vn-ease);
+}
+
+.vn-filters[open] .vn-filters__summary::after {
+  transform: rotate(-135deg);
+}
+
+.vn-filters__summary:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+.vn-filters__hint {
+  color: var(--vn-muted);
+  font-size: var(--vn-text-xs);
+  font-weight: 400;
+}
+
+.vn-filters form {
+  margin-top: var(--vn-space-3);
+}
+
 .vn-catalog-filters__flags {
   display: flex;
   flex-wrap: wrap;
