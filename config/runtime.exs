@@ -61,8 +61,11 @@ if config_env() != :test do
   # `:not_configured` rather than prompting; the base URL can be pointed at a
   # sandbox.
   config :viewninjas, ViewNinjas.Payments.Malipo,
-    base_url: System.get_env("MALIPO_BASE_URL", "https://api.kiosk.ke"),
-    secret_key: System.get_env("MALIPO_SECRET_KEY")
+    base_url: System.get_env("MALIPO_BASE_URL", "https://backend.kioskpay.co.ke"),
+    secret_key: System.get_env("MALIPO_SECRET_KEY"),
+    client_id: System.get_env("MALIPO_CLIENT_ID"),
+    create_path: System.get_env("MALIPO_CREATE_PATH", "/v1/payments"),
+    check_path: System.get_env("MALIPO_CHECK_PATH", "/v1/payments/{id}")
 
   # Optional: when set, a Malipo callback must carry a matching signature.
   config :viewninjas, :malipo_webhook_secret, System.get_env("MALIPO_WEBHOOK_SECRET")

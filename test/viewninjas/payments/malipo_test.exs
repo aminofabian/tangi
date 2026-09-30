@@ -147,6 +147,53 @@ defmodule ViewNinjas.Payments.MalipoTest do
     assert Malipo.error_message({:transport, :timeout}) =~ "Could not reach"
   end
 
+  test "a client id is the bearer and create uses the configured path" do
+    Application.put_env(:viewninjas, @config,
+      base_url: "https://backend.kioskpay.co.ke",
+      secret_key: nil,
+      client_id: "pk_live_test",
+      create_path: "/v1/payments",
+      check_path: "/v1/payments/{id}",
+      req_options: [plug: {Req.Test, __MODULE__}]
+    )
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      assert conn.method == "POST"
+      assert conn.host == "backend.kioskpay.co.ke"
+      assert conn.request_path == "/v1/payments"
+      assert Plug.Conn.get_req_header(conn, "authorization") == ["Bearer pk_live_test"]
+
+      Req.Test.json(conn, %{"id" => "pay_9", "status" => "pending"})
+    end)
+
+    assert {:ok, payment} =
+             Malipo.create(%{
+               amount: "1.00",
+               customer_phone: "254700000000",
+               idempotency_key: "order-9-1"
+             })
+
+    assert payment.id == "pay_9"
+  end
+
+  test "check replaces {id} on the configured path" do
+    Application.put_env(:viewninjas, @config,
+      base_url: "https://backend.kioskpay.co.ke",
+      secret_key: nil,
+      client_id: "pk_live_test",
+      check_path: "/v1/payments/{id}",
+      req_options: [plug: {Req.Test, __MODULE__}]
+    )
+
+    Req.Test.stub(__MODULE__, fn conn ->
+      assert conn.method == "GET"
+      assert conn.request_path == "/v1/payments/pay_9"
+      Req.Test.json(conn, %{"id" => "pay_9", "status" => "settled", "receipt" => "QKH1"})
+    end)
+
+    assert {:ok, %{status: :settled}} = Malipo.get("pay_9")
+  end
+
   test "with no key configured it refuses instead of prompting" do
     Application.put_env(:viewninjas, @config, base_url: "https://malipo.test", secret_key: nil)
 

@@ -147,7 +147,10 @@ config :viewninjas, :payments, provider: ViewNinjas.Payments.Malipo
 
 # Client config for the Malipo rail; the key itself comes from the environment at
 # runtime, so no secret is ever in the repo.
-config :viewninjas, ViewNinjas.Payments.Malipo, base_url: "https://api.kiosk.ke"
+config :viewninjas, ViewNinjas.Payments.Malipo,
+  base_url: "https://backend.kioskpay.co.ke",
+  create_path: "/v1/payments",
+  check_path: "/v1/payments/{id}"
 
 # The pricing knobs live in the database, not config (scope.md §7). Only the FX
 # source the daily job reads is configured here; with no URL the job no-ops.

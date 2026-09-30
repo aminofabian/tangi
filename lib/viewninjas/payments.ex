@@ -37,13 +37,11 @@ defmodule ViewNinjas.Payments do
   def configured?, do: provider() != ViewNinjas.Payments.Malipo or malipo_configured?()
 
   defp malipo_configured? do
-    case :viewninjas
-         |> Application.get_env(ViewNinjas.Payments.Malipo, [])
-         |> Keyword.get(:secret_key) do
-      key when is_binary(key) and key != "" -> true
-      _ -> false
-    end
+    present?(ViewNinjas.Settings.malipo_secret_key()) or
+      present?(ViewNinjas.Settings.malipo_client_id())
   end
+
+  defp present?(value), do: is_binary(value) and value != ""
 
   # -- reading -----------------------------------------------------------
 

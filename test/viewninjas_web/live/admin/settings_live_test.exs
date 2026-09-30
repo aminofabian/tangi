@@ -28,7 +28,13 @@ defmodule ViewNinjasWeb.Admin.SettingsLiveTest do
     assert has_element?(lv, "#settings-form")
     assert has_element?(lv, "#settings-SMS")
     assert has_element?(lv, "#settings-Payments")
+    assert has_element?(lv, "#setting-malipo_client_id")
+    assert has_element?(lv, "#setting-malipo_base_url")
+    assert has_element?(lv, "#setting-malipo_create_path")
+    assert has_element?(lv, "#setting-malipo_check_path")
     assert has_element?(lv, "#setting-malipo_secret_key")
+    assert render(lv) =~ "https://backend.kioskpay.co.ke"
+    assert render(lv) =~ "/v1/payments/{id}"
     assert has_element?(lv, "#settings-bootstrap")
     assert has_element?(lv, "#admin-nav-settings")
   end

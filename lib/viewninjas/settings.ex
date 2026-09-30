@@ -54,24 +54,56 @@ defmodule ViewNinjas.Settings do
       default: 20_000_000
     },
     %{
+      key: "malipo_client_id",
+      group: "Payments",
+      label: "Client ID",
+      placeholder: "pk_live_…",
+      hint:
+        "The client id from Malipo Connect. Sent as the bearer token when no secret key is set.",
+      env: {:malipo, :client_id}
+    },
+    %{
       key: "malipo_base_url",
       group: "Payments",
-      label: "Malipo base URL",
+      label: "Endpoint base URL",
+      placeholder: "https://backend.kioskpay.co.ke",
+      hint:
+        "The host Connect shows. Create and check are joined onto this unless they are full URLs.",
       env: {:malipo, :base_url},
-      default: "https://api.kiosk.ke"
+      default: "https://backend.kioskpay.co.ke"
+    },
+    %{
+      key: "malipo_create_path",
+      group: "Payments",
+      label: "Create a payment",
+      placeholder: "/v1/payments",
+      hint: "POST path, or a full https URL. Default /v1/payments.",
+      env: {:malipo, :create_path},
+      default: "/v1/payments"
+    },
+    %{
+      key: "malipo_check_path",
+      group: "Payments",
+      label: "Check a payment",
+      placeholder: "/v1/payments/{id}",
+      hint: "GET path. {id} is the payment id. Default /v1/payments/{id}.",
+      env: {:malipo, :check_path},
+      default: "/v1/payments/{id}"
     },
     %{
       key: "malipo_secret_key",
       group: "Payments",
-      label: "Malipo secret key",
+      label: "Secret key",
       secret: true,
+      hint: "Optional sk_live_… key. When set, it is sent instead of the client id.",
       env: {:malipo, :secret_key}
     },
     %{
       key: "malipo_webhook_secret",
       group: "Payments",
-      label: "Malipo webhook signing secret",
+      label: "Webhook signing secret",
       secret: true,
+      hint: "Optional whsec_… secret. Leave blank to confirm payments by checking them.",
       env: {:viewninjas, :malipo_webhook_secret}
     },
     %{
@@ -139,7 +171,7 @@ defmodule ViewNinjas.Settings do
     |> Map.put(:secret, secret?)
     |> Map.put(:stored, present?(override))
     |> Map.put(:effective, present?(resolved(spec, stored)))
-    |> Map.put(:value, if(secret?, do: nil, else: override || ""))
+    |> Map.put(:value, if(secret?, do: nil, else: shown_value(spec, stored, override)))
   end
 
   @doc """
@@ -245,6 +277,10 @@ defmodule ViewNinjas.Settings do
     resolved_value("sms_daily_cap_micros") |> parse_integer() || 20_000_000
   end
 
+  @doc "The Malipo client id (`pk_live_…`)."
+  @spec malipo_client_id() :: String.t() | nil
+  def malipo_client_id, do: resolved_value("malipo_client_id")
+
   @doc "The Malipo secret key."
   @spec malipo_secret_key() :: String.t() | nil
   def malipo_secret_key, do: resolved_value("malipo_secret_key")
@@ -252,6 +288,14 @@ defmodule ViewNinjas.Settings do
   @doc "The Malipo base URL."
   @spec malipo_base_url() :: String.t()
   def malipo_base_url, do: resolved_value("malipo_base_url")
+
+  @doc "Path or absolute URL for POST /v1/payments."
+  @spec malipo_create_path() :: String.t()
+  def malipo_create_path, do: resolved_value("malipo_create_path")
+
+  @doc "Path or absolute URL for GET /v1/payments/{id}. `{id}` is replaced."
+  @spec malipo_check_path() :: String.t()
+  def malipo_check_path, do: resolved_value("malipo_check_path")
 
   @doc "The Malipo webhook signing secret, or nil when callbacks are unsigned."
   @spec malipo_webhook_secret() :: String.t() | nil
@@ -341,6 +385,13 @@ defmodule ViewNinjas.Settings do
 
   defp parse_integer(value) when is_integer(value), do: value
   defp parse_integer(_value), do: nil
+
+  # The screen shows the value in force, so a default is an editable field rather
+  # than a blank box. A stored override wins.
+  defp shown_value(_spec, _stored, override) when is_binary(override) and override != "",
+    do: override
+
+  defp shown_value(spec, stored, _override), do: resolved(spec, stored) || ""
 
   defp stringify(nil), do: nil
   defp stringify(value) when is_integer(value), do: Integer.to_string(value)

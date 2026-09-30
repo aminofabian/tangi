@@ -30,11 +30,11 @@ defmodule ViewNinjas.Payments.Malipo do
       |> put_optional(:callback_url, attrs[:callback_url])
       |> put_optional(:currency, attrs[:currency])
 
-    request(:post, "/v1/payments", Jason.encode!(body))
+    request(:post, create_url(), Jason.encode!(body))
   end
 
   @impl true
-  def get(id), do: request(:get, "/v1/payments/" <> id, nil)
+  def get(id), do: request(:get, check_url(id), nil)
 
   @doc "A short sentence for a normalized error, safe to show a customer."
   @spec error_message(term()) :: String.t()
@@ -57,12 +57,12 @@ defmodule ViewNinjas.Payments.Malipo do
   def error_message({:transport, _reason}), do: "Could not reach the payment rail."
   def error_message(_other), do: "Payments are unavailable just now."
 
-  defp request(method, path, body) do
-    with {:ok, key} <- secret_key() do
+  defp request(method, url, body) do
+    with {:ok, key} <- credential() do
       options =
         req_options()
         |> Keyword.put(:method, method)
-        |> Keyword.put(:url, base_url() <> path)
+        |> Keyword.put(:url, url)
         |> Keyword.put(:headers, [
           {"authorization", "Bearer " <> key},
           {"content-type", "application/json"}
@@ -119,14 +119,37 @@ defmodule ViewNinjas.Payments.Malipo do
   defp put_optional(map, _key, nil), do: map
   defp put_optional(map, key, value), do: Map.put(map, key, value)
 
-  defp secret_key do
-    case Settings.malipo_secret_key() do
-      key when is_binary(key) and key != "" -> {:ok, key}
+  # The secret key wins when Connect issued an sk_live_… key. Otherwise the
+  # client id (pk_live_…) is the bearer, which is what Connect shows as Client ID.
+  defp credential do
+    case blank_to_nil(Settings.malipo_secret_key()) || blank_to_nil(Settings.malipo_client_id()) do
+      key when is_binary(key) -> {:ok, key}
       _ -> {:error, :not_configured}
     end
   end
 
-  defp base_url, do: Settings.malipo_base_url()
+  defp create_url, do: absolute(Settings.malipo_create_path())
+
+  defp check_url(id) do
+    Settings.malipo_check_path()
+    |> String.replace("{id}", URI.encode(to_string(id)))
+    |> absolute()
+  end
+
+  defp absolute(path) do
+    path = path |> to_string() |> String.trim()
+
+    if String.starts_with?(path, "https://") or String.starts_with?(path, "http://") do
+      path
+    else
+      base = Settings.malipo_base_url() |> to_string() |> String.trim_trailing("/")
+      relative = if String.starts_with?(path, "/"), do: path, else: "/" <> path
+      base <> relative
+    end
+  end
+
+  defp blank_to_nil(value) when is_binary(value) and value != "", do: value
+  defp blank_to_nil(_value), do: nil
 
   defp req_options do
     :viewninjas |> Application.get_env(__MODULE__, []) |> Keyword.get(:req_options, [])

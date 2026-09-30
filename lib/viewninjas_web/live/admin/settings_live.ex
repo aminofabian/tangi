@@ -79,7 +79,13 @@ defmodule ViewNinjasWeb.Admin.SettingsLive do
               autocomplete="new-password"
               placeholder={secret_placeholder(entry)}
             />
-            <.input :if={!entry.secret} field={@form[entry.key]} label={entry.label} />
+            <.input
+              :if={!entry.secret}
+              field={@form[entry.key]}
+              label={entry.label}
+              placeholder={entry[:placeholder]}
+            />
+            <p :if={entry[:hint]} id={"hint-#{entry.key}"} class="vn-muted">{entry[:hint]}</p>
 
             <p class="vn-muted">
               {state_label(entry)}
