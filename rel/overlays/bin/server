@@ -2,4 +2,13 @@
 set -eu
 
 cd -P -- "$(dirname -- "$0")"
+
+# Apply pending migrations before serving. This script is the image's entrypoint
+# (Dockerfile CMD), and a host that runs no separate release step would otherwise
+# boot code ahead of its schema — a query selecting a column that does not exist
+# yet is a 500. It is idempotent and safe on one node: Ecto takes an advisory
+# lock, and a database already up to date is a no-op. `set -e` means a failed
+# migration aborts the boot rather than serving on a stale schema.
+./migrate
+
 PHX_SERVER=true exec ./viewninjas start
