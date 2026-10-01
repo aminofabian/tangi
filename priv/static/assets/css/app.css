@@ -647,6 +647,43 @@ p {
   white-space: nowrap;
 }
 
+/* --------------------------------------------- the short-fall block (§ airtime) */
+
+/* When the wallet cannot cover the buy, the page does not dead-end: it says what is
+ * missing and offers both ways to close the gap under a hairline — pay the exact
+ * difference, or deposit a rounder sum and keep the rest. The column stretches, so
+ * every choice reads as a full-width, thumb-sized button. */
+.vn-topup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-3);
+  margin-top: var(--vn-space-3);
+  padding-top: var(--vn-space-4);
+  border-top: 1px solid var(--vn-border);
+}
+
+.vn-topup > p {
+  margin: 0;
+}
+
+.vn-topup__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+}
+
+/* The deposit choices are the quieter sibling of "pay the difference": same
+ * shape, less weight, and never as loud as the button above them. */
+.vn-topup__options .vn-button {
+  font-weight: 600;
+}
+
+/* A lone submit in the buy form gets the same full-width, thumb-first shape. */
+#airtime-form > .vn-button {
+  width: 100%;
+  margin-top: var(--vn-space-3);
+}
+
 /* A row of actions that wraps.
  *
  * Note: Tailwind's `flex flex-wrap` is *not* in default.css — it only ships the
