@@ -251,6 +251,23 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
         ]
       },
       %{
+        id: "tangi",
+        heading: "Buy Airtime on Tangi",
+        blocks: [
+          {:p,
+           "Tangi is one place to do everything above: pick the network — Safaricom, Airtel, Telkom or Faiba — enter one or more numbers, and pay at face value. The airtime lands in seconds, and there is no scratch card and no markup on the value."},
+          {:p,
+           "You pay from your Tangi wallet, or straight from M-Pesa when the wallet is short, and one buy can top up several numbers at once. For the step-by-step walkthrough, with the real screens, see [how to buy airtime with Tangi](/blog/how-to-buy-airtime-with-tangi)."},
+          {:cta,
+           %{
+             text:
+               "Buy airtime for any Kenyan network on Tangi — priced in shillings, paid with M-Pesa, delivered in seconds.",
+             href: "/airtime",
+             label: "Buy airtime"
+           }}
+        ]
+      },
+      %{
         id: "prices-limits",
         heading: "Airtime Prices and Limits",
         blocks: [
@@ -272,7 +289,7 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
         toc: false,
         blocks: [
           {:p,
-           "Pick the network you are topping up, or the method you want to pay with, from the guides above. If you are not sure which route is best, [the best way to buy airtime in Kenya](/blog/best-way-to-buy-airtime-kenya) compares them side by side. To do it on Tangi, screens and all, start with [how to buy airtime with Tangi](/blog/how-to-buy-airtime-with-tangi)."},
+           "Pick the network you are topping up, or the method you want to pay with, from the guides above. If you are not sure which route is best, [the best way to buy airtime in Kenya](/blog/best-way-to-buy-airtime-kenya) compares them side by side. To do it on Tangi, screens and all, start with [how to buy airtime with Tangi](/blog/how-to-buy-airtime-with-tangi). If you are weighing a data bundle instead of airtime, [buy data bundles in Kenya](/blog/buy-data-bundles-kenya) covers that side of the market."},
           {:cta,
            %{
              text:
@@ -885,7 +902,7 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
           toc: false,
           blocks: [
             {:p,
-             "For the full picture across networks and methods, read [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya). If you are topping up someone else, see [buy airtime for another number](/blog/buy-airtime-for-another-number)."},
+             "For the full picture across networks and methods, read [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya). If you are topping up someone else, see [buy airtime for another number](/blog/buy-airtime-for-another-number). Paying for data with M-Pesa works the same way — see [buy Safaricom data with M-Pesa](/blog/buy-safaricom-data-with-mpesa)."},
             {:cta,
              %{
                text:
@@ -988,7 +1005,7 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
           toc: false,
           blocks: [
             {:p,
-             "For the full picture, read [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya). If you are topping up someone else, see [buy airtime for another number](/blog/buy-airtime-for-another-number)."},
+             "For the full picture, read [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya). If you are topping up someone else, see [buy airtime for another number](/blog/buy-airtime-for-another-number). The same walkthrough for data is in [buy data bundles online in Kenya](/blog/buy-data-bundles-online-kenya)."},
             {:cta,
              %{
                text:
@@ -1096,7 +1113,7 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
           toc: false,
           blocks: [
             {:p,
-             "To see this in context, read [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya), or [buy airtime online in Kenya](/blog/buy-airtime-online-kenya) for the route that handles several numbers at once."},
+             "To see this in context, read [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya), or [buy airtime online in Kenya](/blog/buy-airtime-online-kenya) for the route that handles several numbers at once. Topping up someone's data instead is in [buy data bundles for another number](/blog/buy-data-bundles-for-another-number)."},
             {:cta,
              %{
                text:
@@ -1294,7 +1311,7 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
           toc: false,
           blocks: [
             {:p,
-             "Each route has its own guide — start with [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya), or jump to [buy airtime with M-Pesa](/blog/buy-airtime-with-mpesa) or [buy airtime for another number](/blog/buy-airtime-for-another-number)."},
+             "Each route has its own guide — start with [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya), or jump to [buy airtime with M-Pesa](/blog/buy-airtime-with-mpesa) or [buy airtime for another number](/blog/buy-airtime-for-another-number). For the data side of the same decision, see [the best data bundles in Kenya](/blog/best-data-bundles-kenya)."},
             {:cta,
              %{
                text:

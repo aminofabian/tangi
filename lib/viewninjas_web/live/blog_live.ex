@@ -150,7 +150,7 @@ defmodule ViewNinjasWeb.BlogLive do
       <h1 class="vn-hero__title">{gettext("Guides for Kenyan shoppers and creators")}</h1>
       <p class="vn-hero__tagline">
         {gettext(
-          "Practical guides on buying social media growth and buying airtime in Kenya — written in shillings, for Kenyan buyers and creators."
+          "Practical guides on buying social media growth, airtime and data bundles in Kenya — written in shillings, for Kenyan buyers and creators."
         )}
       </p>
     </section>
@@ -396,7 +396,7 @@ defmodule ViewNinjasWeb.BlogLive do
 
   defp hub_description do
     gettext(
-      "Guides on buying social media growth and buying airtime in Kenya, written in shillings for Kenyan buyers and creators."
+      "Guides on buying social media growth, airtime and data bundles in Kenya, written in shillings for Kenyan buyers and creators."
     )
   end
 end

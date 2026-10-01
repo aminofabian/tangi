@@ -19,7 +19,8 @@ defmodule ViewNinjas.Blog do
     ViewNinjas.Blog.Clusters.BuyYoutubeViewsKenya,
     ViewNinjas.Blog.Clusters.TopYoutubeViewsProvidersKenya,
     ViewNinjas.Blog.Clusters.TopTiktokFollowersProvidersKenya,
-    ViewNinjas.Blog.Clusters.BuyAirtimeKenya
+    ViewNinjas.Blog.Clusters.BuyAirtimeKenya,
+    ViewNinjas.Blog.Clusters.BuyDataBundlesKenya
   ]
 
   @doc "Every cluster, in the order they are published."

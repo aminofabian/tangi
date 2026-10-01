@@ -15,6 +15,7 @@ defmodule ViewNinjasWeb.BlogLiveTest do
 
   @pillar "buy-youtube-views-kenya"
   @airtime "buy-airtime-kenya"
+  @bundles "buy-data-bundles-kenya"
 
   test "the hub lists the cluster, its pillar and its spokes", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/blog")
@@ -133,6 +134,8 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     assert has_element?(view, "h1.vn-article__title")
     assert has_element?(view, ".vn-table-wrap")
     assert has_element?(view, "#faq")
+    assert has_element?(view, "#tangi")
+    assert has_element?(view, "nav.vn-toc a[href='#tangi']")
 
     for post <- Blog.spokes(@airtime) do
       assert has_element?(view, "a[href='/blog/#{post.slug}']")
@@ -164,6 +167,79 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     for post <- Blog.spokes(@airtime) do
       refute post.faqs == [], "#{post.slug} has no FAQs"
     end
+  end
+
+  test "the hub lists the data bundles cluster and every bundle article", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog")
+
+    assert has_element?(view, "#cluster-#{@bundles}")
+    assert has_element?(view, "a[href='/blog/#{@bundles}']")
+
+    for post <- Blog.spokes(@bundles) do
+      assert has_element?(view, "a[href='/blog/#{post.slug}']")
+    end
+  end
+
+  test "the bundles cluster carries the full spoke set" do
+    slugs = Blog.spokes(@bundles) |> Enum.map(& &1.slug) |> Enum.sort()
+
+    assert slugs ==
+             ~w(
+               best-data-bundles-kenya
+               buy-airtel-data-bundles
+               buy-airtel-data-with-mpesa
+               buy-data-bundles-for-another-number
+               buy-data-bundles-online-kenya
+               buy-faiba-data-bundles
+               buy-safaricom-data-bundles
+               buy-safaricom-data-with-mpesa
+               buy-telkom-data-bundles
+               cheapest-data-bundles-kenya
+               daily-data-bundles-kenya
+               monthly-data-bundles-kenya
+               weekly-data-bundles-kenya
+             )
+             |> Enum.sort()
+  end
+
+  test "the bundles pillar links down to every spoke and carries a table and FAQ", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/#{@bundles}")
+
+    assert has_element?(view, "h1.vn-article__title")
+    assert has_element?(view, ".vn-table-wrap")
+    assert has_element?(view, "#faq")
+
+    for post <- Blog.spokes(@bundles) do
+      assert has_element?(view, "a[href='/blog/#{post.slug}']")
+    end
+  end
+
+  test "a bundles spoke links up to the pillar and is honest about Tangi", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/buy-safaricom-data-bundles")
+
+    assert has_element?(view, "a[href='/blog/#{@bundles}']")
+    assert has_element?(view, "a[href='/airtime']")
+    assert render(view) =~ "does not sell data bundles"
+  end
+
+  test "every bundles spoke carries its own FAQs" do
+    for post <- Blog.spokes(@bundles) do
+      refute post.faqs == [], "#{post.slug} has no FAQs"
+    end
+  end
+
+  test "the airtime and data-bundles clusters cross-link to each other", %{conn: conn} do
+    {:ok, airtime_view, _html} = live(conn, ~p"/blog/#{@airtime}")
+    assert has_element?(airtime_view, "a[href='/blog/#{@bundles}']")
+
+    {:ok, bundles_view, _html} = live(conn, ~p"/blog/#{@bundles}")
+    assert has_element?(bundles_view, "a[href='/blog/#{@airtime}']")
+
+    {:ok, airtime_spoke, _html} = live(conn, ~p"/blog/buy-airtime-for-another-number")
+    assert has_element?(airtime_spoke, "a[href='/blog/buy-data-bundles-for-another-number']")
+
+    {:ok, bundles_spoke, _html} = live(conn, ~p"/blog/buy-data-bundles-for-another-number")
+    assert has_element?(bundles_spoke, "a[href='/blog/buy-airtime-for-another-number']")
   end
 
   test "an unknown slug returns to the hub", %{conn: conn} do
