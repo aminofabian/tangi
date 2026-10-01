@@ -494,25 +494,19 @@ p {
 
 /* ------------------------------------------- install nudge (scope.md §12) */
 
-/* The first-run "add to home screen" card. It floats just above the tab bar,
- * hidden until the browser (or the hook, on iOS) reveals it, and is offered
- * once — a dismissal is remembered by the hook. */
+/* The "add to home screen" card. It leads the page, in the flow rather than pinned
+ * over the foot of it, so it can never cover a control underneath it. Hidden until
+ * the browser (or the hook, on iOS) reveals it, and offered once — a dismissal is
+ * remembered by the hook. */
 .vn-install {
-  position: fixed;
-  inset-inline: 0;
-  bottom: calc(var(--vn-tabbar-h) + env(safe-area-inset-bottom) + var(--vn-space-3));
-  z-index: 30;
   display: flex;
   align-items: center;
   gap: var(--vn-space-3);
-  margin-inline: auto;
-  width: calc(100% - 2 * var(--vn-space-4));
-  max-width: 28rem;
   padding: var(--vn-space-3);
   background: var(--vn-surface);
   border: 1px solid var(--vn-border);
   border-radius: var(--vn-radius);
-  box-shadow: var(--vn-shadow-3);
+  box-shadow: var(--vn-shadow-1);
 }
 
 .vn-install[hidden] {

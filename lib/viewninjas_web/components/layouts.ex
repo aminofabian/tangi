@@ -79,12 +79,14 @@ defmodule ViewNinjasWeb.Layouts do
 
       <main class={["vn-main", @back_office? && "vn-main--flush"]}>
         <h1 :if={@title && @back_office?} class="vn-page-title">{@title}</h1>
+        <%!-- In the flow and first on the page, never pinned: a pinned version sat
+              squarely on top of the log-in button. --%>
+        <.pwa_install :if={!@back_office?} />
         {render_slot(@inner_block)}
       </main>
     </div>
 
     <.tab_bar :if={!@back_office?} section={@section} />
-    <.pwa_install :if={!@back_office?} />
     <.flash_group flash={@flash} />
     """
   end
@@ -230,11 +232,16 @@ defmodule ViewNinjasWeb.Layouts do
   @doc """
   The first-run "add to home screen" nudge (scope.md §12).
 
-  It stays hidden until the browser says the app is installable — Chrome's
-  `beforeinstallprompt` — or until an iOS Safari visit, which fires no such
-  event and is shown the manual steps instead. A dismissal is remembered, so it
-  is offered exactly once. The whole subtree is `phx-update="ignore"`: the hook
-  owns its own DOM and LiveView must not re-render it back.
+  It leads the page, in the flow rather than pinned over the foot of it, so it can
+  never cover a control underneath it. It stays hidden until the browser says the
+  app is installable — Chrome's `beforeinstallprompt` — or until an iOS Safari
+  visit, which fires no such event and is shown the manual steps instead. A
+  dismissal is remembered, but only for a month: an install is a "later", not a
+  "never". The whole subtree is `phx-update="ignore"`: the hook owns its own DOM
+  and LiveView must not re-render it back.
+
+  The prompt itself is caught in `assets/js/app.js` before LiveView boots — see
+  the note there for why the hook cannot wait for the event on its own.
   """
   def pwa_install(assigns) do
     ~H"""
@@ -263,51 +270,58 @@ defmodule ViewNinjasWeb.Layouts do
       </div>
     </aside>
     <script :type={Phoenix.LiveView.ColocatedHook} name=".PwaInstall">
-      const DISMISSED = "tangi:pwa-dismissed"
-
-      const isIos = () => {
-        const ua = window.navigator.userAgent
-        return /iphone|ipad|ipod/i.test(ua) || (ua.includes("Macintosh") && "ontouchend" in document)
-      }
-
-      const isStandalone = () =>
-        window.matchMedia("(display-mode: standalone)").matches ||
-        window.navigator.standalone === true
+      const SNOOZED_AT = "tangi:pwa-dismissed-at"
+      // A month. Long enough not to nag, short enough that a change of mind is
+      // still reachable from the nudge rather than only from the Account tab.
+      const SNOOZE_MS = 30 * 24 * 60 * 60 * 1000
 
       export default {
         mounted() {
-          this.deferred = null
-
-          if (isStandalone() || localStorage.getItem(DISMISSED)) return
+          if (!window.vnPwa) return
 
           const button = this.el.querySelector("[data-pwa-install]")
           const text = this.el.querySelector(".vn-install__text")
 
-          this.el.querySelector("[data-pwa-dismiss]").addEventListener("click", () => {
-            localStorage.setItem(DISMISSED, "1")
-            this.el.hidden = true
-          })
-
-          button.addEventListener("click", async () => {
-            if (!this.deferred) return
-            this.deferred.prompt()
-            await this.deferred.userChoice
-            this.deferred = null
-            this.el.hidden = true
-          })
-
-          window.addEventListener("beforeinstallprompt", (event) => {
-            event.preventDefault()
-            this.deferred = event
-            this.el.hidden = false
-          })
-
-          if (isIos()) {
-            // iOS Safari never fires beforeinstallprompt; show the manual steps.
-            text.textContent = "Tap the Share button, then \u201cAdd to Home Screen\u201d."
-            button.hidden = true
-            this.el.hidden = false
+          const snoozed = () => {
+            const at = Number(localStorage.getItem(SNOOZED_AT))
+            return at > 0 && Date.now() - at < SNOOZE_MS
           }
+
+          // The Account tab carries a permanent install card; nudging there too
+          // would say the same thing twice, so the card wins.
+          const hasCard = () => document.querySelector("[data-pwa-install-card]") !== null
+
+          // The browser may have offered installation long before this hook
+          // mounted, so every path re-reads the shared state rather than waiting.
+          this.refresh = () => {
+            if (window.vnPwa.installed() || snoozed() || hasCard()) {
+              this.el.hidden = true
+            } else if (window.vnPwa.available()) {
+              button.hidden = false
+              this.el.hidden = false
+            } else if (window.vnPwa.ios()) {
+              // iOS never fires beforeinstallprompt; show the manual steps.
+              text.textContent = "Tap the Share button, then \u201cAdd to Home Screen\u201d."
+              button.hidden = true
+              this.el.hidden = false
+            } else {
+              this.el.hidden = true
+            }
+          }
+
+          button.addEventListener("click", () => window.vnPwa.install())
+
+          this.el.querySelector("[data-pwa-dismiss]").addEventListener("click", () => {
+            localStorage.setItem(SNOOZED_AT, String(Date.now()))
+            this.el.hidden = true
+          })
+
+          window.addEventListener("phx:pwa-installable", this.refresh)
+          window.addEventListener("phx:pwa-installed", () => (this.el.hidden = true))
+          // A live navigation can bring the Account card in or out from under us.
+          window.addEventListener("phx:page-loading-stop", this.refresh)
+
+          this.refresh()
         },
       }
     </script>

@@ -5,6 +5,9 @@ defmodule ViewNinjasWeb.PwaTest do
   """
   use ViewNinjasWeb.ConnCase, async: true
 
+  import Phoenix.LiveViewTest
+  import ViewNinjas.AccountsFixtures
+
   test "serves the web app manifest", %{conn: conn} do
     body = conn |> get(~p"/manifest.json") |> response(200)
 
@@ -51,5 +54,42 @@ defmodule ViewNinjasWeb.PwaTest do
 
       assert response(conn, 200) =~ <<0x89, "PNG">>
     end
+  end
+
+  test "the shell's install nudge is wired to the bundled hook", %{conn: conn} do
+    {:ok, lv, _html} = live(conn, ~p"/shop")
+
+    # A colocated hook is namespaced by the module that defines it, and that
+    # namespaced name is the key the bundled JS registers. Asserting the rendered
+    # attribute here keeps the two from drifting apart silently.
+    assert has_element?(lv, "#pwa-install[phx-hook='ViewNinjasWeb.Layouts.PwaInstall']")
+    assert has_element?(lv, "#pwa-install[phx-update='ignore']")
+    # The one-click button and the dismiss control the hook binds to.
+    assert has_element?(lv, "#pwa-install [data-pwa-install]")
+    assert has_element?(lv, "#pwa-install [data-pwa-dismiss]")
+    # It starts hidden; the hook reveals it once the browser offers install.
+    assert has_element?(lv, "#pwa-install[hidden]")
+  end
+
+  test "the back office has no install nudge", %{conn: conn} do
+    conn = log_in_user(conn, super_admin_fixture())
+
+    {:ok, lv, _html} = live(conn, ~p"/admin")
+
+    refute has_element?(lv, "#pwa-install")
+  end
+
+  test "the Account tab carries its own one-click install", %{conn: conn} do
+    conn = log_in_user(conn, verified_user_fixture())
+
+    {:ok, lv, _html} = live(conn, ~p"/account")
+
+    assert has_element?(lv, "#install-card[phx-hook='ViewNinjasWeb.AccountLive.InstallApp']")
+    assert has_element?(lv, "#install-card[hidden]")
+    assert has_element?(lv, "#install-card [data-pwa-install]")
+    # The manual steps iOS is shown, in place of a prompt it never gets.
+    assert has_element?(lv, "#install-card [data-pwa-steps]")
+    # The nudge defers to this card rather than saying the same thing twice.
+    assert has_element?(lv, "#install-card[data-pwa-install-card]")
   end
 end

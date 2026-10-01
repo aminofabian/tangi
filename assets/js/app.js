@@ -25,6 +25,59 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/viewninjas"
 import topbar from "../vendor/topbar"
 
+// ---------------------------------------------------------------- PWA install
+//
+// Chrome offers installation through a *single, early* `beforeinstallprompt`
+// event. It routinely fires before the LiveView socket has connected and mounted
+// the install hooks — and it never fires again in that session — so a returning
+// visitor (service worker already active) misses it and is never offered the
+// install at all. It is caught here, at bundle load, kept on `window`, and
+// announced, so a hook that mounts later can still use it.
+window.__vnInstallPrompt = null
+
+const isStandalone = () =>
+  window.matchMedia("(display-mode: standalone)").matches ||
+  window.navigator.standalone === true
+
+// iOS Safari — including a desktop Safari in touch mode. It never fires
+// `beforeinstallprompt`, so those visitors are shown the manual steps instead.
+const isIos = () => {
+  const ua = window.navigator.userAgent
+  return /iphone|ipad|ipod/i.test(ua) || (ua.includes("Macintosh") && "ontouchend" in document)
+}
+
+// The one place that owns the browser's install prompt. The hooks are thin: they
+// only decide *when* to show a button and call `vnPwa.install()` on a click.
+window.vnPwa = {
+  available: () => window.__vnInstallPrompt !== null,
+  installed: isStandalone,
+  ios: isIos,
+
+  // One click hands over to the browser's own install sheet. The stashed event is
+  // cleared afterwards because it can only be prompted once.
+  async install() {
+    const prompt = window.__vnInstallPrompt
+    if (!prompt) return "unavailable"
+
+    prompt.prompt()
+    const choice = await prompt.userChoice
+    window.__vnInstallPrompt = null
+    window.dispatchEvent(new Event("phx:pwa-installed"))
+    return choice ? choice.outcome : "unknown"
+  },
+}
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault()
+  window.__vnInstallPrompt = event
+  window.dispatchEvent(new Event("phx:pwa-installable"))
+})
+
+window.addEventListener("appinstalled", () => {
+  window.__vnInstallPrompt = null
+  window.dispatchEvent(new Event("phx:pwa-installed"))
+})
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,

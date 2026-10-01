@@ -75,6 +75,63 @@ defmodule ViewNinjasWeb.AccountLive do
             <button class="vn-button" id="save-notifications">{gettext("Save")}</button>
           </.form>
         </section>
+        <%!-- Visible whenever the browser can install us (or on iOS, where it never
+              offers to), and hidden once we already are. The nudge can be snoozed;
+              this cannot — it is the place to come back to. --%>
+        <section
+          class="vn-card"
+          id="install-card"
+          data-pwa-install-card
+          phx-hook=".InstallApp"
+          phx-update="ignore"
+          hidden
+        >
+          <h2>{gettext("Install Tangi")}</h2>
+          <p class="vn-muted">
+            {gettext(
+              "Put Tangi on your home screen and it opens like an app — one tap, no browser bar."
+            )}
+          </p>
+          <button type="button" class="vn-button" data-pwa-install id="install-app">
+            {gettext("Install")}
+          </button>
+          <p class="vn-muted" data-pwa-steps hidden>
+            {gettext("On iPhone: tap Share, then “Add to Home Screen”.")}
+          </p>
+        </section>
+        <script :type={Phoenix.LiveView.ColocatedHook} name=".InstallApp">
+          export default {
+            mounted() {
+              if (!window.vnPwa) return
+
+              const button = this.el.querySelector("[data-pwa-install]")
+              const steps = this.el.querySelector("[data-pwa-steps]")
+
+              const refresh = () => {
+                if (window.vnPwa.installed()) {
+                  this.el.hidden = true
+                } else if (window.vnPwa.available()) {
+                  button.hidden = false
+                  steps.hidden = true
+                  this.el.hidden = false
+                } else if (window.vnPwa.ios()) {
+                  button.hidden = true
+                  steps.hidden = false
+                  this.el.hidden = false
+                } else {
+                  this.el.hidden = true
+                }
+              }
+
+              button.addEventListener("click", () => window.vnPwa.install())
+
+              window.addEventListener("phx:pwa-installable", refresh)
+              window.addEventListener("phx:pwa-installed", refresh)
+
+              refresh()
+            },
+          }
+        </script>
         <div class="flex flex-col gap-2">
           <.link navigate={~p"/refunds"} class="vn-button vn-button--muted" id="account-refunds">
             {gettext("Refunds and what we promise")}
