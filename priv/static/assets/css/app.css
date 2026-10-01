@@ -3518,6 +3518,10 @@ p {
 /* Two ways to prove who you are, one of them chosen. A switch rather than two
  * competing forms, so the screen asks for the email once and reads as a single
  * decision. */
+.vn-space-top {
+  margin-top: var(--vn-space-3);
+}
+
 .vn-segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;

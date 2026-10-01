@@ -68,7 +68,11 @@ defmodule ViewNinjasWeb.UserLive.Login do
             phx-mounted={JS.focus()}
           />
 
-          <div class="vn-segmented" role="group" aria-label="How would you like to log in?">
+          <div
+            class="vn-segmented vn-space-top"
+            role="group"
+            aria-label="How would you like to log in?"
+          >
             <button
               :for={{method, label} <- method_choices()}
               type="button"
@@ -85,7 +89,7 @@ defmodule ViewNinjasWeb.UserLive.Login do
             </button>
           </div>
 
-          <div :if={@method == :password} id="login-password-fields" class="space-y-1">
+          <div :if={@method == :password} id="login-password-fields" class="space-y-1 vn-space-top">
             <.input
               field={@form[:password]}
               type="password"
@@ -100,11 +104,11 @@ defmodule ViewNinjasWeb.UserLive.Login do
             />
           </div>
 
-          <p :if={@method == :link} class="vn-muted" id="login-link-hint">
+          <p :if={@method == :link} class="vn-muted vn-space-top" id="login-link-hint">
             {gettext("We'll email you a link that signs you straight in — no password needed.")}
           </p>
 
-          <.button class="vn-button w-full" id="login-submit">
+          <.button class="vn-button w-full vn-space-top" id="login-submit">
             {submit_label(@method)} <span aria-hidden="true">→</span>
           </.button>
         </.form>

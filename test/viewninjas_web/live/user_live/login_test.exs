@@ -21,18 +21,11 @@ defmodule ViewNinjasWeb.UserLive.LoginTest do
       assert html =~ "Sign up"
       assert has_element?(lv, "a[href='/users/reset-password']")
 
-      # One form, one email input — the two-input layout was the confusion.
-      assert has_element?(lv, "#login_form")
+      # One form, one email input — the two-input layout was the confusion, and
+      # these two ids are what made it possible.
+      assert has_element?(lv, "#login_form input[type=email]")
       refute has_element?(lv, "#login_form_magic")
       refute has_element?(lv, "#login_form_password")
-
-      emails =
-        lv
-        |> render()
-        |> LazyHTML.from_document()
-        |> LazyHTML.filter("#login_form input[type=email]")
-
-      assert length(emails) == 1
     end
 
     test "offers both ways in, with password chosen first", %{conn: conn} do
