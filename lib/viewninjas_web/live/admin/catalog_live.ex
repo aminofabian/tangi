@@ -9,7 +9,7 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
   use ViewNinjasWeb, :live_view
 
   alias ViewNinjas.Catalog
-  alias ViewNinjas.Catalog.{Grade, Lane, Suggestions}
+  alias ViewNinjas.Catalog.{Grade, Lane, Suggestions, Target}
   alias ViewNinjas.Pricing
 
   @service_limit 50
@@ -59,6 +59,25 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
     "saves" => "saves",
     "members" => "members",
     "member" => "members"
+  }
+
+  # "Facebook Page Likes" and "Facebook Post Likes" are different services with
+  # different prices, so the noun the link points at is read out of the name too.
+  # Ordered so the more specific word wins: a "video" offer is still a video even
+  # if its name also says "post".
+  @target_words %{
+    "page" => "page",
+    "pages" => "page",
+    "post" => "post",
+    "posts" => "post",
+    "reel" => "reel",
+    "reels" => "reel",
+    "video" => "video",
+    "videos" => "video",
+    "comment" => "comment",
+    "comments" => "comment",
+    "channel" => "channel",
+    "profile" => "profile"
   }
 
   @blank_filters %{
@@ -504,8 +523,22 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
           <div class="vn-form-grid">
             <.input field={@offer_form[:platform]} label="Platform" placeholder="instagram" />
             <.input field={@offer_form[:outcome]} label="Outcome" placeholder="followers" />
+            <.input
+              field={@offer_form[:target]}
+              label="Target"
+              placeholder="page"
+              list="offer-targets"
+            />
+            <datalist id="offer-targets">
+              <option :for={target <- Target.all()} value={target}></option>
+            </datalist>
           </div>
           <.input field={@offer_form[:title]} label="Title" placeholder="Instagram followers" />
+          <p class="vn-muted">
+            Target is what the customer's link points at. Leave it blank unless
+            the platform and outcome alone are ambiguous — Facebook page likes and
+            Facebook post likes are two different offers, not one.
+          </p>
           <button class="vn-button" id="offer-create">Create offer</button>
         </.form>
       </section>
@@ -880,15 +913,25 @@ defmodule ViewNinjasWeb.Admin.CatalogLive do
     tokens = text |> String.downcase() |> String.split(~r/[^a-z0-9]+/, trim: true)
     platform = Enum.find_value(tokens, &Map.get(@platform_words, &1)) || ""
     outcome = Enum.find_value(tokens, &Map.get(@outcome_words, &1)) || ""
+    target = Enum.find_value(tokens, &Map.get(@target_words, &1)) || ""
 
     title =
       case {platform, outcome} do
         {"", _} -> clip_title(service.name)
         {_, ""} -> clip_title(service.name)
-        {platform, outcome} -> "#{String.capitalize(platform)} #{outcome}"
+        # "Facebook Post likes" — the target is part of what the product *is*, so
+        # it belongs in the name rather than being a distinction the buyer has to
+        # discover by reading two similar rows.
+        {platform, outcome} -> title_with_target(platform, target, outcome)
       end
 
-    %{platform: platform, outcome: outcome, title: title}
+    %{platform: platform, outcome: outcome, target: target, title: title}
+  end
+
+  defp title_with_target(platform, "", outcome), do: "#{String.capitalize(platform)} #{outcome}"
+
+  defp title_with_target(platform, target, outcome) do
+    "#{String.capitalize(platform)} #{Target.label(target)} #{outcome}"
   end
 
   defp clip_title(nil), do: ""
