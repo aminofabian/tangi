@@ -7,6 +7,7 @@ defmodule ViewNinjasWeb.Admin.AirtimeLiveTest do
 
   use ViewNinjasWeb.ConnCase, async: true
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
   import ViewNinjas.AccountsFixtures
   import ViewNinjas.AirtimeFixtures
@@ -81,6 +82,108 @@ defmodule ViewNinjasWeb.Admin.AirtimeLiveTest do
     # 900,000 is above the 500,000 floor, so selling is untouched.
     refute has_element?(lv, "#airtime-float-low")
     assert has_element?(lv, "#airtime-selling")
+  end
+
+  # The way out of a float stop (scope §10). The rail reports a balance only as a side
+  # effect of a send, so once the floor stops selling there is no way to learn that a
+  # top-up happened — the admin has to be able to say so.
+
+  test "a float topped up in the portal is entered by hand and puts selling back on", %{
+    conn: conn
+  } do
+    order = airtime_order_fixture()
+    {:ok, sending} = Airtime.mark_sending(order)
+
+    {:ok, _submitted} =
+      Airtime.mark_submitted(sending, %{id: "FLOATLOW1", status: "Submitted", balance: 1_000})
+
+    conn = log_in_user(conn, super_admin_fixture())
+    {:ok, lv, _html} = live(conn, ~p"/admin/airtime")
+
+    # Stops on the rail's own low figure.
+    assert has_element?(lv, "#airtime-float-low")
+    refute Airtime.sellable?()
+
+    # The admin reads the portal — KSh 5,000 — and types it in.
+    lv
+    |> form("#airtime-float-form", float: %{amount: "5000"})
+    |> render_submit()
+
+    assert Airtime.float().cents == 500_000
+    assert Airtime.sellable?()
+    assert has_element?(lv, "#airtime-float-source")
+    refute has_element?(lv, "#airtime-float-low")
+  end
+
+  test "a hand-entered float that is still low keeps selling off", %{conn: conn} do
+    order = airtime_order_fixture()
+    {:ok, sending} = Airtime.mark_sending(order)
+
+    {:ok, _submitted} =
+      Airtime.mark_submitted(sending, %{id: "FLOATLOW2", status: "Submitted", balance: 1_000})
+
+    conn = log_in_user(conn, super_admin_fixture())
+    {:ok, lv, _html} = live(conn, ~p"/admin/airtime")
+
+    lv
+    |> form("#airtime-float-form", float: %{amount: "1"})
+    |> render_submit()
+
+    assert Airtime.float().cents == 100
+    refute Airtime.sellable?()
+    assert has_element?(lv, "#airtime-float-low")
+  end
+
+  test "a float that is not whole shillings is refused", %{conn: conn} do
+    conn = log_in_user(conn, super_admin_fixture())
+    {:ok, lv, _html} = live(conn, ~p"/admin/airtime")
+
+    lv
+    |> form("#airtime-float-form", float: %{amount: "abc"})
+    |> render_submit()
+
+    assert Settings.airtime_float_manual_cents() == nil
+    assert has_element?(lv, "#flash-error")
+  end
+
+  test "the hand-entered float can be forgotten to go back to the rail", %{conn: conn} do
+    # Recorded before mounting, so the card renders the figure and offers the way out.
+    assert :ok = Airtime.record_float(5_000_000, nil)
+
+    conn = log_in_user(conn, super_admin_fixture())
+    {:ok, lv, _html} = live(conn, ~p"/admin/airtime")
+
+    assert has_element?(lv, "#airtime-float-forget")
+
+    lv |> element("#airtime-float-forget") |> render_click()
+
+    assert Settings.airtime_float_manual_cents() == nil
+    assert Airtime.float() == nil
+  end
+
+  test "an old rail reading is called out as too old to hold selling off", %{conn: conn} do
+    order = airtime_order_fixture()
+    {:ok, sending} = Airtime.mark_sending(order)
+
+    {:ok, submitted} =
+      Airtime.mark_submitted(sending, %{id: "FLOATOLD1", status: "Submitted", balance: 1_000})
+
+    # Backdate it past the reading's lifetime: this is the frozen figure that used to
+    # hold the line off forever.
+    ViewNinjas.Repo.update_all(
+      from(o in ViewNinjas.Airtime.AirtimeOrder, where: o.id == ^submitted.id),
+      set: [inserted_at: DateTime.add(DateTime.utc_now(:second), -7_200)]
+    )
+
+    conn = log_in_user(conn, super_admin_fixture())
+    {:ok, lv, _html} = live(conn, ~p"/admin/airtime")
+
+    assert %{stale?: true, source: :rail} = Airtime.float()
+    assert has_element?(lv, "#airtime-float-stale")
+    assert has_element?(lv, "#airtime-float-stale-note")
+    # Stale, so it is not treated as evidence about now.
+    refute has_element?(lv, "#airtime-float-low")
+    assert Airtime.sellable?()
   end
 
   test "the kill switch stops selling and the button flips to resume", %{conn: conn} do

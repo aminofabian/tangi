@@ -332,6 +332,101 @@ defmodule ViewNinjas.AirtimeTest do
     end
   end
 
+  describe "a float topped up outside the rail (scope §10)" do
+    # Instalipa reports a balance only as a side effect of a send. So once a float
+    # trips the floor, selling stops, no send happens, and no newer reading can ever
+    # arrive — the stop becomes permanent even after a top-up in their portal. These
+    # are the tests for not being trapped by that.
+
+    setup do
+      user = funded_user(50_000)
+      order = airtime_order_fixture(%{user: user, amount_cents: 10_000})
+      {:ok, sending} = Airtime.mark_sending(order)
+
+      {:ok, _submitted} =
+        Airtime.mark_submitted(sending, %{id: "TX_LOW", status: :submitted, balance: "10.00"})
+
+      # The floor sits above the last thing the rail told us.
+      {:ok, _setting} = Settings.put("airtime_float_floor_cents", "2000", nil)
+
+      %{user: user, order: order}
+    end
+
+    test "the low reading stops selling, as it should", %{user: user} do
+      assert %{cents: 1_000, source: :rail} = Airtime.float()
+      assert Airtime.below_float_floor?()
+      refute Airtime.sellable?()
+
+      assert {:error, :float_low} =
+               Airtime.buy(user, %{amount_cents: 5_000, phones: ["0722000111"]})
+
+      assert Wallet.balance(user) == 40_000
+    end
+
+    test "a hand-entered float lets selling resume after a top-up", %{user: user} do
+      refute Airtime.sellable?()
+
+      # The super-admin reads the portal and tells us. This is the only way the system
+      # can learn a float it did not read from a send.
+      assert :ok = Airtime.record_float(5_000_000, nil)
+
+      assert %{cents: 5_000_000, source: :manual, stale?: false} = Airtime.float()
+      refute Airtime.below_float_floor?()
+      assert Airtime.sellable?()
+
+      assert {:ok, [_order]} = Airtime.buy(user, %{amount_cents: 5_000, phones: ["0722000111"]})
+      assert Wallet.balance(user) == 35_000
+    end
+
+    test "a hand-entered low float keeps selling off", %{user: user} do
+      assert :ok = Airtime.record_float(100, nil)
+
+      assert %{cents: 100, source: :manual} = Airtime.float()
+      assert Airtime.below_float_floor?()
+      refute Airtime.sellable?()
+
+      assert {:error, :float_low} =
+               Airtime.buy(user, %{amount_cents: 5_000, phones: ["0722000111"]})
+
+      assert Wallet.balance(user) == 40_000
+    end
+
+    test "forgetting it goes back to the rail reading", %{user: _user} do
+      assert :ok = Airtime.record_float(5_000_000, nil)
+      assert Airtime.sellable?()
+
+      assert :ok = Airtime.forget_float()
+
+      assert %{cents: 1_000, source: :rail} = Airtime.float()
+      refute Airtime.sellable?()
+    end
+
+    test "an old rail reading stops holding selling off on its own", %{user: user, order: order} do
+      # Backdate the only reading past its lifetime. Nothing can refresh it while
+      # selling is stopped, so it must not keep stopping selling forever — that is the
+      # one-way door. A fresh low reading still stops it; this one is not fresh.
+      ViewNinjas.Repo.update_all(
+        from(o in ViewNinjas.Airtime.AirtimeOrder, where: o.id == ^order.id),
+        set: [inserted_at: DateTime.add(DateTime.utc_now(:second), -7_200)]
+      )
+
+      assert %{cents: 1_000, source: :rail, stale?: true} = Airtime.float()
+      refute Airtime.below_float_floor?()
+      assert Airtime.sellable?()
+
+      assert {:ok, [_order]} = Airtime.buy(user, %{amount_cents: 5_000, phones: ["0722000111"]})
+      assert Wallet.balance(user) == 35_000
+    end
+
+    test "the manual entry is stored whole and read back", %{user: _user} do
+      assert :ok = Airtime.record_float(1_234_000, nil)
+      assert Airtime.float().cents == 1_234_000
+
+      assert {:error, :not_an_integer} =
+               Settings.put("airtime_float_manual_cents", "lots", nil)
+    end
+  end
+
   describe "list_stranded_refunds/0" do
     test "a failed order whose credit never landed is listed" do
       user = funded_user(50_000)

@@ -165,9 +165,28 @@ defmodule ViewNinjas.Settings do
       label: "Float floor (KES cents)",
       type: :integer,
       hint:
-        "Selling stops when the newest balance Instalipa reports falls below this. Default 500000 (KSh 5,000). Keeps an empty float from becoming a queue of refunds.",
+        "Selling stops when the balance Instalipa reports falls below this. Default 500000 (KSh 5,000). Keeps an empty float from becoming a queue of refunds.",
       env: {:instalipa, :float_floor_cents},
       default: 500_000
+    },
+    %{
+      key: "airtime_float_manual_cents",
+      group: "Airtime",
+      label: "Float, entered by hand (KES cents)",
+      type: :integer,
+      hint:
+        "The balance shown in the Instalipa portal. Enter it after topping up. Instalipa has no balance endpoint, so this is the only way the system can learn a float it did not read from a send. Clear it to go back to reading the rail.",
+      env: {:instalipa, :float_manual_cents}
+    },
+    %{
+      key: "airtime_float_max_age_minutes",
+      group: "Airtime",
+      label: "Float reading lifetime (minutes)",
+      type: :integer,
+      hint:
+        "A rail reading older than this stops holding selling off, because we cannot refresh it while selling is stopped. Default 60. Leave the floor generous rather than setting this low.",
+      env: {:instalipa, :float_max_age_minutes},
+      default: 60
     },
     %{
       key: "instalipa_paused",
@@ -424,6 +443,29 @@ defmodule ViewNinjas.Settings do
   """
   @spec instalipa_paused?() :: boolean()
   def instalipa_paused?, do: truthy?(resolved_value("instalipa_paused"))
+
+  @doc """
+  A float the super-admin typed in from the Instalipa portal, or nil.
+
+  Instalipa has **no balance endpoint** (scope §10), so the only reading we ever get
+  for free is the `balance` on a send response. Once the floor stops selling, no send
+  happens, so no reading ever arrives — a float we topped up externally is invisible
+  to us. This is the escape hatch §10 asks for, and without it a low reading is a
+  one-way door.
+  """
+  @spec airtime_float_manual_cents() :: integer() | nil
+  def airtime_float_manual_cents do
+    case resolved_value("airtime_float_manual_cents") do
+      nil -> nil
+      value -> parse_integer(value)
+    end
+  end
+
+  @doc "How long a rail float reading stays believable, in minutes."
+  @spec airtime_float_max_age_minutes() :: pos_integer()
+  def airtime_float_max_age_minutes do
+    resolved_value("airtime_float_max_age_minutes") |> parse_integer() || 60
+  end
 
   @doc "The float floor in cents. Selling stops below it."
   @spec airtime_float_floor_cents() :: integer()

@@ -192,21 +192,81 @@ defmodule ViewNinjas.Airtime do
   # -- the back office ----------------------------------------------------
 
   @doc """
-  The newest float the rail reported, in cents, or nil when it never has.
+  The float we are acting on, in cents, or nil when we have none at all.
 
-  Instalipa has no balance endpoint (scope §10), so the only reading we get is the
-  `balance` on a send response. The newest row carrying one is the closest thing to
-  a current figure, and it is only ever what the rail said — never estimated.
+  A **manual** figure the super-admin typed from the Instalipa portal wins outright.
+  The rail reports a balance only as a side effect of a send, so while selling is
+  stopped there are no sends and no newer reading can arrive — which means a rail
+  reading can never be the fresher of the two whenever it matters. Preferring it would
+  trap the line on a figure the admin has already contradicted (scope §10).
+
+  The admin clears the figure once the rail is talking again (`forget_float/0`), so
+  this never silently outlives the reason it was entered.
   """
-  @spec float() :: %{cents: integer(), at: DateTime.t(), order_id: integer()} | nil
+  @spec float() ::
+          %{
+            cents: integer(),
+            at: DateTime.t(),
+            order_id: integer() | nil,
+            source: :manual | :rail,
+            stale?: boolean()
+          }
+          | nil
   def float do
+    case {Settings.airtime_float_manual_cents(), rail_float()} do
+      {nil, nil} -> nil
+      {manual, nil} -> manual_float(manual)
+      {nil, rail} -> rail
+      {manual, _rail} -> manual_float(manual)
+    end
+  end
+
+  @doc """
+  The newest balance the rail itself reported, and how old it is.
+
+  Only a side effect of a send, so `stale?` is the important part: a reading we
+  cannot refresh is not evidence about now.
+  """
+  @spec rail_float() ::
+          %{
+            cents: integer(),
+            at: DateTime.t(),
+            order_id: integer(),
+            source: :rail,
+            stale?: boolean()
+          }
+          | nil
+  def rail_float do
     AirtimeOrder
     |> where([o], not is_nil(o.float_cents))
     |> order_by([o], desc: o.id)
     |> limit(1)
     |> select([o], %{cents: o.float_cents, at: o.inserted_at, order_id: o.id})
     |> Repo.one()
+    |> case do
+      nil ->
+        nil
+
+      reading ->
+        Map.merge(reading, %{source: :rail, stale?: stale?(reading.at)})
+    end
   end
+
+  defp manual_float(cents),
+    do: %{
+      cents: cents,
+      at: DateTime.utc_now(:second),
+      order_id: nil,
+      source: :manual,
+      stale?: false
+    }
+
+  defp stale?(at),
+    do: DateTime.diff(DateTime.utc_now(:second), at, :second) >= max_age_seconds()
+
+  @doc "How long a rail float reading keeps holding selling off, in seconds."
+  @spec max_age_seconds() :: pos_integer()
+  def max_age_seconds, do: Settings.airtime_float_max_age_minutes() * 60
 
   @doc """
   Whether the rail is taking new airtime.
@@ -224,18 +284,47 @@ defmodule ViewNinjas.Airtime do
   @spec paused?() :: boolean()
   def paused?, do: Settings.instalipa_paused?()
 
-  @doc "Whether the newest float reading is under the configured floor."
+  @doc """
+  Whether the float we hold is under the configured floor.
+
+  **A stale reading never counts against you.** We cannot refresh the float while
+  selling is stopped — that is the whole reason it stopped — so a reading from
+  yesterday is not evidence about today, and treating it as such would lock the line
+  off permanently the moment a float dipped. A *fresh* low reading does stop selling:
+  that one we trust, and it is the case worth protecting the customer from.
+  """
   @spec below_float_floor?() :: boolean()
   def below_float_floor? do
     case float() do
       nil -> false
-      %{cents: cents} -> cents < float_floor_cents()
+      %{cents: cents, stale?: stale?} -> not stale? and cents < float_floor_cents()
     end
   end
 
   @doc "The float floor in cents — selling stops below it."
   @spec float_floor_cents() :: integer()
   def float_floor_cents, do: Settings.airtime_float_floor_cents()
+
+  @doc """
+  Records the float the super-admin read off the Instalipa portal.
+
+  The only way to tell the system about a top-up it cannot see (§10). Replaces the
+  stale reading until a send reports a newer one.
+  """
+  @spec record_float(integer(), User.t() | nil) :: :ok | {:error, term()}
+  def record_float(cents, actor) when is_integer(cents) and cents >= 0 do
+    case Settings.put("airtime_float_manual_cents", Integer.to_string(cents), actor) do
+      {:ok, _setting} ->
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc "Forgets the hand-entered float, so the rail reading stands again."
+  @spec forget_float() :: :ok
+  def forget_float, do: Settings.clear("airtime_float_manual_cents")
 
   @doc "Why airtime cannot be sold right now, or nil when it can."
   @spec pause_reason() :: :paused | :float_low | nil

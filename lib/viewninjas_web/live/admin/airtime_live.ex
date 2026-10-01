@@ -31,7 +31,10 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket |> assign(:page_title, gettext("Airtime"))}
+    {:ok,
+     socket
+     |> assign(:page_title, gettext("Airtime"))
+     |> assign(:float_form, float_form())}
   end
 
   @impl true
@@ -57,6 +60,33 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
           {:noreply, put_flash(socket, :error, gettext("Could not pause selling."))}
       end
     end
+  end
+
+  # The escape hatch out of a float stop (scope §10). Instalipa has no balance
+  # endpoint, so the portal figure is the only way we can learn a float we did not
+  # read from a send — and without it, a stop caused by a low float is a one-way door.
+  def handle_event("record_float", %{"float" => params}, socket) do
+    with {:ok, cents} <- parse_shillings(params["amount"]) do
+      :ok = Airtime.record_float(cents, actor(socket))
+
+      {:noreply,
+       socket
+       |> put_flash(:info, gettext("Float recorded — selling follows it from here."))
+       |> load()}
+    else
+      :error ->
+        {:noreply,
+         put_flash(socket, :error, gettext("Enter the balance in whole shillings, as 5000."))}
+    end
+  end
+
+  def handle_event("forget_float", _params, socket) do
+    :ok = Airtime.forget_float()
+
+    {:noreply,
+     socket
+     |> put_flash(:info, gettext("Back to reading the float from the rail."))
+     |> load()}
   end
 
   def handle_event("refund", %{"order_id" => id}, socket) do
@@ -98,7 +128,8 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
       admin={:airtime}
     >
       <%!-- The float and the switch that stops the line. Instalipa has no balance
-            endpoint (scope §10), so this is only ever what the newest send said. --%>
+            endpoint (scope §10), so a rail reading only exists as a side effect of a
+            send — which is why the manual entry below is not a convenience. --%>
       <section class="vn-card" id="airtime-float">
         <h2>{gettext("Float and the kill switch")}</h2>
         <dl class="vn-detail">
@@ -108,7 +139,15 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
             {gettext("Unknown — the rail has never reported one")}
           </dd>
           <dt :if={@float}>{gettext("Last read")}</dt>
-          <dd :if={@float}>{format_at(@float.at)}</dd>
+          <dd :if={@float}>
+            <span id="airtime-float-at">{format_at(@float.at)}</span>
+            <span :if={@float.source == :manual} id="airtime-float-source" class="vn-muted">
+              {gettext("entered by hand")}
+            </span>
+            <span :if={@float.source == :rail && @float.stale?} id="airtime-float-stale">
+              {gettext("too old to hold selling off")}
+            </span>
+          </dd>
           <dt>{gettext("Floor")}</dt>
           <dd id="airtime-floor">{kes(@float_floor)}</dd>
           <dt>{gettext("Selling")}</dt>
@@ -117,6 +156,15 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
 
         <p :if={@below_floor} class="vn-error" id="airtime-float-low">
           {gettext("The float is under the floor, so selling is off on its own.")}
+        </p>
+        <p
+          :if={@float && @float.source == :rail && @float.stale?}
+          class="vn-muted"
+          id="airtime-float-stale-note"
+        >
+          {gettext(
+            "This figure is as old as the last send that reported one. It is not holding selling off, because it cannot describe the float now."
+          )}
         </p>
         <p :if={@paused} class="vn-error" id="airtime-paused-by-hand">
           {gettext("Paused by hand. The buy screen refuses before taking any money.")}
@@ -140,6 +188,40 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
         >
           {gettext("Stop selling airtime")}
         </button>
+
+        <%!-- The escape hatch (scope §10). Instalipa tells us the balance only as a
+              side effect of a send, so a top-up made in their portal is invisible here.
+              Without this, a float that dipped far enough to stop selling could never
+              be seen to recover, because the recovery would require the sends that the
+              stop forbids. --%>
+        <div class="mt-4">
+          <h3>{gettext("Tell us the float")}</h3>
+          <p class="vn-muted" id="airtime-float-entry-hint">
+            {gettext(
+              "Read the balance from the Instalipa portal and enter it in shillings. This replaces the reading above until a send reports a newer one."
+            )}
+          </p>
+
+          <.form for={@float_form} id="airtime-float-form" phx-submit="record_float">
+            <.input
+              field={@float_form[:amount]}
+              label={gettext("Float now (shillings)")}
+              inputmode="numeric"
+              placeholder={gettext("e.g. 5000")}
+            />
+            <button class="vn-button" id="airtime-float-record">{gettext("Record the float")}</button>
+          </.form>
+
+          <button
+            :if={@float_manual}
+            type="button"
+            class="vn-button vn-button--muted mt-2"
+            phx-click="forget_float"
+            id="airtime-float-forget"
+          >
+            {gettext("Forget it and read the rail again")}
+          </button>
+        </div>
       </section>
 
       <%!-- The number that has to reach zero by itself. --%>
@@ -296,6 +378,7 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
       states: AirtimeOrder.states(),
       counts: Airtime.counts_by_state(),
       float: Airtime.float(),
+      float_manual: Settings.airtime_float_manual_cents(),
       float_floor: Airtime.float_floor_cents(),
       below_floor: Airtime.below_float_floor?(),
       pause_reason: Airtime.pause_reason(),
@@ -303,6 +386,19 @@ defmodule ViewNinjasWeb.Admin.AirtimeLive do
       owed: Airtime.outstanding_refund_cents()
     )
   end
+
+  defp float_form, do: to_form(%{"amount" => ""}, as: "float")
+
+  # Shillings in, cents out — the rail's own figures are in shillings, and a float
+  # balance is read off a portal page rather than typed from memory.
+  defp parse_shillings(value) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {shillings, ""} when shillings >= 0 -> {:ok, shillings * 100}
+      _ -> :error
+    end
+  end
+
+  defp parse_shillings(_value), do: :error
 
   defp row(%AirtimeOrder{} = order) do
     %{
