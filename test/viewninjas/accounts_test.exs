@@ -4,6 +4,7 @@ defmodule ViewNinjas.AccountsTest do
   alias ViewNinjas.Accounts
 
   import ViewNinjas.AccountsFixtures
+  import Swoosh.TestAssertions
   alias ViewNinjas.Accounts.{User, UserToken}
 
   describe "get_user_by_email/1" do
@@ -484,6 +485,119 @@ defmodule ViewNinjas.AccountsTest do
       assert user_token.user_id == user.id
       assert user_token.sent_to == user.email
       assert user_token.context == "login"
+    end
+  end
+
+  describe "deliver_user_reset_password_instructions/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "stores a hashed reset token and emails the link", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      {:ok, raw} = Base.url_decode64(token, padding: false)
+      assert user_token = Repo.get_by(UserToken, token: :crypto.hash(:sha256, raw))
+      assert user_token.user_id == user.id
+      assert user_token.sent_to == user.email
+      assert user_token.context == "reset_password"
+    end
+
+    test "refuses an unknown user without emailing" do
+      assert {:error, :not_found} =
+               Accounts.deliver_user_reset_password_instructions(nil, & &1)
+
+      # Nothing was sent at all — an unknown address must not produce a token
+      # row or an email, because that difference is what would leak accounts.
+      refute_email_sent()
+    end
+  end
+
+  describe "get_user_by_reset_password_token/1" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "returns the user for a valid token", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      assert Accounts.get_user_by_reset_password_token(token).id == user.id
+    end
+
+    test "returns nil for a token that was never issued", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      # A login token is not a reset token.
+      assert Accounts.get_user_by_reset_password_token("nonsense") == nil
+      assert Accounts.get_user_by_magic_link_token(token) == nil
+    end
+
+    test "returns nil once the token has been used", %{user: user} do
+      token =
+        extract_user_token(fn url ->
+          Accounts.deliver_user_reset_password_instructions(user, url)
+        end)
+
+      {:ok, _user} =
+        Accounts.reset_user_password(user, %{
+          password: "a brand new long password",
+          password_confirmation: "a brand new long password"
+        })
+
+      assert Accounts.get_user_by_reset_password_token(token) == nil
+    end
+  end
+
+  describe "reset_user_password/2" do
+    setup do
+      %{user: user_fixture()}
+    end
+
+    test "sets the new password", %{user: user} do
+      {:ok, user} =
+        Accounts.reset_user_password(user, %{
+          password: "a brand new long password",
+          password_confirmation: "a brand new long password"
+        })
+
+      assert is_binary(user.hashed_password)
+      assert Accounts.get_user_by_email_and_password(user.email, "a brand new long password")
+    end
+
+    test "refuses a mismatched confirmation without changing anything", %{user: user} do
+      assert {:error, changeset} =
+               Accounts.reset_user_password(user, %{
+                 password: "a brand new long password",
+                 password_confirmation: "something else entirely"
+               })
+
+      assert %{password_confirmation: ["does not match password"]} = errors_on(changeset)
+      # Untouched: the old password still works.
+      assert Accounts.get_user_by_email_and_password(user.email, valid_user_password())
+    end
+
+    test "expires every token the user had", %{user: user} do
+      session = Accounts.generate_user_session_token(user)
+
+      {:ok, _user} =
+        Accounts.reset_user_password(user, %{
+          password: "a brand new long password",
+          password_confirmation: "a brand new long password"
+        })
+
+      # A reset is how an account is recovered, so anything an attacker may have
+      # captured — this device's session included — must stop working.
+      assert Accounts.get_user_by_session_token(session) == nil
+      assert Repo.all(UserToken) == []
     end
   end
 

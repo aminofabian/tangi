@@ -148,6 +148,12 @@ defmodule ViewNinjasWeb.Router do
       live "/users/register", UserLive.Registration, :new
       live "/users/log-in", UserLive.Login, :new
       live "/users/log-in/:token", UserLive.Confirmation, :new
+      # The reset flow is reached *because* someone cannot log in, so it has to
+      # work signed out. It lives in this existing :current_user session rather
+      # than a new one — a second live_session of the same name is not allowed,
+      # and a reset link must still work if the session half-expired.
+      live "/users/reset-password", UserLive.ForgotPassword, :new
+      live "/users/reset-password/:token", UserLive.ResetPassword, :edit
     end
 
     post "/users/log-in", UserSessionController, :create

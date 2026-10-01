@@ -6,11 +6,14 @@ defmodule ViewNinjasWeb.UserLive.LoginTest do
 
   describe "login page" do
     test "renders login page", %{conn: conn} do
-      {:ok, _lv, html} = live(conn, ~p"/users/log-in")
+      {:ok, lv, html} = live(conn, ~p"/users/log-in")
 
       assert html =~ "Log in"
       assert html =~ "Sign up"
       assert html =~ "Log in with email"
+      # The password reset is reachable from the screen people land on when they
+      # cannot log in.
+      assert has_element?(lv, "a[href='/users/reset-password']")
     end
   end
 

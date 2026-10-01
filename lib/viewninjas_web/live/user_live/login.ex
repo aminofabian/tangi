@@ -59,7 +59,9 @@ defmodule ViewNinjasWeb.UserLive.Login do
         </.form>
 
         <p class="text-sm text-base-content/70 text-center">
-          Forgot your password? Get a login link by email above, then set a new one in settings.
+          <.link navigate={~p"/users/reset-password"} class="text-brand hover:underline" phx-no-format>
+            Forgot your password?
+          </.link>
         </p>
 
         <div class="divider">or</div>

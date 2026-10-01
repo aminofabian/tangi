@@ -342,6 +342,85 @@ defmodule ViewNinjas.Accounts do
     UserNotifier.deliver_login_instructions(user, magic_link_url_fun.(encoded_token))
   end
 
+  @doc ~S"""
+  Delivers the reset password instructions to the given user.
+
+  The link is only issued for an email that exists, and the reply is the same
+  either way so the screen cannot be used to discover who has an account.
+
+  ## Examples
+
+      iex> deliver_user_reset_password_instructions(user, &url(~p"/users/reset-password/#{&1}"))
+      {:ok, %{to: ..., body: ...}}
+
+      iex> deliver_user_reset_password_instructions(nil, &url(~p"/users/reset-password/#{&1}"))
+      {:error, :not_found}
+
+  """
+  def deliver_user_reset_password_instructions(%User{} = user, reset_password_url_fun)
+      when is_function(reset_password_url_fun, 1) do
+    {encoded_token, user_token} = UserToken.build_email_token(user, "reset_password")
+
+    Repo.insert!(user_token)
+    UserNotifier.deliver_reset_password_instructions(user, reset_password_url_fun.(encoded_token))
+  end
+
+  def deliver_user_reset_password_instructions(_user, _reset_password_url_fun) do
+    # Deliberately the same outcome as the not-found case for an unknown email:
+    # the caller must not be able to tell an address that has an account from one
+    # that does not. See `get_user_by_reset_password_token/1` for the token side.
+    {:error, :not_found}
+  end
+
+  @doc ~S"""
+  Gets the user by reset password token.
+
+  ## Examples
+
+      iex> get_user_by_reset_password_token("validtoken")
+      %User{}
+
+      iex> get_user_by_reset_password_token("invalidtoken")
+      nil
+
+  """
+  def get_user_by_reset_password_token(token) do
+    with {:ok, query} <- UserToken.verify_reset_password_token_query(token),
+         %User{} = user <- Repo.one(query) do
+      user
+    else
+      _ -> nil
+    end
+  end
+
+  @doc ~S"""
+  Resets the user password.
+
+  ## Examples
+
+      iex> reset_user_password(user, %{password: "new long password", password_confirmation: "new long password"})
+      {:ok, %User{}}
+
+      iex> reset_user_password(user, %{password: "valid", password_confirmation: "not the same"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def reset_user_password(%User{} = user, attrs) do
+    changeset = User.password_changeset(user, attrs)
+
+    Repo.transact(fn ->
+      with {:ok, updated_user} <- Repo.update(changeset) do
+        # A reset means every other session and link must stop working, so the
+        # tokens go with the password change rather than being left valid.
+        tokens_to_expire = Repo.all_by(UserToken, user_id: updated_user.id)
+
+        Repo.delete_all(from t in UserToken, where: t.id in ^Enum.map(tokens_to_expire, & &1.id))
+
+        {:ok, updated_user}
+      end
+    end)
+  end
+
   @doc """
   Deletes the signed token with the given context.
   """

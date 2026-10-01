@@ -22,6 +22,9 @@ defmodule ViewNinjas.RateLimit do
     signup_phone: {60 * 60_000, 5},
     login_ip: {5 * 60_000, 20},
     login_identifier: {5 * 60_000, 10},
+    # A reset sends real email through a paid provider, and the screen must stay
+    # uniform for unknown addresses, so the IP is the only honest thing to budget.
+    password_reset_ip: {60 * 60_000, 5},
     otp_phone: {60 * 60_000, 5},
     otp_ip: {60 * 60_000, 10},
     # A script firing M-Pesa prompts is the abuse case that burns the key and the
@@ -57,6 +60,16 @@ defmodule ViewNinjas.RateLimit do
   def allow_otp_request?(phone, ip) do
     allow?("otp:phone:#{phone}", :otp_phone) and allow?("otp:ip:#{ip}", :otp_ip)
   end
+
+  @doc """
+  Password resets: budgets the client IP.
+
+  The email address cannot be part of the key, because the screen gives the same
+  answer either way — budgeting per address would leak, through the limit, which
+  addresses have accounts.
+  """
+  @spec allow_password_reset?(String.t()) :: boolean()
+  def allow_password_reset?(ip), do: allow?("password_reset:ip:#{ip}", :password_reset_ip)
 
   @doc """
   Consumes one unit from `key` and reports whether it is still allowed under

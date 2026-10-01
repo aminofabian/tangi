@@ -11,7 +11,8 @@ defmodule ViewNinjas.RateLimitTest do
 
     Application.put_env(:viewninjas, :rate_limits, %{
       signup_phone: {60_000, 2},
-      login_identifier: {60_000, 2}
+      login_identifier: {60_000, 2},
+      password_reset_ip: {60_000, 2}
     })
 
     on_exit(fn -> Application.put_env(:viewninjas, :rate_limits, previous) end)
@@ -41,6 +42,19 @@ defmodule ViewNinjas.RateLimitTest do
     assert RateLimit.allow_login?(unique_key(), identifier)
     assert RateLimit.allow_login?(unique_key(), identifier)
     refute RateLimit.allow_login?(unique_key(), identifier)
+  end
+
+  test "a password reset is budgeted per IP, not per address" do
+    ip = unique_key()
+
+    # The address cannot be part of the key, so the same IP spends one budget
+    # across every address it asks about.
+    assert RateLimit.allow_password_reset?(ip)
+    assert RateLimit.allow_password_reset?(ip)
+    refute RateLimit.allow_password_reset?(ip)
+
+    # A different IP still has its own.
+    assert RateLimit.allow_password_reset?(unique_key())
   end
 
   test "switching it off makes it a no-op" do

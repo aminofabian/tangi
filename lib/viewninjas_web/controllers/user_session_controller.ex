@@ -10,6 +10,10 @@ defmodule ViewNinjasWeb.UserSessionController do
     create(conn, params, "User confirmed successfully.")
   end
 
+  def create(conn, %{"_action" => "password_reset"} = params) do
+    reset_password(conn, params)
+  end
+
   def create(conn, params) do
     create(conn, params, "Welcome back!")
   end
@@ -65,6 +69,36 @@ defmodule ViewNinjasWeb.UserSessionController do
     conn
     |> put_session(:user_return_to, ~p"/users/settings")
     |> create(params, "Password updated successfully!")
+  end
+
+  # A password reset arrives as a form post from the emailed link, and on success
+  # logs the user straight in: they proved control of the mailbox by opening the
+  # link, so making them type their new password again would be pointless friction.
+  #
+  # The account comes from the token alone, never from the form, so a link cannot
+  # be pointed at somebody else's address. `reset_user_password/2` deletes every
+  # token inside the same transaction that changes the password, which makes the
+  # link single-use: replaying it finds no user and lands on the error branch.
+  defp reset_password(conn, %{"user" => %{"token" => token} = user_params}) do
+    case Accounts.get_user_by_reset_password_token(token) do
+      nil ->
+        conn
+        |> put_flash(:error, "The link is invalid or it has expired.")
+        |> redirect(to: ~p"/users/log-in")
+
+      user ->
+        case Accounts.reset_user_password(user, user_params) do
+          {:ok, user} ->
+            conn
+            |> put_flash(:info, "Password updated successfully!")
+            |> UserAuth.log_in_user(user, user_params)
+
+          {:error, _changeset} ->
+            conn
+            |> put_flash(:error, "Please choose a longer password and try again.")
+            |> redirect(to: ~p"/users/reset-password/#{token}")
+        end
+    end
   end
 
   def delete(conn, _params) do
