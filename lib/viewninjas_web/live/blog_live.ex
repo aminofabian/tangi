@@ -78,13 +78,13 @@ defmodule ViewNinjasWeb.BlogLive do
       Enum.map(Blog.list_posts(), &%{name: &1.title, url: SEO.absolutize(Post.path(&1))})
 
     socket
-    |> assign(:meta_title, gettext("YouTube Growth Guides for Kenyan Creators | Tangi"))
+    |> assign(:meta_title, gettext("Guides for Kenyan Shoppers and Creators | Tangi"))
     |> assign(:page_description, description)
     |> assign(:canonical_url, canonical)
     |> assign(:clusters, clusters)
     |> assign(:structured_data, [
       SEO.collection_page(%{
-        name: gettext("YouTube growth guides"),
+        name: gettext("Guides"),
         description: description,
         url: canonical,
         items: items
@@ -147,10 +147,10 @@ defmodule ViewNinjasWeb.BlogLive do
     ~H"""
     <section class="vn-hero vn-blog-hero">
       <p class="vn-eyebrow">{gettext("Guides")}</p>
-      <h1 class="vn-hero__title">{gettext("YouTube growth guides")}</h1>
+      <h1 class="vn-hero__title">{gettext("Guides for Kenyan shoppers and creators")}</h1>
       <p class="vn-hero__tagline">
         {gettext(
-          "Practical guides on buying YouTube views in Kenya, growing a channel organically, and promoting your videos — written for Kenyan creators."
+          "Practical guides on buying social media growth and buying airtime in Kenya — written in shillings, for Kenyan buyers and creators."
         )}
       </p>
     </section>
@@ -173,13 +173,16 @@ defmodule ViewNinjasWeb.BlogLive do
     </section>
 
     <section class="vn-card">
-      <h2>{gettext("Ready to grow?")}</h2>
+      <h2>{gettext("Ready to buy?")}</h2>
       <p class="vn-muted">
         {gettext(
-          "Guides are free. When you want to give a video a head start, the shop sells YouTube views in Kenya priced in shillings."
+          "Guides are free. When you are ready, the shop sells social media growth and the airtime screen tops up any Kenyan line — both priced in shillings, both paid with M-Pesa."
         )}
       </p>
-      <.link navigate={~p"/shop"} class="vn-button">{gettext("Go to the shop")}</.link>
+      <div class="flex flex-col gap-2">
+        <.link navigate={~p"/shop"} class="vn-button">{gettext("Go to the shop")}</.link>
+        <.link navigate={~p"/airtime"} class="vn-button vn-button--muted">{gettext("Buy airtime")}</.link>
+      </div>
     </section>
     """
   end
@@ -381,7 +384,7 @@ defmodule ViewNinjasWeb.BlogLive do
 
   defp hub_description do
     gettext(
-      "Guides on buying YouTube views in Kenya, growing a channel organically and promoting your videos, written for Kenyan creators."
+      "Guides on buying social media growth and buying airtime in Kenya, written in shillings for Kenyan buyers and creators."
     )
   end
 end

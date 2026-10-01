@@ -14,6 +14,7 @@ defmodule ViewNinjasWeb.BlogLiveTest do
   alias ViewNinjasWeb.SEO
 
   @pillar "buy-youtube-views-kenya"
+  @airtime "buy-airtime-kenya"
 
   test "the hub lists the cluster, its pillar and its spokes", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/blog")
@@ -113,6 +114,42 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     {:ok, view, _html} = live(conn, ~p"/blog/tiktok-followers-vs-views")
 
     assert has_element?(view, "a[href='/blog/top-tiktok-followers-providers-kenya']")
+  end
+
+  test "the hub lists the airtime cluster and every airtime article", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog")
+
+    assert has_element?(view, "#cluster-#{@airtime}")
+    assert has_element?(view, "a[href='/blog/#{@airtime}']")
+
+    for post <- Blog.spokes(@airtime) do
+      assert has_element?(view, "a[href='/blog/#{post.slug}']")
+    end
+  end
+
+  test "the airtime pillar links down to every spoke and carries a table and FAQ", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/#{@airtime}")
+
+    assert has_element?(view, "h1.vn-article__title")
+    assert has_element?(view, ".vn-table-wrap")
+    assert has_element?(view, "#faq")
+
+    for post <- Blog.spokes(@airtime) do
+      assert has_element?(view, "a[href='/blog/#{post.slug}']")
+    end
+  end
+
+  test "an airtime spoke links up to the pillar and down to the buy screen", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/buy-safaricom-airtime")
+
+    assert has_element?(view, "a[href='/blog/#{@airtime}']")
+    assert has_element?(view, "a[href='/airtime']")
+  end
+
+  test "every airtime spoke carries its own FAQs" do
+    for post <- Blog.spokes(@airtime) do
+      refute post.faqs == [], "#{post.slug} has no FAQs"
+    end
   end
 
   test "an unknown slug returns to the hub", %{conn: conn} do
