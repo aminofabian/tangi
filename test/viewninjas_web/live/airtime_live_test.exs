@@ -109,7 +109,7 @@ defmodule ViewNinjasWeb.AirtimeLiveTest do
     assert :ok = perform_job(CreatePayment, %{"payment_id" => payment.id})
     Test.settle!(Payments.get_payment!(payment.id).malipo_payment_id, "R1")
     assert :ok = perform_job(ConfirmPayment, %{"payment_id" => payment.id})
-    _ = :sys.get_state(lv.pid)
+    _ = await_settled(lv)
 
     orders = Airtime.list_for_user(user)
     assert length(orders) == 3
@@ -138,7 +138,7 @@ defmodule ViewNinjasWeb.AirtimeLiveTest do
     assert :ok = perform_job(CreatePayment, %{"payment_id" => payment.id})
     Test.settle!(Payments.get_payment!(payment.id).malipo_payment_id, "R1")
     assert :ok = perform_job(ConfirmPayment, %{"payment_id" => payment.id})
-    _ = :sys.get_state(lv.pid)
+    _ = await_settled(lv)
 
     assert length(Airtime.list_for_user(user)) == 3
     # KSh 200 in the wallet + KSh 200 deposited − KSh 300 spent = KSh 100 kept.
@@ -247,4 +247,9 @@ defmodule ViewNinjasWeb.AirtimeLiveTest do
     refute has_element?(lv, "#airtime-short")
     assert has_element?(lv, "#airtime-submit")
   end
+
+  # Settling funds the wallet and the LiveView then sends the whole batch, so it
+  # touches the database more than a single wallet credit does. Under a fully loaded
+  # suite the default 5s socket wait can be short, so give that round-trip more room.
+  defp await_settled(lv), do: :sys.get_state(lv.pid, 15_000)
 end

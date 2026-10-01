@@ -114,9 +114,48 @@ defmodule ViewNinjasWeb.HomeLiveTest do
     refute has_element?(view, "#wallet-card")
   end
 
+  test "/shop leads with both product lines, so airtime is not buried", %{conn: conn} do
+    published_offer_fixture(%{title: "Instagram followers"})
+
+    {:ok, view, _html} = live(conn, ~p"/shop")
+
+    # Airtime is a peer of social growth at the top, and links to its own screen.
+    assert has_element?(view, "#shop-lines a#line-airtime[href='/airtime']")
+    assert has_element?(view, "#line-airtime .hero-device-phone-mobile")
+
+    # Social growth jumps to the offers it sits above.
+    assert has_element?(view, "a#line-growth[href='#offers-card']")
+    assert has_element?(view, "#line-growth .hero-arrow-trending-up")
+
+    # The order down the page: product lines, then the catalog, then the explanation.
+    html = render(view)
+    assert index_of(html, "shop-lines") < index_of(html, "offers-card")
+    assert index_of(html, "offers-card") < index_of(html, "grades-card")
+  end
+
+  test "/shop keeps the platform filter with the offers it filters", %{conn: conn} do
+    published_offer_fixture(%{title: "IG followers", platform: "instagram"})
+    published_offer_fixture(%{title: "TikTok likes", platform: "tiktok"})
+
+    {:ok, view, _html} = live(conn, ~p"/shop")
+
+    assert has_element?(view, "#offers-card #offer-filters #chip-all")
+    assert has_element?(view, "#offers-card #offer-filters #chip-tiktok")
+
+    html = view |> element("#chip-tiktok") |> render_click()
+
+    assert html =~ "TikTok likes"
+    refute html =~ "IG followers"
+  end
+
   test "the market records a page view", %{conn: conn} do
     {:ok, _view, _html} = live(conn, ~p"/")
 
     assert [%{path: "/"}] = Insight.list_page_views()
+  end
+
+  defp index_of(html, needle) do
+    {at, _len} = :binary.match(html, needle)
+    at
   end
 end

@@ -1684,6 +1684,106 @@ p {
   color: var(--vn-text);
 }
 
+/* ----------------------------------------- the shop's product lines (§ shop) */
+
+/* Two product lines lead the market so neither is buried: social growth and airtime.
+ * Two tracks, always — a lone tile stretched across the column would read as a
+ * banner, not as one of a pair. */
+.vn-lines {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--vn-space-3);
+}
+
+.vn-line {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  padding: var(--vn-space-4);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+  color: var(--vn-text);
+  text-decoration: none;
+  transition:
+    border-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
+}
+
+.vn-line__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--vn-radius-sm);
+  background: var(--vn-accent-soft);
+  color: var(--vn-accent-text);
+}
+
+.vn-line__title {
+  font-family: var(--vn-font-display);
+  font-weight: 700;
+  font-size: var(--vn-text-ui);
+}
+
+.vn-line__blurb {
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+  line-height: var(--vn-leading-ui);
+}
+
+/* The call to action sits on the floor of the tile, so two tiles of unequal wording
+ * still line their actions up. */
+.vn-line__go {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vn-space-1);
+  margin-top: auto;
+  padding-top: var(--vn-space-2);
+  color: var(--vn-accent-text);
+  font-weight: 700;
+  font-size: var(--vn-text-ui);
+}
+
+.vn-line__arrow {
+  transition: transform var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-line:hover {
+    border-color: color-mix(in srgb, var(--vn-accent) 45%, var(--vn-border));
+    box-shadow: var(--vn-shadow-2);
+  }
+
+  .vn-line:hover .vn-line__arrow {
+    transform: translateX(0.15rem);
+  }
+}
+
+.vn-line:active {
+  transform: translateY(1px);
+}
+
+.vn-line:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+/* A jump target (the offers, linked from a product tile) must clear the sticky top
+ * bar instead of hiding under it. */
+.vn-anchor {
+  scroll-margin-top: calc(3.5rem + var(--vn-space-3));
+}
+
+/* The platform chips are the offers' own filter, so the card has to supply the gap
+ * beneath them that the chips themselves do not carry. */
+#offers-card .vn-chips {
+  margin-bottom: var(--vn-space-3);
+}
+
 .vn-offers {
   margin: 0;
   padding: 0;
@@ -2870,6 +2970,32 @@ p {
   --hero-home: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Cpath%20d%3D%22M4%2010.5%2012%204l8%206.5V20a1%201%200%200%201-1%201H5a1%201%200%200%201-1-1v-9.5Z%22%2F%3E%3Cpath%20d%3D%22M9.5%2021v-6h5v6%22%2F%3E%3C%2Fsvg%3E);
   -webkit-mask: var(--hero-home);
   mask: var(--hero-home);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  background-color: currentColor;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* The shop's two product lines: an upward trend for social growth, a handset for
+ * airtime. Drawn with the same mask technique as the icons above. */
+.hero-arrow-trending-up {
+  --hero-arrow-trending-up: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M2.25%2018%209%2011.25l4.306%204.306a11.95%2011.95%200%200%201%205.814-5.518l2.74-1.22m0%200-5.94-2.281m5.94%202.28-2.28%205.941%22%2F%3E%3C%2Fsvg%3E);
+  -webkit-mask: var(--hero-arrow-trending-up);
+  mask: var(--hero-arrow-trending-up);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  background-color: currentColor;
+  display: inline-block;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.hero-device-phone-mobile {
+  --hero-device-phone-mobile: url(data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22currentColor%22%20aria-hidden%3D%22true%22%20data-slot%3D%22icon%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M10.5%201.5H8.25A2.25%202.25%200%200%200%206%203.75v16.5a2.25%202.25%200%200%200%202.25%202.25h7.5A2.25%202.25%200%200%200%2018%2020.25V3.75a2.25%202.25%200%200%200-2.25-2.25H13.5m-3%200V3h3V1.5m-3%200h3m-3%2018.75h3%22%2F%3E%3C%2Fsvg%3E);
+  -webkit-mask: var(--hero-device-phone-mobile);
+  mask: var(--hero-device-phone-mobile);
   mask-repeat: no-repeat;
   mask-position: center;
   background-color: currentColor;

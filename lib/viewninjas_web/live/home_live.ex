@@ -148,19 +148,34 @@ defmodule ViewNinjasWeb.HomeLive do
       </p>
     </section>
 
-    <section class="vn-card">
-      <h2>{gettext("Three grades, one margin")}</h2>
-      <ul class="vn-grades">
-        <li :for={grade <- Grade.all()} id={"legend-#{grade}"}>
-          <span class="vn-grade">{Grade.label(grade)}</span>
-          <span class="vn-muted">{grade_blurb(grade)}</span>
-        </li>
-      </ul>
+    <%!-- The two product lines lead the shop, so airtime is not an afterthought at the
+          foot: what you can buy is the first thing on the page. --%>
+    <section class="vn-lines" id="shop-lines" aria-label={gettext("What you can buy")}>
+      <.line
+        id="line-growth"
+        icon="hero-arrow-trending-up"
+        title={gettext("Social growth")}
+        blurb={gettext("Followers, likes and views in three grades.")}
+        action={gettext("See offers")}
+        href="#offers-card"
+      />
+      <.line
+        id="line-airtime"
+        icon="hero-device-phone-mobile"
+        title={gettext("Airtime")}
+        blurb={gettext("Any Kenyan number — yours, or a few at once.")}
+        action={gettext("Buy airtime")}
+        navigate={~p"/airtime"}
+      />
     </section>
 
-    <section class="vn-card">
-      <h2>{gettext("Pick a platform")}</h2>
-      <div class="vn-chips">
+    <section class="vn-card vn-anchor" id="offers-card">
+      <h2>{gettext("Offers")}</h2>
+      <p class="vn-muted">{gettext("Pick a platform, then an offer to see its grades.")}</p>
+
+      <%!-- The platform chips are this list's own filter, so they sit with it rather
+            than in a card of their own. --%>
+      <div class="vn-chips" id="offer-filters">
         <button
           type="button"
           class={["vn-chip", is_nil(@platform) && "vn-chip--on"]}
@@ -181,10 +196,7 @@ defmodule ViewNinjasWeb.HomeLive do
           {platform}
         </button>
       </div>
-    </section>
 
-    <section class="vn-card">
-      <h2>{gettext("Offers")}</h2>
       <ul class="vn-offers">
         <li :for={offer <- @offers} id={"offer-#{offer.id}"}>
           <.link navigate={~p"/offers/#{offer.id}"} class="vn-offer-link">
@@ -196,6 +208,16 @@ defmodule ViewNinjasWeb.HomeLive do
       <p :if={@offers == []} class="vn-muted">
         {gettext("Nothing is on sale right now — check back soon.")}
       </p>
+    </section>
+
+    <section class="vn-card" id="grades-card">
+      <h2>{gettext("Three grades, one margin")}</h2>
+      <ul class="vn-grades">
+        <li :for={grade <- Grade.all()} id={"legend-#{grade}"}>
+          <span class="vn-grade">{Grade.label(grade)}</span>
+          <span class="vn-muted">{grade_blurb(grade)}</span>
+        </li>
+      </ul>
     </section>
 
     <section class="vn-card" id="market-copy">
@@ -224,20 +246,10 @@ defmodule ViewNinjasWeb.HomeLive do
       </.link>
     </section>
 
-    <section class="vn-card" id="airtime-card">
-      <h2>{gettext("Airtime")}</h2>
-      <p class="vn-muted">
-        {gettext("Top up any Kenyan number — yours, or a few at once — straight from your wallet.")}
-      </p>
-      <.link navigate={~p"/airtime"} class="vn-button vn-button--muted">
-        {gettext("Buy airtime")}
-      </.link>
-    </section>
-
     <section :if={not @signed_in?} class="vn-card">
       <h2>{gettext("Ready to buy?")}</h2>
       <p class="vn-muted">{gettext("Browsing is free; ordering needs an account.")}</p>
-      <div class="flex flex-col gap-2">
+      <div class="vn-actions">
         <.link navigate={~p"/users/register"} class="vn-button">
           {gettext("Create an account")}
         </.link>
@@ -246,6 +258,48 @@ defmodule ViewNinjasWeb.HomeLive do
         </.link>
       </div>
     </section>
+    """
+  end
+
+  # One product line: a door to a part of the shop. The two are peers, so they share
+  # a single component rather than drifting apart as separate markup.
+  attr :id, :string, required: true
+  attr :icon, :string, required: true
+  attr :title, :string, required: true
+  attr :blurb, :string, required: true
+  attr :action, :string, required: true
+  attr :href, :string, default: nil
+  attr :navigate, :string, default: nil
+
+  defp line(%{navigate: nil} = assigns) do
+    ~H"""
+    <a href={@href} class="vn-line" id={@id}>
+      <.line_face icon={@icon} title={@title} blurb={@blurb} action={@action} />
+    </a>
+    """
+  end
+
+  defp line(assigns) do
+    ~H"""
+    <.link navigate={@navigate} class="vn-line" id={@id}>
+      <.line_face icon={@icon} title={@title} blurb={@blurb} action={@action} />
+    </.link>
+    """
+  end
+
+  attr :icon, :string, required: true
+  attr :title, :string, required: true
+  attr :blurb, :string, required: true
+  attr :action, :string, required: true
+
+  defp line_face(assigns) do
+    ~H"""
+    <span class="vn-line__icon" aria-hidden="true">
+      <.icon name={@icon} class="size-5" />
+    </span>
+    <span class="vn-line__title">{@title}</span>
+    <span class="vn-line__blurb">{@blurb}</span>
+    <span class="vn-line__go">{@action}<span class="vn-line__arrow" aria-hidden="true">→</span></span>
     """
   end
 
@@ -276,7 +330,7 @@ defmodule ViewNinjasWeb.HomeLive do
       <p class="vn-muted">
         {orders_note(@stats)}
       </p>
-      <div class="flex flex-col gap-2">
+      <div class="vn-actions">
         <.link navigate={~p"/orders"} class="vn-button vn-button--muted">
           {gettext("See your orders")}
         </.link>
