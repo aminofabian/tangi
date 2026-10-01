@@ -18,7 +18,7 @@ defmodule ViewNinjas.Settings do
   alias ViewNinjas.Repo
   alias ViewNinjas.Settings.Setting
 
-  @default_mailer_from {"ViewNinjas", "no-reply@example.com"}
+  @default_mailer_from {"Tangi", "no-reply@example.com"}
 
   # The registry: what the screen shows, where the value comes from, and how a
   # submission is read back. `env` names the environment fallback; `default` is
@@ -318,7 +318,7 @@ defmodule ViewNinjas.Settings do
   def mailer_from do
     case value("mailer_from") do
       nil -> Application.get_env(:viewninjas, :mailer_from, @default_mailer_from)
-      address -> {"ViewNinjas", address}
+      address -> {"Tangi", address}
     end
   end
 

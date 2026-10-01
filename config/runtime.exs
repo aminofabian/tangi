@@ -162,7 +162,7 @@ if config_env() == :prod do
   end
 
   if from = System.get_env("MAILER_FROM") do
-    config :viewninjas, :mailer_from, {"ViewNinjas", from}
+    config :viewninjas, :mailer_from, {"Tangi", from}
   end
 
   config :viewninjas, ViewNinjasWeb.Endpoint,

@@ -29,6 +29,27 @@ defmodule ViewNinjasWeb.SeoTest do
     assert html =~ ~s(name="twitter:card")
   end
 
+  test "the market names Tangi as the site and opens with its hero heading", %{conn: conn} do
+    html = conn |> get(~p"/shop") |> html_response(200)
+
+    assert html =~ ~s(property="og:site_name" content="Tangi")
+    assert html =~ ~s("name":"Tangi")
+    # The hero is the market's own `<h1>`; the small sticky-bar title is omitted
+    # there so the heading a crawler reads is the descriptive one.
+    assert html =~ ~s(<h1 class="vn-hero__title">Social media growth in Kenya</h1>)
+  end
+
+  test "every page shares the 1200×630 card as a large social card", %{conn: conn} do
+    html = conn |> get(~p"/shop") |> html_response(200)
+
+    assert html =~ ~s(property="og:image" content="#{SEO.social_image()}")
+    assert html =~ ~s(property="og:image:width" content="1200")
+    assert html =~ ~s(property="og:image:height" content="630")
+    assert html =~ ~s(property="og:image:type" content="image/png")
+    assert html =~ ~s(name="twitter:card" content="summary_large_image")
+    assert html =~ ~s(name="twitter:image" content="#{SEO.social_image()}")
+  end
+
   test "every page names the publisher as structured data", %{conn: conn} do
     html = conn |> get(~p"/") |> html_response(200)
 

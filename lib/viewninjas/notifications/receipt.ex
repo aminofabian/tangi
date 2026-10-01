@@ -19,7 +19,7 @@ defmodule ViewNinjas.Notifications.Receipt do
     new()
     |> to(user.email)
     |> from(sender())
-    |> subject("Your ViewNinjas receipt")
+    |> subject("Your Tangi receipt")
     |> text_body(body(order))
   end
 

@@ -1,4 +1,4 @@
-/* ViewNinjas application styles.
+/* Tangi application styles.
  *
  * The hand-written shell (scope.md §14: hand-written CSS, no UI framework, a
  * small budget for a 3G phone). It is loaded *after* default.css so these rules
@@ -490,6 +490,69 @@ p {
   outline: 2px solid var(--vn-focus);
   outline-offset: -3px;
   border-radius: var(--vn-radius-sm);
+}
+
+/* ------------------------------------------- install nudge (scope.md §12) */
+
+/* The first-run "add to home screen" card. It floats just above the tab bar,
+ * hidden until the browser (or the hook, on iOS) reveals it, and is offered
+ * once — a dismissal is remembered by the hook. */
+.vn-install {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(var(--vn-tabbar-h) + env(safe-area-inset-bottom) + var(--vn-space-3));
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--vn-space-3);
+  margin-inline: auto;
+  width: calc(100% - 2 * var(--vn-space-4));
+  max-width: 28rem;
+  padding: var(--vn-space-3);
+  background: var(--vn-surface);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  box-shadow: var(--vn-shadow-3);
+}
+
+.vn-install[hidden] {
+  display: none;
+}
+
+.vn-install__mark {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.vn-install__copy {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.vn-install__title {
+  margin: 0;
+  font-family: var(--vn-font-display);
+  font-weight: 700;
+  font-size: var(--vn-text-ui);
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-install__text {
+  margin: 0;
+  font-size: var(--vn-text-sm);
+  color: var(--vn-muted);
+}
+
+.vn-install__actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--vn-space-2);
+}
+
+.vn-install__dismiss {
+  padding-inline: var(--vn-space-3);
 }
 
 /* A row of actions that wraps.

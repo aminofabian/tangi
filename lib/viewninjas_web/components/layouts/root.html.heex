@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-KE">
   <head>
     <meta charset="utf-8" />
     <%!-- viewport-fit=cover lets the shell pad against the notch and home
@@ -12,7 +12,7 @@
     <meta name="color-scheme" content="light" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="ViewNinjas" />
+    <meta name="apple-mobile-web-app-title" content="Tangi" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
     <%!-- Search Console ownership. Same string for every URL, so it lives here
@@ -36,7 +36,7 @@
     <link :if={assigns[:canonical_url]} rel="canonical" href={assigns[:canonical_url]} />
 
     <meta property="og:type" content={assigns[:og_type] || "website"} />
-    <meta property="og:site_name" content="ViewNinjas" />
+    <meta property="og:site_name" content="Tangi" />
     <meta property="og:locale" content="en_KE" />
     <meta
       property="og:title"
@@ -47,10 +47,14 @@
       content={assigns[:page_description] || ViewNinjasWeb.SEO.default_description()}
     />
     <meta :if={assigns[:canonical_url]} property="og:url" content={assigns[:canonical_url]} />
-    <meta property="og:image" content={ViewNinjasWeb.SEO.absolutize("/images/icon-512.png")} />
-    <meta property="og:image:alt" content="ViewNinjas" />
+    <meta property="og:image" content={assigns[:og_image] || ViewNinjasWeb.SEO.social_image()} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content={ViewNinjasWeb.SEO.social_image_width()} />
+    <meta property="og:image:height" content={ViewNinjasWeb.SEO.social_image_height()} />
+    <meta property="og:image:alt" content="Tangi — social media growth in Kenya" />
 
-    <meta name="twitter:card" content="summary" />
+    <%!-- `summary_large_image` so X/Twitter shows the 1200×630 card in full. --%>
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="twitter:title"
       content={assigns[:meta_title] || assigns[:page_title] || ViewNinjasWeb.SEO.default_title()}
@@ -59,7 +63,8 @@
       name="twitter:description"
       content={assigns[:page_description] || ViewNinjasWeb.SEO.default_description()}
     />
-    <meta name="twitter:image" content={ViewNinjasWeb.SEO.absolutize("/images/icon-512.png")} />
+    <meta name="twitter:image" content={assigns[:og_image] || ViewNinjasWeb.SEO.social_image()} />
+    <meta name="twitter:image:alt" content="Tangi — social media growth in Kenya" />
 
     <%!-- HEEx does not interpolate `{...}` inside a `<script>` tag, so these use
           the `<%= %>` form. `SEO.encode!/1` escapes `<`, `>` and `&`, so a
@@ -99,8 +104,8 @@
     />
 
     <.live_title
-      default="ViewNinjas"
-      suffix=" · ViewNinjas"
+      default="Tangi"
+      suffix=" · Tangi"
       phx-no-format
     >{assigns[:meta_title] || assigns[:page_title]}</.live_title>
 

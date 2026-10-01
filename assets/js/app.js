@@ -62,6 +62,17 @@ liveSocket.connect()
 // >> liveSocket.disableLatencySim()
 window.liveSocket = liveSocket
 
+// PWA (scope.md §12): register the service worker so the shop is installable
+// and survives a dead spot. It caches assets and the offline splash only, never
+// HTML — a cached page would carry one signed-in user's CSRF token.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/service-worker.js")
+      .catch((error) => console.warn("service worker registration failed", error))
+  })
+}
+
 // The lines below enable quality of life phoenix_live_reload
 // development features:
 //

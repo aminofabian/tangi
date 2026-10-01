@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en-KE">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tangi — share card</title>
+    <style>
+      /* The one social share image, at the 1200×630 that Facebook, X/Twitter,
+       * LinkedIn and WhatsApp all crop to. It is rendered headlessly by og.js;
+       * see README.md. Colours and type come from docs/brand.md. */
+      @font-face {
+        font-family: "Fredoka";
+        src: url("../../priv/static/fonts/fredoka-latin.woff2") format("woff2");
+        font-weight: 300 700;
+        font-display: block;
+      }
+
+      @font-face {
+        font-family: "Nunito";
+        src: url("../../priv/static/fonts/nunito-latin.woff2") format("woff2");
+        font-weight: 200 1000;
+        font-display: block;
+      }
+
+      :root {
+        --tangi-navy: #010649;
+        --tangi-blue: #03a2fc;
+        --tangi-purple: #732bfb;
+        --tangi-pink: #fa1383;
+        --tangi-page: #f8fbff;
+        --tangi-muted: #4b5275;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+      }
+
+      body {
+        font-family: "Nunito", system-ui, sans-serif;
+        color: var(--tangi-navy);
+        background:
+          radial-gradient(560px 560px at 8% -10%, rgba(3, 162, 252, 0.22), transparent 72%),
+          radial-gradient(640px 640px at 98% 110%, rgba(115, 43, 251, 0.2), transparent 72%),
+          var(--tangi-page);
+      }
+
+      .card {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 68px 96px 104px;
+        text-align: center;
+      }
+
+      .logo {
+        height: 200px;
+        width: auto;
+      }
+
+      h1 {
+        font-family: "Fredoka", sans-serif;
+        font-weight: 600;
+        font-size: 62px;
+        line-height: 1.06;
+        letter-spacing: -0.01em;
+        margin-top: 28px;
+      }
+
+      p {
+        max-width: 920px;
+        margin-top: 18px;
+        font-size: 30px;
+        font-weight: 700;
+        color: var(--tangi-muted);
+      }
+
+      .rule {
+        position: absolute;
+        left: 64px;
+        bottom: 52px;
+        display: flex;
+        gap: 10px;
+      }
+
+      .rule span {
+        width: 46px;
+        height: 12px;
+        border-radius: 999px;
+      }
+
+      .rule span:nth-child(1) {
+        background: var(--tangi-blue);
+      }
+
+      .rule span:nth-child(2) {
+        background: var(--tangi-pink);
+      }
+
+      .rule span:nth-child(3) {
+        background: var(--tangi-purple);
+      }
+
+      .domain {
+        position: absolute;
+        right: 64px;
+        bottom: 42px;
+        font-family: "Fredoka", sans-serif;
+        font-weight: 600;
+        font-size: 30px;
+        color: var(--tangi-navy);
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <img class="logo" src="../../priv/static/images/logo.png" alt="Tangi" />
+      <h1>Social media growth in Kenya</h1>
+      <p>Instagram followers, TikTok likes and YouTube views — priced in shillings, paid by M-Pesa.</p>
+      <div class="rule"><span></span><span></span><span></span></div>
+      <div class="domain">tangi.co.ke</div>
+    </div>
+  </body>
+</html>

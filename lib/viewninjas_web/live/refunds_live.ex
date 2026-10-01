@@ -22,7 +22,7 @@ defmodule ViewNinjasWeb.RefundsLive do
      |> assign(
        :page_description,
        gettext(
-         "How refunds and refills work at ViewNinjas: when an order does not fully arrive, the undelivered quantity comes back to your wallet in shillings, automatically."
+         "How refunds and refills work at Tangi: when an order does not fully arrive, the undelivered quantity comes back to your wallet in shillings, automatically."
        )
      )
      |> assign(:analytics, Analytics.capture(socket, session))}

@@ -55,6 +55,7 @@ defmodule ViewNinjasWeb.Admin.NavTest do
 
     refute has_element?(lv, "nav.vn-tabbar")
     assert has_element?(lv, "nav.vn-admin-nav")
+    refute has_element?(lv, "#pwa-install")
   end
 
   test "the shop keeps its own tabs and no section strip", %{conn: conn} do
@@ -64,6 +65,8 @@ defmodule ViewNinjasWeb.Admin.NavTest do
 
     assert has_element?(lv, "nav.vn-tabbar")
     refute has_element?(lv, "nav.vn-admin-nav")
+    # The install nudge belongs to the customer shell only.
+    assert has_element?(lv, "#pwa-install")
   end
 
   test "a staff account browsing the shop is not shown the section strip", %{conn: conn} do

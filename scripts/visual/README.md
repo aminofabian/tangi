@@ -71,6 +71,20 @@ Injects a sample of every shell component into a live page and screenshots it, s
 the whole stylesheet — including states that need real data or a live socket —
 can be reviewed in one pass.
 
+## `og.js` — the social share card
+
+```sh
+cd scripts/visual
+node og.js                             # → ../../priv/static/images/og-image.png
+node og.js /tmp/card.png               # somewhere else
+```
+
+Renders `og.html` to the 1200×630 PNG that Facebook, X/Twitter, LinkedIn and
+WhatsApp crop to, and that every page points at through `ViewNinjasWeb.SEO`.
+This one does **not** need the dev server: it screenshots a local file. Re-run it
+after a brand or copy change and commit the result — nothing in the build depends
+on it.
+
 ## Why the page needs settling
 
 Two things will bite you when scripting this app:

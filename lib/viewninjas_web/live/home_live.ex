@@ -62,11 +62,14 @@ defmodule ViewNinjasWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
+    <%!-- The market's hero is the page's real heading, so it carries the `<h1>`
+          and the small sticky-bar title is dropped there; the dashboard keeps
+          the bar title because its content is a set of cards, not a heading. --%>
     <Layouts.app
       flash={@flash}
       current_scope={@current_scope}
       section={@section}
-      title={@page_title}
+      title={if @market?, do: nil, else: @page_title}
     >
       <%= if @market? do %>
         <.market
@@ -112,7 +115,7 @@ defmodule ViewNinjasWeb.HomeLive do
   defp market_description(true), do: SEO.default_description()
 
   defp market_description(false) do
-    gettext("Your ViewNinjas dashboard: wallet balance, orders in progress and the shop.")
+    gettext("Your Tangi dashboard: wallet balance, orders in progress and the shop.")
   end
 
   defp signed_in?(%{assigns: assigns}), do: signed_in?(assigns[:current_scope])
@@ -137,7 +140,7 @@ defmodule ViewNinjasWeb.HomeLive do
         width="569"
         height="459"
       />
-      <h2 class="vn-hero__title">{gettext("Social media growth in Kenya")}</h2>
+      <h1 class="vn-hero__title">{gettext("Social media growth in Kenya")}</h1>
       <p class="vn-hero__tagline">
         {gettext(
           "Buy Instagram followers, TikTok likes and YouTube views — priced in shillings, sold from your phone."

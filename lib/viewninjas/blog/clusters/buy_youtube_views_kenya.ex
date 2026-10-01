@@ -486,7 +486,7 @@ defmodule ViewNinjas.Blog.Clusters.BuyYoutubeViewsKenya do
         %{
           question: "Do I need a YouTube account to buy views?",
           answer:
-            "No. You need a public video, and at our shop a ViewNinjas account to place and pay for the order. You never hand over your YouTube login."
+            "No. You need a public video, and at our shop a Tangi account to place and pay for the order. You never hand over your YouTube login."
         },
         %{
           question: "How much do I need to start?",

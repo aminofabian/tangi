@@ -19,7 +19,8 @@ defmodule ViewNinjasWeb do
 
   # `robots.txt` is generated (ViewNinjasWeb.RobotsController) so its Sitemap
   # line is absolute on the serving host; it is deliberately not a static file.
-  def static_paths, do: ~w(assets fonts images favicon.ico manifest.json)
+  def static_paths,
+    do: ~w(assets fonts images favicon.ico manifest.json offline.html service-worker.js)
 
   def router do
     quote do

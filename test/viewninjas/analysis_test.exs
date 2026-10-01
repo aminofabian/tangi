@@ -70,7 +70,7 @@ defmodule ViewNinjas.AnalysisTest do
 
       body = Analysis.digest() |> Digest.body()
 
-      assert body =~ "ViewNinjas — week to"
+      assert body =~ "Tangi — week to"
       assert body =~ "Net profit:"
       assert body =~ "Orders:       1"
       assert body =~ "Nothing alerted."

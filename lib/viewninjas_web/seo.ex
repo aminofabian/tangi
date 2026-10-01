@@ -1,8 +1,7 @@
 defmodule ViewNinjasWeb.SEO do
   @moduledoc """
   The facts the public pages hand a crawler: one canonical URL, one description,
-  and the schema.org data that says what ViewNinjas sells, who sells it, and
-  where.
+  and the schema.org data that says what Tangi sells, who sells it, and where.
 
   All of it is written into the root layout, which is rendered on the server for
   every URL and is never touched by a live navigation — so a bot that fetches a
@@ -15,8 +14,26 @@ defmodule ViewNinjasWeb.SEO do
 
   alias ViewNinjasWeb.Endpoint
 
-  @site_name "ViewNinjas"
+  @site_name "Tangi"
   @currency "KES"
+
+  # The share card every page points at, at the 1200×630 social platforms crop
+  # to. It is rendered from `scripts/visual/og.html` (see that folder's README).
+  @social_image "/images/og-image.png"
+  @social_image_width 1200
+  @social_image_height 630
+
+  @doc "The absolute URL of the 1200×630 share card for social previews."
+  @spec social_image() :: String.t()
+  def social_image, do: absolutize(@social_image)
+
+  @doc "The share card's width, for the `og:image:width` tag."
+  @spec social_image_width() :: pos_integer()
+  def social_image_width, do: @social_image_width
+
+  @doc "The share card's height, for the `og:image:height` tag."
+  @spec social_image_height() :: pos_integer()
+  def social_image_height, do: @social_image_height
 
   @doc "The site's name, as search engines and cards should print it."
   @spec site_name() :: String.t()
@@ -32,7 +49,7 @@ defmodule ViewNinjasWeb.SEO do
   @spec default_description() :: String.t()
   def default_description do
     gettext(
-      "Buy Instagram followers, TikTok likes and YouTube views in Kenya, priced in shillings. Three grades, M-Pesa checkout, and a refill when delivery falls short."
+      "Buy Instagram followers, TikTok likes and YouTube views in Kenya. Shillings and M-Pesa, three grades, and a refill when delivery falls short."
     )
   end
 
@@ -77,7 +94,7 @@ defmodule ViewNinjasWeb.SEO do
       "@type" => "Organization",
       "name" => @site_name,
       "url" => Endpoint.url(),
-      "logo" => absolutize("/images/icon-512.png"),
+      "logo" => logo(),
       "description" => default_description(),
       "areaServed" => %{"@type" => "Country", "name" => "Kenya"}
     }
@@ -142,7 +159,7 @@ defmodule ViewNinjasWeb.SEO do
       "dateModified" => Date.to_iso8601(modified),
       "inLanguage" => "en-KE",
       "keywords" => Enum.join(keywords, ", "),
-      "image" => absolutize("/images/icon-512.png"),
+      "image" => logo(),
       "author" => %{"@type" => "Organization", "name" => @site_name},
       "publisher" => Map.delete(organization(), "@context")
     }
@@ -206,6 +223,17 @@ defmodule ViewNinjasWeb.SEO do
         |> Enum.map(fn {%{name: name, url: url}, position} ->
           %{"@type" => "ListItem", "position" => position, "name" => name, "item" => url}
         end)
+    }
+  end
+
+  # An `ImageObject` rather than a bare URL: Google reads the dimensions and can
+  # size the logo for a knowledge panel instead of guessing.
+  defp logo do
+    %{
+      "@type" => "ImageObject",
+      "url" => absolutize("/images/icon-512.png"),
+      "width" => 512,
+      "height" => 512
     }
   end
 

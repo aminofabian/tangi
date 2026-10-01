@@ -45,7 +45,7 @@ defmodule ViewNinjas.Digest do
     p = digest.profit
 
     [
-      "ViewNinjas — week to #{Date.to_iso8601(p.to_date)}",
+      "Tangi — week to #{Date.to_iso8601(p.to_date)}",
       "",
       "Net profit:   #{money(p.net_cents)}",
       "Revenue:      #{money(p.revenue_cents)}",
@@ -62,7 +62,7 @@ defmodule ViewNinjas.Digest do
   end
 
   defp subject(digest) do
-    "ViewNinjas week: #{money(digest.profit.net_cents)} net, #{digest.orders} orders"
+    "Tangi week: #{money(digest.profit.net_cents)} net, #{digest.orders} orders"
   end
 
   defp anomalies([]), do: "Nothing alerted."

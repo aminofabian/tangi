@@ -43,5 +43,5 @@ defmodule ViewNinjas.Workers.DeliverOtp do
     do: DateTime.compare(challenge.expires_at, DateTime.utc_now(:second)) == :lt
 
   defp body(code),
-    do: "Your ViewNinjas code is #{code}. It expires in 5 minutes. Never share it."
+    do: "Your Tangi code is #{code}. It expires in 5 minutes. Never share it."
 end

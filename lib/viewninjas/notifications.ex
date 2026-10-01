@@ -202,21 +202,21 @@ defmodule ViewNinjas.Notifications do
   end
 
   defp sms_body(order, :paid) do
-    "ViewNinjas: we have your #{amount(order)} for #{title(order)}. #{receipt_line(order)} " <>
+    "Tangi: we have your #{amount(order)} for #{title(order)}. #{receipt_line(order)} " <>
       "We are placing your order."
   end
 
   defp sms_body(order, :completed) do
-    "ViewNinjas: your #{title(order)} order is complete. #{receipt_line(order)} " <>
+    "Tangi: your #{title(order)} order is complete. #{receipt_line(order)} " <>
       "Thank you — reopen the app to refill."
   end
 
   defp sms_body(order, :refunded) do
-    "ViewNinjas: #{amount(order)} is back in your wallet for #{title(order)}."
+    "Tangi: #{amount(order)} is back in your wallet for #{title(order)}."
   end
 
   defp sms_body(order, :partial) do
-    "ViewNinjas: #{title(order)} was partly delivered; " <>
+    "Tangi: #{title(order)} was partly delivered; " <>
       "#{credit(order)} is back in your wallet."
   end
 

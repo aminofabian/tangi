@@ -80,7 +80,7 @@ Money (M7) waits on a verified phone (M2) and a real price (M5, M6). That is the
 - Phoenix 1.8 + LiveView, Ecto/Postgres, Oban, Finch, per-env config.
 - CI: `mix format`, `credo`, `mix test`; a staging deploy (Fly.io or one VPS) with managed Postgres.
 - `/health` endpoint. Structured logs. Error reporting (Sentry or AppSignal).
-- The shell: one-column layout, bottom tab bar with placeholder tabs (Shop, Orders, Wallet, Account), safe-area CSS, `dvh`, web manifest + maskable icons — the PWA groundwork from `scope.md` §12.
+- The shell: one-column layout, bottom tab bar with placeholder tabs (Shop, Orders, Wallet, Account), safe-area CSS, `dvh`, web manifest + maskable icons, a service worker with an offline splash, and a first-run add-to-home-screen prompt — the installable PWA from `scope.md` §12.
 
 **Exit criteria.** Staging URL opens on a real phone, installs to the home screen and launches without a URL bar, CI goes green on a trivial PR.
 

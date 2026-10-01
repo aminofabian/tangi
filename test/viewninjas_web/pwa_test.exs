@@ -6,9 +6,25 @@ defmodule ViewNinjasWeb.PwaTest do
   use ViewNinjasWeb.ConnCase, async: true
 
   test "serves the web app manifest", %{conn: conn} do
-    conn = get(conn, ~p"/manifest.json")
+    body = conn |> get(~p"/manifest.json") |> response(200)
 
-    assert response(conn, 200) =~ "ViewNinjas"
+    assert body =~ "Tangi"
+    assert body =~ ~s("display": "standalone")
+    assert body =~ ~s("start_url": "/")
+  end
+
+  test "serves the service worker that falls back to the offline splash", %{conn: conn} do
+    conn = get(conn, ~p"/service-worker.js")
+
+    assert [content_type] = get_resp_header(conn, "content-type")
+    assert content_type =~ "javascript"
+    assert response(conn, 200) =~ "/offline.html"
+  end
+
+  test "serves the offline splash", %{conn: conn} do
+    html = conn |> get(~p"/offline.html") |> response(200)
+
+    assert html =~ "You're offline"
   end
 
   test "serves the icons referenced by the manifest", %{conn: conn} do
@@ -30,7 +46,7 @@ defmodule ViewNinjasWeb.PwaTest do
   end
 
   test "serves the brand artwork", %{conn: conn} do
-    for path <- ~w(/images/logo.png /images/logo-mark.png) do
+    for path <- ~w(/images/logo.png /images/logo-mark.png /images/og-image.png) do
       conn = get(conn, path)
 
       assert response(conn, 200) =~ <<0x89, "PNG">>

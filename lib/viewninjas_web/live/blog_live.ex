@@ -78,7 +78,7 @@ defmodule ViewNinjasWeb.BlogLive do
       Enum.map(Blog.list_posts(), &%{name: &1.title, url: SEO.absolutize(Post.path(&1))})
 
     socket
-    |> assign(:meta_title, gettext("YouTube Growth Guides for Kenyan Creators | ViewNinjas"))
+    |> assign(:meta_title, gettext("YouTube Growth Guides for Kenyan Creators | Tangi"))
     |> assign(:page_description, description)
     |> assign(:canonical_url, canonical)
     |> assign(:clusters, clusters)

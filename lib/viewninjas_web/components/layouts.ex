@@ -84,6 +84,7 @@ defmodule ViewNinjasWeb.Layouts do
     </div>
 
     <.tab_bar :if={!@back_office?} section={@section} />
+    <.pwa_install :if={!@back_office?} />
     <.flash_group flash={@flash} />
     """
   end
@@ -224,6 +225,93 @@ defmodule ViewNinjasWeb.Layouts do
       %{id: :insight, label: gettext("Insight"), path: ~p"/admin/insight", level: :super},
       %{id: :settings, label: gettext("Settings"), path: ~p"/admin/settings", level: :super}
     ]
+  end
+
+  @doc """
+  The first-run "add to home screen" nudge (scope.md §12).
+
+  It stays hidden until the browser says the app is installable — Chrome's
+  `beforeinstallprompt` — or until an iOS Safari visit, which fires no such
+  event and is shown the manual steps instead. A dismissal is remembered, so it
+  is offered exactly once. The whole subtree is `phx-update="ignore"`: the hook
+  owns its own DOM and LiveView must not re-render it back.
+  """
+  def pwa_install(assigns) do
+    ~H"""
+    <aside
+      id="pwa-install"
+      class="vn-install"
+      phx-hook=".PwaInstall"
+      phx-update="ignore"
+      hidden
+    >
+      <img src={~p"/images/logo-mark.png"} alt="" width="56" height="56" class="vn-install__mark" />
+      <div class="vn-install__copy">
+        <p class="vn-install__title">{gettext("Install Tangi")}</p>
+        <p class="vn-install__text">{gettext("Add it to your home screen for one-tap ordering.")}</p>
+      </div>
+      <div class="vn-install__actions">
+        <button type="button" class="vn-button" data-pwa-install>{gettext("Install")}</button>
+        <button
+          type="button"
+          class="vn-button vn-button--muted vn-install__dismiss"
+          data-pwa-dismiss
+          aria-label={gettext("Not now")}
+        >
+          <.icon name="hero-x-mark" class="size-4" />
+        </button>
+      </div>
+    </aside>
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".PwaInstall">
+      const DISMISSED = "tangi:pwa-dismissed"
+
+      const isIos = () => {
+        const ua = window.navigator.userAgent
+        return /iphone|ipad|ipod/i.test(ua) || (ua.includes("Macintosh") && "ontouchend" in document)
+      }
+
+      const isStandalone = () =>
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.navigator.standalone === true
+
+      export default {
+        mounted() {
+          this.deferred = null
+
+          if (isStandalone() || localStorage.getItem(DISMISSED)) return
+
+          const button = this.el.querySelector("[data-pwa-install]")
+          const text = this.el.querySelector(".vn-install__text")
+
+          this.el.querySelector("[data-pwa-dismiss]").addEventListener("click", () => {
+            localStorage.setItem(DISMISSED, "1")
+            this.el.hidden = true
+          })
+
+          button.addEventListener("click", async () => {
+            if (!this.deferred) return
+            this.deferred.prompt()
+            await this.deferred.userChoice
+            this.deferred = null
+            this.el.hidden = true
+          })
+
+          window.addEventListener("beforeinstallprompt", (event) => {
+            event.preventDefault()
+            this.deferred = event
+            this.el.hidden = false
+          })
+
+          if (isIos()) {
+            // iOS Safari never fires beforeinstallprompt; show the manual steps.
+            text.textContent = "Tap the Share button, then \u201cAdd to Home Screen\u201d."
+            button.hidden = true
+            this.el.hidden = false
+          }
+        },
+      }
+    </script>
+    """
   end
 
   @doc """

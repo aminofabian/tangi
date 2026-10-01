@@ -107,7 +107,7 @@ defmodule ViewNinjas.SettingsTest do
 
     test "mailer_from is a name and an address" do
       {:ok, _} = Settings.put("mailer_from", "hello@viewninjas.test", nil)
-      assert Settings.mailer_from() == {"ViewNinjas", "hello@viewninjas.test"}
+      assert Settings.mailer_from() == {"Tangi", "hello@viewninjas.test"}
     end
 
     test "defaults apply when nothing is set" do

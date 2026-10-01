@@ -52,7 +52,7 @@ config :viewninjas, ViewNinjas.Mailer, adapter: Swoosh.Adapters.Local
 
 # The From address on transactional email. Overridable per environment (see
 # config/runtime.exs) so the placeholder domain never ships.
-config :viewninjas, :mailer_from, {"ViewNinjas", "no-reply@example.com"}
+config :viewninjas, :mailer_from, {"Tangi", "no-reply@example.com"}
 
 # Outbound SMS. Development logs the message (so an OTP is visible locally),
 # production uses Africa's Talking, tests use an in-memory outbox. The daily

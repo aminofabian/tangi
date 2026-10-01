@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en-KE">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#03A2FC" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/images/logo-mark.png" type="image/png" />
+    <title>Offline · Tangi</title>
+    <!-- Shown by the service worker when a navigation cannot reach the network.
+         Self-contained on purpose: it must render before app.css exists, so
+         the brand tokens and type are inlined rather than imported. -->
+    <style>
+      @font-face {
+        font-family: "Fredoka";
+        font-style: normal;
+        font-weight: 400 700;
+        font-display: swap;
+        src: url("/fonts/fredoka-latin.woff2") format("woff2");
+      }
+
+      @font-face {
+        font-family: "Nunito";
+        font-style: normal;
+        font-weight: 400 800;
+        font-display: swap;
+        src: url("/fonts/nunito-latin.woff2") format("woff2");
+      }
+
+      :root {
+        --tangi-navy: #010649;
+        --tangi-blue: #03a2fc;
+        --tangi-page: #f8fbff;
+        --tangi-muted: #4b5275;
+        --tangi-white: #fdf8fc;
+        --vn-font-display: "Fredoka", ui-rounded, system-ui, sans-serif;
+        --vn-font-body: "Nunito", ui-sans-serif, system-ui, -apple-system, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        padding: 2rem;
+        text-align: center;
+        background:
+          radial-gradient(560px 560px at 50% -10%, rgba(3, 162, 252, 0.16), transparent 70%),
+          var(--tangi-page);
+        color: var(--tangi-navy);
+        font-family: var(--vn-font-body);
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+
+      .logo {
+        width: 9rem;
+        height: auto;
+      }
+
+      h1 {
+        margin: 0;
+        font-family: var(--vn-font-display);
+        font-weight: 700;
+        font-size: 1.5rem;
+      }
+
+      p {
+        margin: 0;
+        max-width: 22rem;
+        color: var(--tangi-muted);
+      }
+
+      button {
+        margin-top: 0.5rem;
+        min-height: 2.75rem;
+        padding: 0.5rem 1.5rem;
+        border: 0;
+        border-radius: 999px;
+        background: var(--tangi-blue);
+        color: var(--tangi-white);
+        font-family: var(--vn-font-display);
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+
+      button:active {
+        transform: translateY(1px);
+      }
+    </style>
+  </head>
+  <body>
+    <img class="logo" src="/images/logo.png" alt="Tangi" width="569" height="459" />
+    <h1>You're offline</h1>
+    <p>
+      Tangi needs a connection to load the shop and place an order. Check your
+      data or Wi-Fi, then try again.
+    </p>
+    <button type="button" onclick="location.reload()">Try again</button>
+  </body>
+</html>

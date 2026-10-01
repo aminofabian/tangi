@@ -29,7 +29,7 @@ defmodule ViewNinjas.Workers.NotifyOrderTest do
 
     assert {_ref, body} = Test.last_message(user.phone)
     assert body =~ "QKH7XYZ123"
-    assert_email_sent(fn email -> email.subject == "Your ViewNinjas receipt" end)
+    assert_email_sent(fn email -> email.subject == "Your Tangi receipt" end)
   end
 
   test "an opted-out customer is not texted", %{order: order} do

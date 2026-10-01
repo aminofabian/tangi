@@ -137,6 +137,7 @@ trimmed to the artwork and palette-quantised (flat-colour art compresses ~25×).
 | `priv/static/images/icon-*.png` | The mark on the brand off-white, for the manifest's `any` icons |
 | `priv/static/images/maskable-*.png` | The mark at 70% on brand blue, inside the maskable safe zone |
 | `priv/static/images/apple-touch-icon.png` | 180×180, opaque (iOS composites transparency onto black) |
+| `priv/static/images/og-image.png` | The 1200×630 social share card: the lockup, the headline and the domain on the brand page colour. Rendered from `scripts/visual/og.html` via `scripts/visual/og.js`, not hand-drawn — re-run it after a brand or copy change |
 | `priv/static/favicon.ico` | 16/32/48 px raster of the mark |
 
 The full lockup is what the shell header and the home hero draw, via

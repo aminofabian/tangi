@@ -40,7 +40,7 @@ defmodule ViewNinjas.Workers.InsightWorkersTest do
     super_admin_fixture(%{email: "boss@viewninjas.test"})
     assert :ok = perform_job(WeeklyDigest, %{})
 
-    assert_email_sent(fn email -> email.subject =~ "ViewNinjas week" end)
+    assert_email_sent(fn email -> email.subject =~ "Tangi week" end)
   end
 
   defp failed_payment(failure_kind) do

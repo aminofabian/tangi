@@ -619,6 +619,8 @@ viewninjas/
     controllers/       malipo callback, health
   priv/static/
     manifest.json      PWA shell: icons, standalone, theme color
+    service-worker.js  asset cache + offline splash; never caches HTML
+    offline.html       the splash the worker shows with no connection
   docs/
     scope.md
     malipo-connect.md
