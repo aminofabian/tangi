@@ -147,9 +147,15 @@ defmodule ViewNinjas.Analysis do
   defp negative_margin(anomalies, at) do
     from = DateTime.new!(Date.add(at, -7), ~T[00:00:00])
 
+    # Compare with `DateTime.before?/2`, not `>=`: the comparison operators use
+    # Erlang term order on the struct's fields, and `DateTime`'s fields are not
+    # in chronological order, so `>=` silently reports the wrong answer.
     losers =
       Margin.by_order(limit: 500)
-      |> Enum.filter(&(&1.at >= from and is_integer(&1.profit_cents) and &1.profit_cents < 0))
+      |> Enum.filter(fn row ->
+        not DateTime.before?(row.at, from) and is_integer(row.profit_cents) and
+          row.profit_cents < 0
+      end)
 
     case losers do
       [] ->
