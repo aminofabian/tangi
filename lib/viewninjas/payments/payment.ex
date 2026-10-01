@@ -25,6 +25,11 @@ defmodule ViewNinjas.Payments.Payment do
 
     field :purpose, Ecto.Enum, values: @purposes
     field :amount_cents, :integer
+    # The number the prompt went to, when it is not the account's own. Null for a
+    # row written before this was recorded, and for a payment that used the
+    # account phone; the rail's report is checked against this, not the account
+    # (scope.md §13).
+    field :phone, :string
     field :malipo_payment_id, :string
     field :idempotency_key, :string
     field :status, Ecto.Enum, values: @statuses, default: :pending
@@ -60,6 +65,7 @@ defmodule ViewNinjas.Payments.Payment do
       :order_id,
       :purpose,
       :amount_cents,
+      :phone,
       :malipo_payment_id,
       :idempotency_key,
       :status,

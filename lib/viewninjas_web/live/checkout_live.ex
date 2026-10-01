@@ -134,7 +134,7 @@ defmodule ViewNinjasWeb.CheckoutLive do
         <% @mode == :waiting -> %>
           <.waiting
             amount_cents={@payment.amount_cents}
-            phone={phone(@current_scope.user)}
+            phone={Phone.format(Payments.prompted_phone(@payment))}
             prompted={not is_nil(@payment.malipo_payment_id)}
           />
         <% @mode == :succeeded -> %>

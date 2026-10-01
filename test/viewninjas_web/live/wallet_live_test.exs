@@ -117,4 +117,48 @@ defmodule ViewNinjasWeb.WalletLiveTest do
     assert Payments.pending_topup(user) == nil
     assert all_enqueued(worker: CreatePayment) == []
   end
+
+  test "the prompt can go to a number other than the account's", %{conn: conn} do
+    user = verified_user_fixture()
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p/\/wallet/)
+
+    lv
+    |> form("#topup-form", topup: %{amount: "100", phone: "0722 000 000"})
+    |> render_submit()
+
+    payment = Payments.pending_topup(user)
+    # Stored in the canonical form, not as it was typed.
+    assert payment.phone == "254722000000"
+
+    assert :ok = perform_job(CreatePayment, %{"payment_id" => payment.id})
+    assert [created] = Test.created_for(payment.idempotency_key)
+    assert created.customer_phone == "254722000000"
+
+    # The rail reports the prompted number, so the settlement still matches even
+    # though it is not the account's own.
+    Test.settle!(Payments.get_payment!(payment.id).malipo_payment_id, "R2")
+    assert :ok = perform_job(ConfirmPayment, %{"payment_id" => payment.id})
+    _ = :sys.get_state(lv.pid)
+
+    assert has_element?(lv, "#payment-succeeded")
+    assert Wallet.balance(user) == 10_000
+  end
+
+  test "a number that is not a Kenyan mobile is refused before any prompt", %{conn: conn} do
+    user = verified_user_fixture()
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p/\/wallet/)
+
+    html =
+      lv
+      |> form("#topup-form", topup: %{amount: "100", phone: "not a phone"})
+      |> render_submit()
+
+    assert html =~ "valid M-Pesa number"
+    assert Payments.pending_topup(user) == nil
+    assert all_enqueued(worker: CreatePayment) == []
+  end
 end

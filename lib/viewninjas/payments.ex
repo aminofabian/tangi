@@ -170,22 +170,33 @@ defmodule ViewNinjas.Payments do
   end
 
   @doc "Starts the attempt that pays an order in full."
-  def start_order_payment(%Order{} = order) do
+  @spec start_order_payment(Order.t(), String.t() | nil) ::
+          {:ok, Payment.t()} | {:error, Ecto.Changeset.t()}
+  def start_order_payment(%Order{} = order, phone \\ nil) do
     start_attempt(%{
       user_id: order.user_id,
       order_id: order.id,
       purpose: :order,
       amount_cents: order.retail_cents,
+      phone: phone,
       idempotency_key: order_attempt_key(order)
     })
   end
 
-  @doc "Starts an attempt that tops up a wallet."
-  def start_topup_payment(%User{} = user, amount_cents) do
+  @doc """
+  Starts an attempt that tops up a wallet.
+
+  `phone` is the number to prompt; a customer may pay from a second phone, so it
+  is stored on the attempt and checked at settlement. Nil means the account's own.
+  """
+  @spec start_topup_payment(User.t(), integer(), String.t() | nil) ::
+          {:ok, Payment.t()} | {:error, Ecto.Changeset.t()}
+  def start_topup_payment(%User{} = user, amount_cents, phone \\ nil) do
     start_attempt(%{
       user_id: user.id,
       purpose: :topup,
       amount_cents: amount_cents,
+      phone: phone,
       idempotency_key: topup_attempt_key(user)
     })
   end
@@ -215,14 +226,25 @@ defmodule ViewNinjas.Payments do
     end
   end
 
-  defp verify_phone(%Payment{user_id: user_id} = _payment, fresh) do
+  defp verify_phone(%Payment{} = payment, fresh) do
     case Map.get(fresh, :customer_phone) do
       nil -> :ok
-      phone -> if phone == phone_for(user_id), do: :ok, else: {:error, :phone_mismatch}
+      phone -> if phone == prompted_phone(payment), do: :ok, else: {:error, :phone_mismatch}
     end
   end
 
-  defp phone_for(user_id) do
+  @doc """
+  The number a payment's prompt actually went to.
+
+  The attempt records the MSISDN it prompted; a row written before that column
+  existed — or one that used the account phone — falls back to the account's own,
+  which is where those prompts went.
+  """
+  @spec prompted_phone(Payment.t()) :: String.t() | nil
+  def prompted_phone(%Payment{phone: phone}) when is_binary(phone), do: phone
+  def prompted_phone(%Payment{user_id: user_id}), do: account_phone(user_id)
+
+  defp account_phone(user_id) do
     case Repo.get(User, user_id) do
       %User{phone: phone} -> phone
       _ -> nil

@@ -10,7 +10,6 @@ defmodule ViewNinjas.Workers.CreatePayment do
 
   use Oban.Worker, queue: :payments, max_attempts: 5
 
-  alias ViewNinjas.Accounts
   alias ViewNinjas.Payments
   alias ViewNinjas.Payments.{Malipo, Payment}
 
@@ -52,9 +51,8 @@ defmodule ViewNinjas.Workers.CreatePayment do
     }
   end
 
-  defp phone(payment) do
-    payment.user_id |> Accounts.get_user!() |> Map.fetch!(:phone)
-  end
+  # The number the attempt recorded, or the account's own when it recorded none.
+  defp phone(payment), do: Payments.prompted_phone(payment)
 
   defp reference(%{order_id: nil} = payment), do: "topup-#{payment.id}"
   defp reference(%{order_id: order_id}), do: "order-#{order_id}"

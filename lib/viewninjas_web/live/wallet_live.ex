@@ -10,6 +10,7 @@ defmodule ViewNinjasWeb.WalletLive do
 
   import ViewNinjasWeb.PaymentComponents
 
+  alias ViewNinjas.Accounts.Phone
   alias ViewNinjas.Payments
   alias ViewNinjas.Payments.Payment
   alias ViewNinjas.Pricing
@@ -34,7 +35,7 @@ defmodule ViewNinjasWeb.WalletLive do
      |> assign(:failure, nil)
      |> assign(:receipt, nil)
      |> assign(:receipt_amount, nil)
-     |> assign(:form, to_form(%{"amount" => ""}, as: "topup"))
+     |> assign(:form, topup_form(socket.assigns.current_scope.user))
      |> load_wallet()}
   end
 
@@ -47,19 +48,34 @@ defmodule ViewNinjasWeb.WalletLive do
   @impl true
   def handle_event("topup", %{"topup" => params}, socket) do
     if RateLimit.allow?("payment:user:#{socket.assigns.current_scope.user.id}", :payment_user) do
-      start_topup(socket, params["amount"])
+      start_topup(socket, params["amount"], params["phone"])
     else
       {:noreply,
        put_flash(socket, :error, gettext("Too many attempts just now — try again shortly."))}
     end
   end
 
+  # Keep the typed amount and number in the form assign, so a chip click or a
+  # failed submit never discards what the customer entered.
+  def handle_event("validate_topup", %{"topup" => params}, socket) do
+    {:noreply, assign(socket, form: to_form(params, as: "topup"))}
+  end
+
   def handle_event("retry", _params, socket) do
-    start_topup(socket, to_string(div(socket.assigns.payment.amount_cents, 100)))
+    payment = socket.assigns.payment
+
+    start_topup(
+      socket,
+      to_string(div(payment.amount_cents, 100)),
+      Payments.prompted_phone(payment)
+    )
   end
 
   def handle_event("pick_amount", %{"amount" => amount}, socket) do
-    {:noreply, assign(socket, form: to_form(%{"amount" => amount}, as: "topup"))}
+    phone = socket.assigns.form[:phone].value
+
+    {:noreply,
+     assign(socket, form: to_form(%{"amount" => amount, "phone" => phone}, as: "topup"))}
   end
 
   def handle_event("close_topup", _params, socket) do
@@ -68,14 +84,16 @@ defmodule ViewNinjasWeb.WalletLive do
      |> assign(:mode, :idle)
      |> assign(:payment, nil)
      |> assign(:failure, nil)
-     |> assign(:form, to_form(%{"amount" => ""}, as: "topup"))
+     |> assign(:form, topup_form(socket.assigns.current_scope.user))
      |> load_wallet()}
   end
 
-  defp start_topup(socket, raw_amount) do
+  defp start_topup(socket, raw_amount, raw_phone) do
     if Payments.configured?() do
       with {:ok, amount_cents} <- validate_amount(raw_amount),
-           {:ok, payment} <- start_attempt(socket, amount_cents) do
+           {:ok, phone} <- validate_phone(raw_phone),
+           :ok <- check_phone_limit(phone),
+           {:ok, payment} <- start_attempt(socket, amount_cents, phone) do
         {:noreply, watch(socket, payment)}
       else
         {:error, message} when is_binary(message) ->
@@ -122,7 +140,7 @@ defmodule ViewNinjasWeb.WalletLive do
         <% @mode == :waiting -> %>
           <.waiting
             amount_cents={@payment.amount_cents}
-            phone={ViewNinjas.Accounts.Phone.format(@current_scope.user.phone)}
+            phone={Phone.format(Payments.prompted_phone(@payment))}
             prompted={not is_nil(@payment.malipo_payment_id)}
           />
         <% @mode == :succeeded -> %>
@@ -165,7 +183,7 @@ defmodule ViewNinjasWeb.WalletLive do
     <section class="vn-card" id="topup">
       <h2>{gettext("Add money")}</h2>
       <p class="vn-muted">{gettext("Type any amount in shillings, or start from one of these.")}</p>
-      <.form for={@form} id="topup-form" phx-submit="topup">
+      <.form for={@form} id="topup-form" phx-submit="topup" phx-change="validate_topup">
         <.input
           field={@form[:amount]}
           type="number"
@@ -187,6 +205,16 @@ defmodule ViewNinjasWeb.WalletLive do
             {kes(amount * 100)}
           </button>
         </div>
+        <.input
+          field={@form[:phone]}
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          label={gettext("M-Pesa number")}
+        />
+        <p class="vn-muted">
+          {gettext("The prompt goes to this number. Change it to pay from another phone.")}
+        </p>
         <button class="vn-button" id="topup-submit">{gettext("Top up with M-Pesa")}</button>
       </.form>
     </section>
@@ -257,14 +285,45 @@ defmodule ViewNinjasWeb.WalletLive do
     |> assign(:mode, :waiting)
   end
 
-  defp start_attempt(socket, amount_cents) do
+  defp start_attempt(socket, amount_cents, phone) do
     with {:ok, payment} <-
-           Payments.start_topup_payment(socket.assigns.current_scope.user, amount_cents),
+           Payments.start_topup_payment(socket.assigns.current_scope.user, amount_cents, phone),
          {:ok, _job} <- CreatePayment.new(%{payment_id: payment.id}) |> Oban.insert() do
       {:ok, payment}
     else
       {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset_message(changeset)}
       {:error, _reason} -> {:error, :enqueue_failed}
+    end
+  end
+
+  # The form's own starting values: no amount yet, and the account's number,
+  # which the customer may overwrite with the phone they want to pay from.
+  defp topup_form(user, attrs \\ %{}) do
+    to_form(
+      Map.merge(%{"amount" => "", "phone" => Phone.format(user.phone)}, attrs),
+      as: "topup"
+    )
+  end
+
+  defp validate_phone(value) when is_binary(value) do
+    case Phone.normalize(value) do
+      {:ok, phone} ->
+        {:ok, phone}
+
+      {:error, :invalid_phone} ->
+        {:error, gettext("Enter a valid M-Pesa number, e.g. 0712 345 678.")}
+    end
+  end
+
+  defp validate_phone(_value), do: {:error, gettext("Enter the M-Pesa number to prompt.")}
+
+  # Budgeted per number as well as per customer: a prompt is an SMS to whoever
+  # holds the phone, so a changed number must not become a way to spam one.
+  defp check_phone_limit(phone) do
+    if RateLimit.allow?("payment:phone:#{phone}", :payment_phone) do
+      :ok
+    else
+      {:error, gettext("Too many attempts for this number — try again shortly.")}
     end
   end
 

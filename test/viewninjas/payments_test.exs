@@ -5,6 +5,7 @@ defmodule ViewNinjas.PaymentsTest do
 
   use ViewNinjas.DataCase, async: true
 
+  import ViewNinjas.AccountsFixtures
   import ViewNinjas.OrdersFixtures
 
   alias ViewNinjas.Orders
@@ -49,6 +50,35 @@ defmodule ViewNinjas.PaymentsTest do
       assert payment.order_id == nil
       assert payment.amount_cents == 25_000
       assert payment.idempotency_key =~ "topup-"
+    end
+  end
+
+  describe "the prompted number" do
+    test "a changed number is stored, and is what the rail is checked against" do
+      user = verified_user_fixture()
+      {:ok, payment} = Payments.start_topup_payment(user, 10_000, "254722000000")
+
+      assert payment.phone == "254722000000"
+      assert Payments.prompted_phone(payment) == "254722000000"
+
+      # The rail echoes the number we actually prompted: a match.
+      assert :ok =
+               Payments.verify_attempt(payment, %{
+                 amount: "100.00",
+                 customer_phone: "254722000000"
+               })
+
+      # Any other number — the account's own included — is a mismatch.
+      assert {:error, :phone_mismatch} =
+               Payments.verify_attempt(payment, %{amount: "100.00", customer_phone: user.phone})
+    end
+
+    test "an attempt with no recorded number falls back to the account's" do
+      user = verified_user_fixture()
+      {:ok, payment} = Payments.start_topup_payment(user, 10_000)
+
+      assert payment.phone == nil
+      assert Payments.prompted_phone(payment) == user.phone
     end
   end
 
