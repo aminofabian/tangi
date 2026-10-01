@@ -89,4 +89,40 @@ defmodule ViewNinjasWeb.OrderLiveTest do
     assert has_element?(lv, "#refill-status")
     refute has_element?(lv, "#refill-button")
   end
+
+  test "an unpaid order can be finished from its page", %{conn: conn} do
+    user = verified_user_fixture()
+    order = order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/orders/#{order.id}")
+
+    assert has_element?(lv, "#finish-paying-button")
+    refute has_element?(lv, "#reorder-button")
+
+    path = "/checkout/#{order.id}"
+
+    assert {:error, {:live_redirect, %{to: ^path}}} =
+             lv |> element("#finish-paying-button") |> render_click()
+  end
+
+  test "a placed order can be ordered again from its page", %{conn: conn} do
+    user = verified_user_fixture()
+    placed = supplier_order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/orders/#{placed.id}")
+
+    refute has_element?(lv, "#finish-paying")
+    assert has_element?(lv, "#reorder-button")
+
+    assert {:error, {:live_redirect, %{to: to}}} =
+             lv |> element("#reorder-button") |> render_click()
+
+    "/checkout/" <> id = to
+    fresh = Orders.get_order!(String.to_integer(id))
+    assert fresh.link == placed.link
+    assert fresh.quantity == placed.quantity
+    assert fresh.state == :awaiting_payment
+  end
 end

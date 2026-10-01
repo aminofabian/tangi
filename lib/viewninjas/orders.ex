@@ -70,6 +70,43 @@ defmodule ViewNinjas.Orders do
     end)
   end
 
+  @doc """
+  A fresh order with the same link, grade and quantity, priced as of now.
+
+  An order still `awaiting_payment` is not copied — that one is finished by
+  paying it. A lane that has come off sale returns `{:error, :unavailable}`.
+  """
+  @spec repeat_order(User.t(), Order.t()) ::
+          {:ok, Order.t()} | {:error, :still_open | :unavailable | :not_found | term()}
+  def repeat_order(%User{id: user_id} = user, %Order{user_id: user_id} = order) do
+    lane = lane_for_repeat(order.lane_id)
+
+    cond do
+      order.state == :awaiting_payment ->
+        {:error, :still_open}
+
+      is_nil(lane) or not Lane.on_sale?(lane) ->
+        {:error, :unavailable}
+
+      true ->
+        create_order(%{
+          user: user,
+          lane: lane,
+          link: order.link,
+          quantity: order.quantity
+        })
+    end
+  end
+
+  def repeat_order(%User{}, %Order{}), do: {:error, :not_found}
+
+  defp lane_for_repeat(lane_id) do
+    case Repo.get(Lane, lane_id) do
+      nil -> nil
+      lane -> Repo.preload(lane, supplier_service: :supplier)
+    end
+  end
+
   defp current_fx_rate_id do
     case Pricing.current_fx() do
       nil -> nil

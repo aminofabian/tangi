@@ -33,6 +33,14 @@ defmodule ViewNinjasWeb.OrdersLive do
   end
 
   @impl true
+  def handle_event("reorder", %{"id" => id}, socket) do
+    user = socket.assigns.current_scope.user
+    order = Enum.find(socket.assigns.orders, &(to_string(&1.id) == id))
+
+    {:noreply, reorder(socket, user, order)}
+  end
+
+  @impl true
   def handle_info({:order, %Order{} = order}, socket) do
     {:noreply, assign(socket, :orders, merge(socket.assigns.orders, order))}
   end
@@ -56,8 +64,16 @@ defmodule ViewNinjasWeb.OrdersLive do
         <.link navigate={~p"/shop"} class="vn-button">{gettext("Browse the shop")}</.link>
       </section>
 
+      <p :if={waiting(@orders) != []} class="vn-open-note" id="open-payments">
+        {open_note(waiting(@orders))}
+      </p>
+
       <ul :if={@orders != []} class="vn-orders" id="orders">
-        <li :for={order <- @orders} id={"order-#{order.id}"} class="vn-order-row">
+        <li
+          :for={order <- @orders}
+          id={"order-#{order.id}"}
+          class={["vn-order-card", payable?(order) && "vn-order-card--open"]}
+        >
           <.link navigate={~p"/orders/#{order.id}"} class="vn-order-link">
             <span class="vn-order-link__body">
               <span class="vn-order-link__title">{order_title(order)}</span>
@@ -67,10 +83,72 @@ defmodule ViewNinjasWeb.OrdersLive do
             </span>
             <.state_pill state={order.state} />
           </.link>
+          <.link
+            :if={payable?(order)}
+            navigate={~p"/checkout/#{order.id}"}
+            class="vn-button"
+            id={"finish-#{order.id}"}
+          >
+            {gettext("Finish paying")}
+          </.link>
+          <button
+            :if={repeatable?(order)}
+            type="button"
+            class="vn-text-button"
+            phx-click="reorder"
+            phx-value-id={order.id}
+            id={"reorder-#{order.id}"}
+          >
+            {gettext("Order again")} <span aria-hidden="true">→</span>
+          </button>
         </li>
       </ul>
     </Layouts.app>
     """
+  end
+
+  defp waiting(orders), do: Enum.filter(orders, &payable?/1)
+
+  defp open_note([_one]) do
+    gettext("One payment is still open. Finish it whenever you're ready — nothing was charged.")
+  end
+
+  defp open_note(waiting) do
+    gettext("%{count} payments are still open. Finish each one on its own — nothing was charged.",
+      count: length(waiting)
+    )
+  end
+
+  defp reorder(socket, _user, nil) do
+    put_flash(socket, :error, gettext("That order can't be placed again."))
+  end
+
+  defp reorder(socket, user, order) do
+    case Orders.repeat_order(user, order) do
+      {:ok, fresh} ->
+        push_navigate(socket, to: ~p"/checkout/#{fresh.id}")
+
+      {:error, :unavailable} ->
+        unavailable(socket, order)
+
+      {:error, _reason} ->
+        put_flash(socket, :error, gettext("That order can't be placed again."))
+    end
+  end
+
+  defp unavailable(socket, order) do
+    socket =
+      put_flash(
+        socket,
+        :error,
+        gettext("That grade isn't on sale right now. Pick another — we'll keep the same link.")
+      )
+
+    if order.lane && order.lane.offer && order.lane.offer.id do
+      push_navigate(socket, to: offer_again_path(order))
+    else
+      socket
+    end
   end
 
   defp orders(socket) do
@@ -85,6 +163,11 @@ defmodule ViewNinjasWeb.OrdersLive do
     end
   end
 
-  defp replace(%Order{id: id} = _existing, %Order{id: id} = order), do: order
+  # A broadcast row has no lane. Keep the one the list already loaded, or the
+  # title and "order again" lose the offer they point at.
+  defp replace(%Order{id: id} = existing, %Order{id: id} = order) do
+    %{order | lane: existing.lane}
+  end
+
   defp replace(existing, _order), do: existing
 end

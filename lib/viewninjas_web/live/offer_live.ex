@@ -34,12 +34,12 @@ defmodule ViewNinjasWeb.OfferLive do
   end
 
   @impl true
-  def handle_params(%{"id" => id}, uri, socket) do
+  def handle_params(%{"id" => id} = params, uri, socket) do
     Analytics.record_page_view(socket, uri)
 
     case Catalog.get_market_offer(parse_id(id)) do
       nil -> {:noreply, to_market(socket)}
-      offer -> {:noreply, load_offer(socket, offer, uri)}
+      offer -> {:noreply, load_offer(socket, offer, uri, params)}
     end
   end
 
@@ -168,10 +168,10 @@ defmodule ViewNinjasWeb.OfferLive do
 
   # -- internals ---------------------------------------------------------
 
-  defp load_offer(socket, offer, uri) do
+  defp load_offer(socket, offer, uri, params) do
     grade = default_grade(offer)
     lane = selected_lane(offer, grade)
-    quantity = default_quantity(lane)
+    quantity = carried_quantity(params, lane)
     canonical = SEO.canonical_url(uri)
     from = Catalog.from_selling_cents(offer, socket.assigns.params)
 
@@ -186,7 +186,7 @@ defmodule ViewNinjasWeb.OfferLive do
     |> assign(:grade, grade)
     |> assign(:paused, Lane.paused?(lane))
     |> assign_bounds(lane)
-    |> assign_form(%{"link" => "", "quantity" => Integer.to_string(quantity)})
+    |> assign_form(%{"link" => carried_link(params), "quantity" => quantity})
     |> preview()
   end
 
@@ -244,6 +244,26 @@ defmodule ViewNinjasWeb.OfferLive do
   end
 
   defp assign_form(socket, params), do: assign(socket, :form, to_form(params, as: "order"))
+
+  # A repeat that can't use the old grade lands here with the link and the
+  # quantity already filled, so the buyer only picks a grade that is on sale.
+  defp carried_link(%{"link" => link}) when is_binary(link) do
+    case Links.validate(link) do
+      {:ok, link} -> link
+      _ -> ""
+    end
+  end
+
+  defp carried_link(_params), do: ""
+
+  defp carried_quantity(%{"quantity" => quantity}, lane) when is_binary(quantity) do
+    case Integer.parse(quantity) do
+      {count, ""} when count > 0 -> Integer.to_string(count)
+      _ -> Integer.to_string(default_quantity(lane))
+    end
+  end
+
+  defp carried_quantity(_params, lane), do: Integer.to_string(default_quantity(lane))
 
   defp assign_bounds(socket, lane) do
     {min, max} = bounds(lane)

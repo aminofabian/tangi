@@ -38,6 +38,20 @@ defmodule ViewNinjasWeb.OrderComponents do
     """
   end
 
+  @doc "An order the customer can still pay for."
+  def payable?(%{state: :awaiting_payment}), do: true
+  def payable?(_order), do: false
+
+  @doc "An order they can buy again. An open payment is finished, not copied."
+  def repeatable?(%{state: :awaiting_payment}), do: false
+  def repeatable?(%{state: state}) when is_atom(state), do: true
+  def repeatable?(_order), do: false
+
+  @doc "The offer to land on when the old grade is off sale, with the link kept."
+  def offer_again_path(%{lane: %{offer: %{id: id}}, link: link, quantity: quantity}) do
+    ~p"/offers/#{id}?link=#{link}&quantity=#{quantity}"
+  end
+
   @doc "What the customer bought, when the offer is loaded."
   @spec order_title(map()) :: String.t()
   def order_title(%{lane: %{offer: %{title: title}}}) when is_binary(title), do: title

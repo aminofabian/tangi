@@ -2901,6 +2901,69 @@ p {
   background: var(--vn-accent-soft);
 }
 
+/* A list row that carries its own action, so Finish paying is never buried
+ * inside the link that opens the order. */
+.vn-order-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--vn-space-2);
+  padding: var(--vn-space-3) var(--vn-space-4);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+}
+
+.vn-order-card--open {
+  border-color: color-mix(in srgb, var(--vn-accent) 55%, var(--vn-border));
+  background: linear-gradient(180deg, var(--vn-accent-soft), var(--vn-surface) 2.75rem);
+}
+
+.vn-order-card .vn-order-link {
+  align-self: stretch;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.vn-order-card .vn-order-link:active {
+  background: transparent;
+}
+
+.vn-order-card--open .vn-button {
+  align-self: stretch;
+}
+
+.vn-open-note {
+  margin: 0;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+}
+
+.vn-text-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--vn-control-h);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--vn-accent-text);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vn-text-button:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+  border-radius: var(--vn-radius-sm);
+}
+
 .vn-order-link__body {
   display: flex;
   flex-direction: column;

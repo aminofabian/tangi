@@ -35,6 +35,16 @@ defmodule ViewNinjasWeb.OfferLiveTest do
     Catalog.get_offer!(offer.id)
   end
 
+  test "a repeat carries the link and the quantity onto the offer", %{conn: conn} do
+    offer = three_grade_offer()
+
+    {:ok, view, _html} =
+      live(conn, ~p"/offers/#{offer.id}?link=https://instagram.com/kept&quantity=2000")
+
+    assert has_element?(view, "input[name='order[link]'][value='https://instagram.com/kept']")
+    assert has_element?(view, "#total", "KSh 552")
+  end
+
   test "shows the three grades with their bounds and refill", %{conn: conn} do
     offer = three_grade_offer()
     {:ok, view, _html} = live(conn, ~p"/offers/#{offer.id}")

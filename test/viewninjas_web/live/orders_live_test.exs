@@ -10,7 +10,7 @@ defmodule ViewNinjasWeb.OrdersLiveTest do
   import ViewNinjas.AccountsFixtures
   import ViewNinjas.OrdersFixtures
 
-  alias ViewNinjas.Orders
+  alias ViewNinjas.{Catalog, Orders}
 
   test "a signed out visitor is sent to log in" do
     assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(build_conn(), ~p"/orders")
@@ -70,5 +70,60 @@ defmodule ViewNinjasWeb.OrdersLiveTest do
     _ = :sys.get_state(lv.pid)
 
     assert has_element?(lv, "#order-#{placed.id} .vn-state--completed")
+  end
+
+  test "an unpaid order offers finish paying, and not a second copy", %{conn: conn} do
+    user = verified_user_fixture()
+    order = order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/orders")
+
+    assert has_element?(lv, "#open-payments")
+    assert has_element?(lv, "#finish-#{order.id}")
+    refute has_element?(lv, "#reorder-#{order.id}")
+
+    path = "/checkout/#{order.id}"
+
+    assert {:error, {:live_redirect, %{to: ^path}}} =
+             lv |> element("#finish-#{order.id}") |> render_click()
+  end
+
+  test "a placed order can be ordered again, at a new checkout", %{conn: conn} do
+    user = verified_user_fixture()
+    placed = supplier_order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/orders")
+
+    refute has_element?(lv, "#open-payments")
+    assert has_element?(lv, "#reorder-#{placed.id}")
+
+    assert {:error, {:live_redirect, %{to: to}}} =
+             lv |> element("#reorder-#{placed.id}") |> render_click()
+
+    "/checkout/" <> id = to
+    fresh = Orders.get_order!(String.to_integer(id))
+    assert fresh.id != placed.id
+    assert fresh.state == :awaiting_payment
+    assert fresh.link == placed.link
+    assert fresh.quantity == placed.quantity
+  end
+
+  test "a grade that has come off sale sends the buyer back to the offer", %{conn: conn} do
+    user = verified_user_fixture()
+    placed = supplier_order_fixture(%{user: user})
+    {:ok, _} = Catalog.unpublish_lane(Catalog.get_lane!(placed.lane_id))
+    offer_id = Orders.get_order_for_user(user, placed.id).lane.offer.id
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/orders")
+
+    assert {:error, {:live_redirect, %{to: to}}} =
+             lv |> element("#reorder-#{placed.id}") |> render_click()
+
+    assert to =~ "/offers/#{offer_id}?"
+    assert URI.decode_query(URI.parse(to).query)["link"] == placed.link
+    assert URI.decode_query(URI.parse(to).query)["quantity"] == to_string(placed.quantity)
   end
 end

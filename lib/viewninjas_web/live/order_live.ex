@@ -52,6 +52,29 @@ defmodule ViewNinjasWeb.OrderLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_event("reorder", _params, socket) do
+    user = socket.assigns.current_scope.user
+    order = socket.assigns.order
+
+    case Orders.repeat_order(user, order) do
+      {:ok, fresh} ->
+        {:noreply, push_navigate(socket, to: ~p"/checkout/#{fresh.id}")}
+
+      {:error, :unavailable} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           gettext("That grade isn't on sale right now. Pick another — we'll keep the same link.")
+         )
+         |> push_navigate(to: offer_again_path(order))}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, gettext("That order can't be placed again."))}
+    end
+  end
+
+  @impl true
   def handle_event("refill", _params, socket) do
     case Orders.request_refill(socket.assigns.order) do
       {:ok, _refill} ->
@@ -72,6 +95,16 @@ defmodule ViewNinjasWeb.OrderLive do
       title={gettext("Order")}
     >
       <.journey :if={@order} step={journey_step(@order)} />
+
+      <section :if={@order && payable?(@order)} class="vn-card vn-arrive" id="finish-paying">
+        <h2>{gettext("This one is still open")}</h2>
+        <p class="vn-muted">
+          {gettext("Nothing was charged. Finish paying and we'll start it.")}
+        </p>
+        <.link navigate={~p"/checkout/#{@order.id}"} class="vn-button" id="finish-paying-button">
+          {gettext("Finish paying · %{amount}", amount: kes(@order.retail_cents))}
+        </.link>
+      </section>
 
       <section :if={@order && runway_index(@order.state)} class="vn-card vn-arrive" id="delivery">
         <h2>{gettext("Where it is")}</h2>
@@ -96,7 +129,13 @@ defmodule ViewNinjasWeb.OrderLive do
           <dd>{@order.quantity}</dd>
           <dt>{gettext("Link")}</dt>
           <dd class="vn-breakall">{@order.link}</dd>
-          <dt>{gettext("Paid")}</dt>
+          <dt>
+            <%= if @order.state == :awaiting_payment do %>
+              {gettext("To pay")}
+            <% else %>
+              {gettext("Paid")}
+            <% end %>
+          </dt>
           <dd>{kes(@order.retail_cents)}</dd>
           <dt :if={@receipt}>{gettext("M-Pesa receipt")}</dt>
           <dd :if={@receipt}>{@receipt}</dd>
@@ -108,6 +147,19 @@ defmodule ViewNinjasWeb.OrderLive do
         <p :if={@order.state == :needs_review} class="vn-muted">
           {gettext("We are checking this order by hand. Nothing is lost.")}
         </p>
+      </section>
+
+      <section :if={@order && repeatable?(@order)} class="vn-card" id="reorder">
+        <h2>{gettext("Want this again?")}</h2>
+        <p class="vn-muted">{gettext("Same link, same amount, at today's price.")}</p>
+        <button
+          type="button"
+          class="vn-button vn-button--muted"
+          phx-click="reorder"
+          id="reorder-button"
+        >
+          {gettext("Order again")}
+        </button>
       </section>
 
       <section :if={@order && @refillable} class="vn-card" id="refill">
