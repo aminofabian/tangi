@@ -94,6 +94,7 @@ defmodule ViewNinjasWeb.Router do
       live "/admin/costs", Admin.CostsLive, :index
       live "/admin/insight", Admin.InsightLive, :index
       live "/admin/settlements", Admin.SettlementsLive, :index
+      live "/admin/airtime", Admin.AirtimeLive, :index
       live "/admin/settings", Admin.SettingsLive, :index
     end
   end
@@ -131,6 +132,7 @@ defmodule ViewNinjasWeb.Router do
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
       live "/users/verify-phone", UserLive.VerifyPhone, :new
       live "/airtime", AirtimeLive, :index
+      live "/airtime/history", AirtimeHistoryLive, :index
       live "/checkout/:order_id", CheckoutLive, :show
       live "/wallet", WalletLive, :index
       live "/orders", OrdersLive, :index

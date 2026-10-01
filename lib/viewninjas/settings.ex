@@ -160,6 +160,24 @@ defmodule ViewNinjas.Settings do
       env: {:instalipa, :consumer_secret}
     },
     %{
+      key: "airtime_float_floor_cents",
+      group: "Airtime",
+      label: "Float floor (KES cents)",
+      type: :integer,
+      hint:
+        "Selling stops when the newest balance Instalipa reports falls below this. Default 500000 (KSh 5,000). Keeps an empty float from becoming a queue of refunds.",
+      env: {:instalipa, :float_floor_cents},
+      default: 500_000
+    },
+    %{
+      key: "instalipa_paused",
+      group: "Airtime",
+      label: "Selling paused",
+      hint:
+        "Type \"true\" to stop selling airtime by hand. Clear it to resume. The buy screen refuses before taking money while this is on.",
+      env: {:instalipa, :paused}
+    },
+    %{
       key: "fx_source_url",
       group: "Pricing",
       label: "FX source URL",
@@ -399,6 +417,20 @@ defmodule ViewNinjas.Settings do
   @spec instalipa_consumer_secret() :: String.t() | nil
   def instalipa_consumer_secret, do: resolved_value("instalipa_consumer_secret")
 
+  @doc """
+  Whether airtime selling is paused by hand (docs/instalipa-airtime.md §10).
+
+  The kill switch: one tap stops the line taking money, whatever the rail says.
+  """
+  @spec instalipa_paused?() :: boolean()
+  def instalipa_paused?, do: truthy?(resolved_value("instalipa_paused"))
+
+  @doc "The float floor in cents. Selling stops below it."
+  @spec airtime_float_floor_cents() :: integer()
+  def airtime_float_floor_cents do
+    resolved_value("airtime_float_floor_cents") |> parse_integer() || 500_000
+  end
+
   @doc "The daily FX feed URL, or nil when there is none."
   @spec fx_source_url() :: String.t() | nil
   def fx_source_url, do: resolved_value("fx_source_url")
@@ -528,6 +560,12 @@ defmodule ViewNinjas.Settings do
     do: :viewninjas |> Application.get_env(ViewNinjas.Airtime.Instalipa, []) |> Keyword.get(key)
 
   defp present?(value), do: is_binary(value) and value != ""
+
+  # A hand-set toggle, so the words a person would type are all accepted.
+  defp truthy?(value) when is_binary(value),
+    do: String.downcase(String.trim(value)) in ["true", "1", "yes", "on"]
+
+  defp truthy?(_value), do: false
 
   defp group_order("SMS"), do: 0
   defp group_order("Payments"), do: 1

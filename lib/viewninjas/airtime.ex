@@ -10,6 +10,21 @@ defmodule ViewNinjas.Airtime do
   The rail's word arrives later — `submitted` is not delivered — so the confirming
   job (not this module) moves an order to `delivered` or `failed`. This module only
   owns the state machine and the ledger.
+
+  ## The money-out, money-back promise
+
+  A customer is **never** left holding a loss, and the two halves of that promise are
+  enforced in different places:
+
+    * a **definite** failure (`fail_and_refund/4`) fails and credits in **one**
+      transaction, so a crash between the two can never strand a debit;
+    * an **ambiguous** send (`needs_review`) keeps the money and raises an alert,
+      because we genuinely do not know whether the airtime went out — the back office
+      reconciles it, and `list_needs_review/1` is that queue.
+
+  Float is read from the rail's own `balance` on the newest row (`float/0`), never
+  invented, and a floor below it flips selling off (`sellable?/0`) so we stop taking
+  money for airtime the rail cannot deliver.
   """
 
   import Ecto.Query
@@ -17,8 +32,11 @@ defmodule ViewNinjas.Airtime do
   alias ViewNinjas.Accounts.Phone
   alias ViewNinjas.Accounts.User
   alias ViewNinjas.Airtime.{AirtimeEvent, AirtimeOrder, SavedRecipient}
+  alias ViewNinjas.Alerts
   alias ViewNinjas.Repo
+  alias ViewNinjas.Settings
   alias ViewNinjas.Wallet
+  alias ViewNinjas.Wallet.LedgerEntry
   alias ViewNinjas.Workers.SendAirtime
 
   # Provisional bounds until Instalipa confirms theirs (scope §3.6, §14). Whole
@@ -47,9 +65,21 @@ defmodule ViewNinjas.Airtime do
 
   Every recipient becomes its own order, all sharing one `batch_id`, and the debit
   is a single transaction: either the whole batch is paid and queued, or nothing is.
+
+  A paused rail — or a float that has fallen under the floor — refuses **before** any
+  money moves, so a customer is never charged for airtime we already know we cannot
+  deliver (scope §10). The failure that still gets through, a rail rejection after
+  the fact, is made whole by `fail_and_refund/4`.
   """
   @spec buy(User.t(), map()) :: {:ok, [AirtimeOrder.t()]} | {:error, term()}
   def buy(%User{} = user, attrs) do
+    case pause_reason() do
+      nil -> validated_buy(user, attrs)
+      reason -> {:error, reason}
+    end
+  end
+
+  defp validated_buy(user, attrs) do
     with {:ok, amount_cents} <- validate_amount(attrs[:amount_cents]),
          {:ok, phones} <- validate_phones(attrs[:phones]) do
       run(user, phones, amount_cents)
@@ -159,6 +189,180 @@ defmodule ViewNinjas.Airtime do
     |> Repo.all()
   end
 
+  # -- the back office ----------------------------------------------------
+
+  @doc """
+  The newest float the rail reported, in cents, or nil when it never has.
+
+  Instalipa has no balance endpoint (scope §10), so the only reading we get is the
+  `balance` on a send response. The newest row carrying one is the closest thing to
+  a current figure, and it is only ever what the rail said — never estimated.
+  """
+  @spec float() :: %{cents: integer(), at: DateTime.t(), order_id: integer()} | nil
+  def float do
+    AirtimeOrder
+    |> where([o], not is_nil(o.float_cents))
+    |> order_by([o], desc: o.id)
+    |> limit(1)
+    |> select([o], %{cents: o.float_cents, at: o.inserted_at, order_id: o.id})
+    |> Repo.one()
+  end
+
+  @doc """
+  Whether the rail is taking new airtime.
+
+  Selling stops for two reasons and both are checked before a customer is charged:
+  a **pause** the super-admin set by hand, and a **floor** the newest float reading
+  has fallen under (scope §10). Stopping here is what keeps a float outage from
+  becoming a queue of refunds — the customer is never charged for airtime the rail
+  cannot deliver.
+  """
+  @spec sellable?() :: boolean()
+  def sellable?, do: not paused?() and not below_float_floor?()
+
+  @doc "Whether the super-admin has paused selling airtime by hand."
+  @spec paused?() :: boolean()
+  def paused?, do: Settings.instalipa_paused?()
+
+  @doc "Whether the newest float reading is under the configured floor."
+  @spec below_float_floor?() :: boolean()
+  def below_float_floor? do
+    case float() do
+      nil -> false
+      %{cents: cents} -> cents < float_floor_cents()
+    end
+  end
+
+  @doc "The float floor in cents — selling stops below it."
+  @spec float_floor_cents() :: integer()
+  def float_floor_cents, do: Settings.airtime_float_floor_cents()
+
+  @doc "Why airtime cannot be sold right now, or nil when it can."
+  @spec pause_reason() :: :paused | :float_low | nil
+  def pause_reason do
+    cond do
+      paused?() -> :paused
+      below_float_floor?() -> :float_low
+      true -> nil
+    end
+  end
+
+  @doc """
+  Orders the rail rejected whose wallet credit never landed — money we still owe.
+
+  A `failed` order with **no** `airtime_refund` entry. The refund and the state
+  change are one transaction, so this should always be empty; it exists because
+  "should always" is not a guarantee, and a silent loss is the one failure mode a
+  payments system may not have. The sweep drains it every minute.
+  """
+  @spec list_stranded_refunds() :: [AirtimeOrder.t()]
+  def list_stranded_refunds do
+    refunded_ids =
+      from e in LedgerEntry,
+        where: e.reason == :airtime_refund and not is_nil(e.airtime_order_id),
+        select: e.airtime_order_id
+
+    AirtimeOrder
+    |> where([o], o.state == :failed)
+    |> where([o], o.id not in subquery(refunded_ids))
+    |> order_by([o], asc: o.id)
+    |> Repo.all()
+  end
+
+  @doc """
+  The airtime orders a person has to reconcile, newest first.
+
+  `needs_review` first whatever the filter, because that is the queue with money in
+  it waiting on a decision (scope §9).
+  """
+  @spec list_for_review(list()) :: [AirtimeOrder.t()]
+  def list_for_review(states) do
+    AirtimeOrder
+    |> where([o], o.state in ^states)
+    # `desc`, because Postgres orders false before true: the rows waiting on a person
+    # are the ones carrying a customer's money, so they lead the queue.
+    |> order_by([o], desc: o.state == :needs_review, desc: o.inserted_at, desc: o.id)
+    |> preload(:user)
+    |> Repo.all()
+  end
+
+  @doc "The states the back office can filter by, as `{label, states}`."
+  @spec review_filters() :: [{String.t(), [atom()]}]
+  def review_filters do
+    [
+      {"needs_review", [:needs_review]},
+      {"failed", [:failed]},
+      {"open", [:paid, :sending, :submitted]},
+      {"recent", [:delivered, :refunded, :abandoned]},
+      {"all", AirtimeOrder.states()}
+    ]
+  end
+
+  @doc "How many orders sit in each state, for the back office counters."
+  @spec counts_by_state() :: %{atom() => non_neg_integer()}
+  def counts_by_state do
+    AirtimeOrder
+    |> group_by([o], o.state)
+    |> select([o], {o.state, count(o.id)})
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  The total cents a customer is currently owed back — money taken but not returned.
+
+  This is the number that must reach zero on its own. Anything left here is a promise
+  the system has not kept yet, whether the row is `needs_review` waiting on a person
+  or `failed` whose refund never landed.
+  """
+  @spec outstanding_refund_cents() :: integer()
+  def outstanding_refund_cents do
+    AirtimeOrder
+    |> where([o], o.state in [:failed, :needs_review])
+    |> select([o], coalesce(sum(o.amount_cents), 0))
+    |> Repo.one()
+  end
+
+  @doc "The customer's airtime history, newest first, with their totals."
+  @spec history_for_user(User.t(), keyword()) :: %{orders: [AirtimeOrder.t()], stats: map()}
+  def history_for_user(%User{id: user_id}, opts \\ []) do
+    limit = Keyword.get(opts, :limit, 100)
+
+    orders =
+      AirtimeOrder
+      |> where([o], o.user_id == ^user_id)
+      |> order_by([o], desc: o.inserted_at, desc: o.id)
+      |> limit(^limit)
+      |> Repo.all()
+
+    %{orders: orders, stats: stats_for_user(user_id)}
+  end
+
+  @doc "What a customer has spent, got back and is still waiting on, in cents."
+  @spec stats_for_user(integer()) :: map()
+  def stats_for_user(user_id) do
+    row =
+      Repo.one(
+        from o in AirtimeOrder,
+          where: o.user_id == ^user_id,
+          select: %{
+            spent:
+              filter(
+                sum(o.amount_cents),
+                o.state in [:delivered, :submitted, :sending, :paid, :needs_review]
+              ),
+            refunded: filter(sum(o.amount_cents), o.state == :refunded),
+            delivered: filter(count(o.id), o.state == :delivered),
+            failed: filter(count(o.id), o.state in [:failed, :needs_review])
+          }
+      ) || %{spent: 0, refunded: 0, delivered: 0, failed: 0}
+
+    Map.update!(row, :spent, fn cents ->
+      if is_integer(cents), do: cents, else: 0
+    end)
+    |> Map.update!(:refunded, fn cents -> if is_integer(cents), do: cents, else: 0 end)
+  end
+
   @doc "The order's timeline, oldest first."
   def timeline(%AirtimeOrder{id: id}) do
     AirtimeEvent
@@ -187,6 +391,48 @@ defmodule ViewNinjas.Airtime do
   def mark_delivered(%AirtimeOrder{state: :submitted} = order, tx),
     do: transition(order, :delivered, "the rail delivered it", rail_attrs(tx))
 
+  @doc """
+  A person resolves an ambiguous send against the Instalipa portal (scope §9, §12).
+
+  Two honest answers, and nothing else: the rail **did** deliver it — pasting the
+  `transaction_id` from the portal is what makes that claim checkable later — or it
+  **never sent**, which is `refund/2`. There is deliberately no "assume delivered"
+  button; an unknown send that nobody checks is a customer quietly out of pocket.
+  """
+  @spec reconcile_delivered(AirtimeOrder.t(), String.t(), User.t() | nil) ::
+          {:ok, AirtimeOrder.t()} | {:error, term()}
+  def reconcile_delivered(%AirtimeOrder{state: :needs_review} = order, transaction_id, actor) do
+    case String.trim(transaction_id) do
+      "" ->
+        {:error, :missing_transaction_id}
+
+      id ->
+        Repo.transact(fn ->
+          with {:ok, delivered} <-
+                 order
+                 |> AirtimeOrder.changeset(%{
+                   state: :delivered,
+                   instalipa_id: id,
+                   instalipa_status: "Success"
+                 })
+                 |> Repo.update(),
+               {:ok, _event} <-
+                 record_event(
+                   delivered,
+                   :needs_review,
+                   :delivered,
+                   "reconciled as delivered against the rail",
+                   actor
+                 ) do
+            {:ok, delivered}
+          end
+        end)
+    end
+  end
+
+  def reconcile_delivered(%AirtimeOrder{}, _transaction_id, _actor),
+    do: {:error, :not_reconcilable}
+
   @doc "The rail reported a failure. The caller decides whether to refund."
   @spec mark_failed(AirtimeOrder.t(), String.t() | nil, String.t() | nil) ::
           {:ok, AirtimeOrder.t()} | {:error, term()}
@@ -198,46 +444,139 @@ defmodule ViewNinjas.Airtime do
   def mark_failed(%AirtimeOrder{} = order, kind, message),
     do: transition(order, :failed, message, %{failure_kind: kind, failure_message: message})
 
-  @doc "Parks an order for a person: an ambiguous send, never a second one."
+  @doc """
+  A definite rejection: the order fails **and** the wallet is credited back, in one
+  transaction (docs/instalipa-airtime.md §12).
+
+  Both halves or neither. This is the whole point — splitting them into two writes
+  leaves a window where a crash strands the customer: the order reads `failed`, the
+  money never comes back, and `max_attempts: 1` means nothing retries it. One
+  transaction closes that window, and the partial unique index on
+  `(airtime_order_id, reason)` still refuses a second credit.
+  """
+  @spec fail_and_refund(AirtimeOrder.t(), String.t() | nil, String.t() | nil, keyword()) ::
+          {:ok, AirtimeOrder.t()} | {:error, term()}
+  def fail_and_refund(order, kind, message, opts \\ [])
+
+  def fail_and_refund(%AirtimeOrder{state: state} = order, kind, message, opts)
+      when state in [:sending, :submitted] do
+    result =
+      Repo.transact(fn ->
+        with {:ok, failed} <-
+               move(order, :failed, message, %{
+                 failure_kind: kind,
+                 failure_message: message
+               }),
+             {:ok, refunded} <-
+               move(failed, :refunded, "refunded to your wallet", %{}),
+             {:ok, _entry} <- credit_wallet(refunded, opts[:actor]) do
+          {:ok, refunded}
+        end
+      end)
+
+    announce(result)
+  end
+
+  def fail_and_refund(%AirtimeOrder{}, _kind, _message, _opts), do: {:error, :not_failable}
+
+  # The wallet credit for a refund. Inside the caller's transaction, so it is the same
+  # atomic unit as the state change — never call this on its own.
+  @spec credit_wallet(AirtimeOrder.t(), User.t() | nil) ::
+          {:ok, LedgerEntry.t()} | {:error, term()}
+  defp credit_wallet(%AirtimeOrder{} = order, actor) do
+    Wallet.record(%{
+      user_id: order.user_id,
+      amount_cents: order.amount_cents,
+      reason: :airtime_refund,
+      airtime_order_id: order.id,
+      actor_id: actor && actor.id
+    })
+  end
+
+  # A refund is the moment a person hears about it, so it is announced and alerted
+  # whether it committed or not — a failed refund is money we still owe.
+  defp announce({:ok, %AirtimeOrder{} = order}) do
+    :ok =
+      Alerts.publish(
+        :airtime_refunded,
+        "airtime #{order.id} refunded: #{order.phone}",
+        %{airtime_order_id: order.id, amount_cents: order.amount_cents}
+      )
+
+    {:ok, order}
+  end
+
+  defp announce({:error, reason} = error) do
+    _ =
+      Alerts.publish(
+        :airtime_refund_failed,
+        "an airtime refund did not commit: #{inspect(reason)}"
+      )
+
+    error
+  end
+
+  @doc """
+  Parks an order for a person: an ambiguous send, never a second one.
+
+  The money stays where it is — we do not know whether the airtime went out — but an
+  alert goes out, so "a customer is waiting on a decision" is never a thing that only
+  the database knows.
+  """
   @spec mark_needs_review(AirtimeOrder.t(), String.t()) ::
           {:ok, AirtimeOrder.t()} | {:error, term()}
   def mark_needs_review(%AirtimeOrder{state: state} = order, reason)
       when state in [:paid, :sending, :submitted] do
     transition(order, :needs_review, reason)
+    |> tap_needs_review_alert(order, reason)
   end
+
+  defp tap_needs_review_alert({:ok, %AirtimeOrder{} = moved}, original, reason) do
+    :ok =
+      Alerts.publish(
+        :airtime_needs_review,
+        "airtime #{original.id} needs a person: #{reason}",
+        %{airtime_order_id: original.id, phone: original.phone}
+      )
+
+    {:ok, moved}
+  end
+
+  defp tap_needs_review_alert(other, _original, _reason), do: other
 
   @doc "Credits the wallet back and closes the order. Refuses anything not refundable."
-  @spec refund(AirtimeOrder.t()) :: {:ok, AirtimeOrder.t()} | {:error, term()}
-  def refund(%AirtimeOrder{state: state} = order) when state in [:failed, :needs_review] do
-    Repo.transact(fn ->
-      with {:ok, refunded} <-
-             order |> AirtimeOrder.changeset(%{state: :refunded}) |> Repo.update(),
-           {:ok, _entry} <-
-             Wallet.record(%{
-               user_id: order.user_id,
-               amount_cents: order.amount_cents,
-               reason: :airtime_refund,
-               airtime_order_id: order.id
-             }),
-           {:ok, _event} <-
-             record_event(refunded, state, :refunded, "refunded to the wallet") do
-        {:ok, refunded}
-      end
-    end)
+  @spec refund(AirtimeOrder.t(), keyword()) :: {:ok, AirtimeOrder.t()} | {:error, term()}
+  def refund(order, opts \\ [])
+
+  def refund(%AirtimeOrder{state: state} = order, opts)
+      when state in [:failed, :needs_review] do
+    result =
+      Repo.transact(fn ->
+        with {:ok, refunded} <- move(order, :refunded, "refunded to your wallet", %{}),
+             {:ok, _entry} <- credit_wallet(refunded, opts[:actor]) do
+          {:ok, refunded}
+        end
+      end)
+
+    announce(result)
   end
 
-  def refund(%AirtimeOrder{}), do: {:error, :not_refundable}
+  def refund(%AirtimeOrder{}, _opts), do: {:error, :not_refundable}
 
   defp transition(order, to_state, reason, attrs \\ %{}) do
-    Repo.transact(fn ->
-      with {:ok, moved} <-
-             order
-             |> AirtimeOrder.changeset(Map.merge(attrs, %{state: to_state}))
-             |> Repo.update(),
-           {:ok, _event} <- record_event(moved, order.state, to_state, reason) do
-        {:ok, moved}
-      end
-    end)
+    Repo.transact(fn -> move(order, to_state, reason, attrs) end)
+  end
+
+  # The state change and its timeline line, without opening a transaction — for
+  # callers that are already inside one, so a move and a refund are one unit.
+  defp move(order, to_state, reason, attrs) do
+    with {:ok, moved} <-
+           order
+           |> AirtimeOrder.changeset(Map.merge(attrs, %{state: to_state}))
+           |> Repo.update(),
+         {:ok, _event} <- record_event(moved, order.state, to_state, reason) do
+      {:ok, moved}
+    end
   end
 
   defp record_event(order, from_state, to_state, reason, actor \\ nil) do

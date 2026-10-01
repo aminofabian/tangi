@@ -18,9 +18,12 @@ defmodule ViewNinjas.Workers.ConfirmAirtime do
       keys: [:airtime_order_id]
     ]
 
+  require Logger
+
   alias ViewNinjas.Airtime
   alias ViewNinjas.Airtime.AirtimeOrder
   alias ViewNinjas.Airtime.Instalipa
+  alias ViewNinjas.Alerts
 
   @poll_interval 5
   # Airtime settles in seconds; a few minutes is generous before a person looks.
@@ -69,9 +72,25 @@ defmodule ViewNinjas.Workers.ConfirmAirtime do
 
   defp fail_and_refund(order, tx) do
     message = tx[:details] || "the rail reported a failure"
-    {:ok, failed} = Airtime.mark_failed(order, "failed", message)
-    Airtime.refund(failed)
-    :ok
+
+    # One transaction: the order fails and the wallet is credited back together.
+    case Airtime.fail_and_refund(order, "failed", message) do
+      {:ok, _refunded} ->
+        :ok
+
+      {:error, reason} ->
+        # The rail said it failed and we could not give the money back. That is a
+        # promise we are breaking until a person fixes it, so say so loudly.
+        Logger.error("airtime #{order.id} refund failed after a rail failure: #{inspect(reason)}")
+
+        Alerts.publish(
+          :airtime_refund_failed,
+          "airtime #{order.id} for #{order.phone} failed at the rail and the refund did not commit",
+          %{airtime_order_id: order.id, phone: order.phone, amount_cents: order.amount_cents}
+        )
+
+        :ok
+    end
   end
 
   # Still pending: come back in a few seconds until the window closes. We never

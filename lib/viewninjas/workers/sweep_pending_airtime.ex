@@ -8,11 +8,18 @@ defmodule ViewNinjas.Workers.SweepPendingAirtime do
   reconcile against the portal — the same "an unknown state is first-class" rule
   the supplier boundary uses (scope.md §5).
 
+  It is also the backstop for money: a `failed` order whose refund never landed is
+  refunded here, because nothing else would (the send job runs once). That makes
+  "a customer is always made whole" a property of the system rather than of one
+  process staying alive at the right moment.
+
   `unique` on the confirming job drops any probe already in flight, so this is
   cheap and never asks twice.
   """
 
   use Oban.Worker, queue: :airtime, max_attempts: 3
+
+  require Logger
 
   alias ViewNinjas.Airtime
   alias ViewNinjas.Workers.ConfirmAirtime
@@ -35,6 +42,23 @@ defmodule ViewNinjas.Workers.SweepPendingAirtime do
       end
     end
 
+    settle_stranded_refunds()
+
     :ok
+  end
+
+  # A row the rail rejected but whose credit never committed. The unique index makes a
+  # second credit impossible, so this is safe to run every minute: it either writes the
+  # one missing entry or does nothing.
+  defp settle_stranded_refunds do
+    for order <- Airtime.list_stranded_refunds() do
+      case Airtime.refund(order) do
+        {:ok, _refunded} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.error("airtime #{order.id} still owed: #{inspect(reason)}")
+      end
+    end
   end
 end

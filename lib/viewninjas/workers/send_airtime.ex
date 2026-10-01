@@ -7,7 +7,9 @@ defmodule ViewNinjas.Workers.SendAirtime do
     * an accepted transaction → `submitted`, and the confirming job is queued
     * a duplicate, a timeout, a 5xx or a garbled body → `needs_review`, never a
       second send
-    * a definite rejection (a bad number, no float, a 4xx) → `failed`, refunded
+    * a definite rejection (a bad number, no float, a 4xx) → `failed` and the wallet
+      credited back, **in one transaction** (`Airtime.fail_and_refund/4`), so a crash
+      can never leave the customer debited against a failed order
 
   The job is `unique` on the airtime order and only ever touches a `paid` order, so
   a duplicate job is a no-op rather than a second top-up.
@@ -27,6 +29,7 @@ defmodule ViewNinjas.Workers.SendAirtime do
   alias ViewNinjas.Airtime
   alias ViewNinjas.Airtime.AirtimeOrder
   alias ViewNinjas.Airtime.Instalipa
+  alias ViewNinjas.Alerts
   alias ViewNinjas.Payments
   alias ViewNinjas.Workers.ConfirmAirtime
 
@@ -71,16 +74,30 @@ defmodule ViewNinjas.Workers.SendAirtime do
     if definite?(reason) do
       Logger.warning("airtime #{sending.id} rejected: #{inspect(reason)}")
 
-      {:ok, failed} =
-        Airtime.mark_failed(sending, failure_kind(reason), Instalipa.error_message(reason))
-
-      Airtime.refund(failed)
+      # One transaction: the order fails and the wallet is credited back together, so
+      # there is no state where the customer has paid for nothing.
+      case Airtime.fail_and_refund(sending, failure_kind(reason), Instalipa.error_message(reason)) do
+        {:ok, _refunded} -> :ok
+        {:error, why} -> stranded(sending, why)
+      end
     else
       Logger.warning("airtime #{sending.id} left ambiguous: #{inspect(reason)}")
       Airtime.mark_needs_review(sending, Instalipa.error_message(reason))
     end
 
     :ok
+  end
+
+  # The refund did not commit. The alert is the last thing standing between this and a
+  # silent loss, so it is loud and carries enough to find the row in the back office.
+  defp stranded(sending, why) do
+    Logger.error("airtime #{sending.id} refund failed: #{inspect(why)}")
+
+    Alerts.publish(
+      :airtime_refund_failed,
+      "airtime #{sending.id} for #{sending.phone} was rejected and the refund did not commit",
+      %{airtime_order_id: sending.id, phone: sending.phone, amount_cents: sending.amount_cents}
+    )
   end
 
   defp attrs(order) do

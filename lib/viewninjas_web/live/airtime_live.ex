@@ -37,6 +37,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
      |> assign(:error, nil)
      |> assign(:purchased, [])
      |> assign(:preview, %{})
+     |> load_pause()
      |> load_wallet()
      |> load_saved()
      |> load_recent()
@@ -143,19 +144,51 @@ defmodule ViewNinjasWeb.AirtimeLive do
           prompted={not is_nil(@payment.malipo_payment_id)}
         />
       <% else %>
-        <.buy_page
-          balance={@balance}
-          form={@form}
-          preview={@preview}
-          saved={@saved}
-          error={@error}
-          purchased={@purchased}
-          recent={@recent}
-        />
+        <%= if @paused do %>
+          <.paused reason={@pause_reason} />
+        <% else %>
+          <.buy_page
+            balance={@balance}
+            form={@form}
+            preview={@preview}
+            saved={@saved}
+            error={@error}
+            purchased={@purchased}
+            recent={@recent}
+          />
+        <% end %>
       <% end %>
     </Layouts.app>
     """
   end
+
+  attr :reason, :atom, required: true
+
+  # Selling is off. Said before anyone can enter a number or reach for their phone,
+  # because "paused" is an honest answer and a failed top-up is not.
+  defp paused(assigns) do
+    ~H"""
+    <section class="vn-card" id="airtime-paused">
+      <h2>{gettext("Airtime is paused")}</h2>
+      <p class="vn-muted">{paused_copy(@reason)}</p>
+      <p class="vn-muted">
+        {gettext("Anything you already bought is unaffected, and your wallet is untouched.")}
+      </p>
+      <.link navigate={~p"/airtime/history"} class="vn-button" id="airtime-paused-history">
+        {gettext("See your airtime history")}
+      </.link>
+    </section>
+    """
+  end
+
+  defp paused_copy(:float_low) do
+    gettext(
+      "We are topping up our supply with the network, so new airtime is off for a moment. Your money stays where it is."
+    )
+  end
+
+  defp paused_copy(_paused),
+    do: gettext("We are not selling airtime just now. Your money stays where it is.")
 
   attr :balance, :integer, required: true
   attr :form, :map, required: true
@@ -323,7 +356,12 @@ defmodule ViewNinjasWeb.AirtimeLive do
     </section>
 
     <section :if={@recent != []} class="vn-card" id="airtime-recent">
-      <h2>{gettext("Recent airtime")}</h2>
+      <div class="flex items-center justify-between gap-3">
+        <h2>{gettext("Recent airtime")}</h2>
+        <.link navigate={~p"/airtime/history"} class="vn-text-button" id="airtime-history-link">
+          {gettext("All history")} <span aria-hidden="true">→</span>
+        </.link>
+      </div>
       <ul class="vn-rows">
         <li :for={order <- @recent} id={"airtime-#{order.id}"}>
           <span>{Phone.format(order.phone)}</span>
@@ -492,6 +530,10 @@ defmodule ViewNinjasWeb.AirtimeLive do
   defp load_wallet(socket),
     do: assign(socket, :balance, Wallet.balance(socket.assigns.current_scope.user))
 
+  defp load_pause(socket) do
+    assign(socket, paused: Airtime.pause_reason() != nil, pause_reason: Airtime.pause_reason())
+  end
+
   defp load_saved(socket) do
     assign(socket, :saved, Airtime.list_recipients(socket.assigns.current_scope.user))
   end
@@ -626,6 +668,11 @@ defmodule ViewNinjasWeb.AirtimeLive do
   defp error_copy(:no_recipients), do: gettext("Add at least one number.")
 
   defp error_copy({:invalid_phone, number}), do: invalid_number_message(number)
+  defp error_copy(:paused), do: gettext("Airtime is paused just now — nothing was taken.")
+
+  defp error_copy(:float_low),
+    do: gettext("We are topping up with the network — nothing was taken, try again shortly.")
+
   defp error_copy(_reason), do: gettext("Could not start that purchase.")
 
   defp state_label(state) do

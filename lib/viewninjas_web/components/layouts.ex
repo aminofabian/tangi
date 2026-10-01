@@ -224,6 +224,7 @@ defmodule ViewNinjasWeb.Layouts do
         path: ~p"/admin/settlements",
         level: :super
       },
+      %{id: :airtime, label: gettext("Airtime"), path: ~p"/admin/airtime", level: :super},
       %{id: :insight, label: gettext("Insight"), path: ~p"/admin/insight", level: :super},
       %{id: :settings, label: gettext("Settings"), path: ~p"/admin/settings", level: :super}
     ]
