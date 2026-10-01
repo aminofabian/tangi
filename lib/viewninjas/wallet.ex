@@ -63,6 +63,9 @@ defmodule ViewNinjas.Wallet do
       |> Ecto.Changeset.unique_constraint([:order_id, :reason],
         name: :ledger_entries_order_reason_index
       )
+      |> Ecto.Changeset.unique_constraint([:airtime_order_id, :reason],
+        name: :ledger_entries_airtime_reason_index
+      )
 
     case Repo.insert(changeset) do
       {:ok, entry} ->
@@ -70,9 +73,10 @@ defmodule ViewNinjas.Wallet do
 
       {:error, %Ecto.Changeset{errors: errors} = failed} ->
         # The partial unique indexes fire on the first constrained field.
-        if Keyword.has_key?(errors, :payment_id) or Keyword.has_key?(errors, :order_id),
-          do: {:error, :already_recorded},
-          else: {:error, failed}
+        if Keyword.has_key?(errors, :payment_id) or Keyword.has_key?(errors, :order_id) or
+             Keyword.has_key?(errors, :airtime_order_id),
+           do: {:error, :already_recorded},
+           else: {:error, failed}
     end
   end
 

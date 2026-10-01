@@ -1,10 +1,15 @@
 # Instalipa Airtime — selling airtime
 
-**Status: scope, not code.** This is the plan for a new product line: buying airtime
-from Instalipa's rail and selling it to customers. Nothing here is built yet. It leans
-hard on the shapes already in the repo (§8 payments, §6 orders, §10 float) so the new
-surface is small, and it names the decisions that have to be made before any of it is
-written.
+**Status: building.** A1 (the rail: client, token cache, `Settings` keys) and the A2
+core (schema, context, the send/confirm/sweep workers, and the buy screen with **bulk
+buys** and **saved numbers**) are built and tested. The Instalipa credentials are set by
+the super-admin, in the settings screen's **Airtime** group (or `INSTALIPA_CONSUMER_KEY`
+/ `_SECRET`). Still to come: A3's callback, A4's float and limits, and the open
+decisions in §14.
+
+This is otherwise the plan for a new product line: buying airtime from Instalipa's rail
+and selling it to customers. It leans hard on the shapes already in the repo (§8
+payments, §6 orders, §10 float) so the new surface stays small.
 
 The rail reference is Instalipa's own document ("INSTALIPA'S API DOCUMENTATION",
 January 2026). Where this doc and theirs disagree, theirs wins.
@@ -194,6 +199,15 @@ airtime_events
   actor_id           references(users, on_delete: :nilify_all)
   timestamps
   index (airtime_order_id, inserted_at)
+
+saved_recipients
+  user_id            references(users, on_delete: :delete_all)   not null
+  phone              string                      not null   # canonical 254…
+  label              string                                 # "Mum", optional
+  last_used_at       utc_datetime
+  timestamps
+
+  unique index (user_id, phone)               # saved once per customer
 ```
 
 `discount_cents` and `float_cents` are nullable and never invented — the rail either
@@ -273,10 +287,14 @@ to say it before the customer pays.
 
 ## 8. The customer surfaces
 
-- **A buy screen**, e.g. `/airtime`. Recipient number (prefilled with the account's own,
-  editable — the same field the top-up card now uses), amount in whole shillings with
-  preset chips, and a confirmation step that names the number and amount back before any
-  money moves. Airtime is irreversible; the confirmation is not optional.
+- **A buy screen**, e.g. `/airtime`. Recipient numbers (one per line, so a **bulk buy**
+  is the same form as a single one), amount in whole shillings with preset chips, and a
+  confirmation step that names the numbers and amount back before any money moves.
+  Airtime is irreversible; the confirmation is not optional. Each recipient becomes its
+  own order, all sharing one `batch_id`.
+- **Saved numbers**: the customer keeps the numbers they top up often, and the buy
+  screen offers them back as a picker that drops one into the list. Managed on the same
+  screen (add with an optional name, remove). One number is saved once per customer.
 - **A receipt**: amount, number, the airtime receipt code, and the rail's reference,
   shown on success and kept on the order.
 - **The orders list** gains airtime rows, or a sibling list, so "where did my shillings
@@ -425,14 +443,15 @@ is how you become the expensive option in a market where everyone knows the pric
 
 ---
 
-## 15. Milestones (proposed)
+## 15. Milestones
 
-- **A1 — The rail, proven.** Token cache, client, `Provider` behaviour, `Settings` keys,
-  and a "prove it" that fetches a token. No money.
-- **A2 — Buy, wallet-first.** Schema, context, states, buy screen, wallet debit, the
-  `SendAirtime` job, receipt. Failures refund the wallet. No callback yet — poll.
-- **A3 — Confirm and sweep.** Callback controller, `ConfirmAirtime`, the sweep, the
-  status GET as the source of truth, `needs_review` handled by a person.
+- **A1 — done.** Token cache, client, `Provider` behaviour, `Settings` keys. No money.
+- **A2 — done (bulk + saved numbers included).** Schema, context, states, the buy screen,
+  the wallet debit, the send/confirm/sweep workers, the receipt. Failures refund the
+  wallet. Polls; no callback yet.
+- **A3 — The callback.** The callback controller that enqueues the confirming status
+  query, so a delivery flips without waiting on the poll. The status GET is already the
+  source of truth, and `needs_review` is already parked for a person.
 - **A4 — Float and limits.** Float probe, pause, alerts, the caps and velocity in §11,
   the admin screen.
 - **A5 — Optional.** Direct M-Pesa-for-airtime (decision 4), markup (decision 1),

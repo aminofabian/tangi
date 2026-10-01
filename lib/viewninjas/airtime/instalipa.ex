@@ -121,6 +121,7 @@ defmodule ViewNinjas.Airtime.Instalipa do
          %{
            id: json["transaction_id"],
            status: status,
+           details: json["details"],
            phone: json["phone_number"],
            amount: json["amount"],
            discount: json["discount"],

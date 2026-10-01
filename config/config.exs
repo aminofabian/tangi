@@ -131,6 +131,8 @@ config :viewninjas, Oban,
        {"* * * * *", ViewNinjas.Workers.SyncOrderStatuses},
        # Refills that have not yet resolved (scope.md §10).
        {"* * * * *", ViewNinjas.Workers.SyncRefillStatuses},
+       # Airtime sends still waiting on the rail (docs/instalipa-airtime.md §12).
+       {"* * * * *", ViewNinjas.Workers.SweepPendingAirtime},
        # The first-party anomaly pass: settlements, failures, OTP, margin, traffic.
        {"0 * * * *", ViewNinjas.Workers.CheckAnomalies},
        # Yesterday's rollup, once the day is over (scope.md §11).
@@ -139,7 +141,7 @@ config :viewninjas, Oban,
        {"0 21 * * 0", ViewNinjas.Workers.WeeklyDigest}
      ]}
   ],
-  queues: [default: 10, payments: 10]
+  queues: [default: 10, payments: 10, airtime: 10]
 
 # The payment rail (scope.md §8). Malipo everywhere but tests, which use an
 # in-memory stand-in so nothing reaches the network.

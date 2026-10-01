@@ -12,6 +12,7 @@ defmodule ViewNinjas.Airtime.Provider do
   @type transaction :: %{
           id: String.t() | nil,
           status: :submitted | :pending | :success | :failed,
+          details: String.t() | nil,
           phone: String.t() | nil,
           amount: String.t() | nil,
           discount: String.t() | nil,

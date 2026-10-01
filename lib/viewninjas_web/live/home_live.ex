@@ -224,6 +224,16 @@ defmodule ViewNinjasWeb.HomeLive do
       </.link>
     </section>
 
+    <section class="vn-card" id="airtime-card">
+      <h2>{gettext("Airtime")}</h2>
+      <p class="vn-muted">
+        {gettext("Top up any Kenyan number — yours, or a few at once — straight from your wallet.")}
+      </p>
+      <.link navigate={~p"/airtime"} class="vn-button vn-button--muted">
+        {gettext("Buy airtime")}
+      </.link>
+    </section>
+
     <section :if={not @signed_in?} class="vn-card">
       <h2>{gettext("Ready to buy?")}</h2>
       <p class="vn-muted">{gettext("Browsing is free; ordering needs an account.")}</p>
