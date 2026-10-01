@@ -197,4 +197,51 @@ defmodule ViewNinjasWeb.CheckoutLiveTest do
     assert has_element?(lv, "#payment-succeeded")
     assert Orders.get_order!(order.id).state == :paid
   end
+
+  test "the prompt can go to a different number", %{conn: conn} do
+    user = verified_user_fixture()
+    order = order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/checkout/#{order.id}")
+
+    assert has_element?(lv, "#prompt-phone")
+    assert has_element?(lv, "#prompt-hint")
+
+    lv |> form("#prompt-form", prompt: %{phone: "0722 000 111"}) |> render_change()
+    assert has_element?(lv, "#prompt-network", "Safaricom")
+
+    lv |> element("#pay-mpesa") |> render_click()
+
+    payment = Payments.pending_for_order(order)
+    assert payment.phone == "254722000111"
+  end
+
+  test "a top-up uses the number the buyer typed", %{conn: conn} do
+    user = verified_user_fixture()
+    order = order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/checkout/#{order.id}")
+
+    lv |> form("#prompt-form", prompt: %{phone: "0711 222 333"}) |> render_change()
+    lv |> element("#topup-wallet") |> render_click()
+
+    assert Payments.pending_topup(user).phone == "254711222333"
+  end
+
+  test "a number that is not a phone is refused before a prompt", %{conn: conn} do
+    user = verified_user_fixture()
+    order = order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/checkout/#{order.id}")
+
+    lv |> form("#prompt-form", prompt: %{phone: "123"}) |> render_change()
+    lv |> element("#pay-mpesa") |> render_click()
+
+    assert has_element?(lv, "#prompt-error")
+    assert has_element?(lv, "#pay")
+    assert Payments.pending_for_order(order) == nil
+  end
 end

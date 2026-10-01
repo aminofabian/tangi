@@ -9,11 +9,11 @@ defmodule ViewNinjasWeb.CheckoutLive do
   is short, a third button tops it up by the shortfall (the same prompt) and hands
   the buyer the wallet button back.
 
-  Phone verification is not required to buy. The prompt goes to the number on the
-  account, and the wallet is offered whenever its balance covers the order. A
-  failure leaves the order exactly where it was — `awaiting_payment` — and a
-  retry is a new attempt with a new idempotency key, never a second prompt on
-  the same one.
+  Phone verification is not required to buy. The prompt starts on the account's
+  number, and the buyer can change it — pay, or top the wallet up, from another
+  phone. The wallet is offered whenever its balance covers the order. A failure
+  leaves the order exactly where it was — `awaiting_payment` — and a retry is a
+  new attempt with a new idempotency key, never a second prompt on the same one.
   """
   use ViewNinjasWeb, :live_view
 
@@ -21,6 +21,7 @@ defmodule ViewNinjasWeb.CheckoutLive do
   import ViewNinjasWeb.PaymentComponents
 
   alias ViewNinjas.Accounts.Phone
+  alias ViewNinjas.Catalog.Grade
   alias ViewNinjas.Orders
   alias ViewNinjas.Payments
   alias ViewNinjas.Payments.Payment
@@ -43,6 +44,8 @@ defmodule ViewNinjasWeb.CheckoutLive do
      |> assign(:failure, nil)
      |> assign(:receipt, nil)
      |> assign(:wallet_balance, 0)
+     |> assign(:phone_form, phone_form(""))
+     |> assign(:phone_error, nil)
      |> assign(:payments_configured, Payments.configured?())}
   end
 
@@ -60,11 +63,19 @@ defmodule ViewNinjasWeb.CheckoutLive do
   def handle_params(_params, _uri, socket), do: {:noreply, push_navigate(socket, to: ~p"/orders")}
 
   @impl true
+  def handle_event("set_phone", %{"prompt" => %{"phone" => phone}}, socket) do
+    {:noreply, socket |> assign(:phone_form, phone_form(phone)) |> assign(:phone_error, nil)}
+  end
+
   def handle_event("pay_mpesa", _params, socket) do
-    with :ok <- check_limits(socket),
-         {:ok, payment} <- start_attempt(socket) do
-      {:noreply, watch(socket, payment)}
+    with {:ok, phone} <- prompt_phone(socket),
+         :ok <- check_limits(socket, phone),
+         {:ok, payment} <- start_attempt(socket, phone) do
+      {:noreply, assign(socket, :phone_error, nil) |> watch(payment)}
     else
+      {:error, :invalid_phone} ->
+        {:noreply, assign(socket, :phone_error, invalid_phone())}
+
       {:error, :rate_limited} ->
         {:noreply,
          put_flash(socket, :error, gettext("Too many attempts just now — try again shortly."))}
@@ -99,10 +110,14 @@ defmodule ViewNinjasWeb.CheckoutLive do
   def handle_event("topup", _params, socket) do
     amount = topup_amount(socket)
 
-    with :ok <- check_limits(socket),
-         {:ok, payment} <- start_topup(socket, amount) do
-      {:noreply, watch(socket, payment)}
+    with {:ok, phone} <- prompt_phone(socket),
+         :ok <- check_limits(socket, phone),
+         {:ok, payment} <- start_topup(socket, amount, phone) do
+      {:noreply, assign(socket, :phone_error, nil) |> watch(payment)}
     else
+      {:error, :invalid_phone} ->
+        {:noreply, assign(socket, :phone_error, invalid_phone())}
+
       {:error, :rate_limited} ->
         {:noreply,
          put_flash(socket, :error, gettext("Too many attempts just now — try again shortly."))}
@@ -153,7 +168,8 @@ defmodule ViewNinjasWeb.CheckoutLive do
         <% true -> %>
           <.review
             order={@order}
-            user={@current_scope.user}
+            phone_form={@phone_form}
+            phone_error={@phone_error}
             wallet_balance={@wallet_balance}
             payments_configured={@payments_configured}
           />
@@ -165,100 +181,121 @@ defmodule ViewNinjasWeb.CheckoutLive do
   # -- the review step ---------------------------------------------------
 
   attr :order, :map, required: true
-  attr :user, :map, required: true
+  attr :phone_form, :map, required: true
+  attr :phone_error, :string, default: nil
   attr :wallet_balance, :integer, required: true
   attr :payments_configured, :boolean, required: true
 
   defp review(assigns) do
     ~H"""
-    <.journey step={:pay} />
+    <div class="vn-checkout" id="checkout">
+      <.journey step={:pay} />
 
-    <section class="vn-card vn-ticket vn-arrive" id="order-summary">
-      <h2>{order_title(@order)}</h2>
-      <dl class="vn-detail">
-        <dt>{gettext("Grade")}</dt>
-        <dd>{@order.lane.grade}</dd>
-        <dt>{gettext("How many")}</dt>
-        <dd>{@order.quantity}</dd>
-        <dt>{gettext("Link")}</dt>
-        <dd class="vn-breakall">{@order.link}</dd>
-      </dl>
-      <p class="vn-ticket__total">
-        <span class="vn-muted">{gettext("Total")}</span>
-        <span class="vn-total__value">{kes(@order.retail_cents)}</span>
-      </p>
-    </section>
+      <section class="vn-card vn-ticket vn-arrive" id="order-summary">
+        <h2>{order_title(@order)}</h2>
+        <dl class="vn-detail">
+          <dt>{gettext("Grade")}</dt>
+          <dd>{Grade.label(@order.lane.grade)}</dd>
+          <dt>{gettext("How many")}</dt>
+          <dd>{@order.quantity}</dd>
+          <dt>{gettext("Link")}</dt>
+          <dd class="vn-breakall">{@order.link}</dd>
+        </dl>
+        <p class="vn-ticket__total">
+          <span class="vn-muted">{gettext("Total")}</span>
+          <span class="vn-total__value">{kes(@order.retail_cents)}</span>
+        </p>
+      </section>
 
-    <section class="vn-card vn-arrive vn-arrive--late" id="pay">
-      <h2>{gettext("How do you want to pay?")}</h2>
-      <p :if={not @payments_configured} class="vn-error" id="payments-unconfigured">
-        {gettext(
-          "Payments need the secret key that starts with sk_live_. The client id cannot take a payment."
-        )}
-      </p>
+      <section class="vn-card vn-arrive vn-arrive--late" id="pay">
+        <header class="vn-checkout__head">
+          <h2>{gettext("Pay")}</h2>
+          <p class="vn-muted">{pay_lead(@order, @wallet_balance)}</p>
+        </header>
 
-      <p class="vn-meter__label">
-        <span>{gettext("Wallet")}</span>
-        <span>
-          {kes(@wallet_balance)}
-          <span class="vn-muted">/ {kes(@order.retail_cents)}</span>
-        </span>
-      </p>
-      <div
-        class={["vn-meter", wallet_covers?(@order, @wallet_balance) && "vn-meter--full"]}
-        id="wallet-meter"
-        aria-hidden="true"
-      >
-        <span style={"--fill: #{coverage_pct(@order, @wallet_balance)}%"}></span>
-      </div>
+        <div class="vn-checkout__wallet">
+          <p class="vn-meter__label">
+            <span>{gettext("Wallet")}</span>
+            <span>
+              {kes(@wallet_balance)}
+              <span class="vn-muted">/ {kes(@order.retail_cents)}</span>
+            </span>
+          </p>
+          <div
+            class={["vn-meter", wallet_covers?(@order, @wallet_balance) && "vn-meter--full"]}
+            id="wallet-meter"
+            aria-hidden="true"
+          >
+            <span style={"--fill: #{coverage_pct(@order, @wallet_balance)}%"}></span>
+          </div>
+        </div>
 
-      <div :if={@payments_configured} class="flex flex-col gap-2">
-        <button
-          :if={wallet_covers?(@order, @wallet_balance)}
-          class="vn-button"
-          phx-click="pay_wallet"
-          id="pay-wallet"
-        >
-          {gettext("Pay %{amount} from wallet", amount: kes(@order.retail_cents))}
-        </button>
-
-        <button
-          class={["vn-button", wallet_covers?(@order, @wallet_balance) && "vn-button--muted"]}
-          phx-click="pay_mpesa"
-          id="pay-mpesa"
-        >
-          {gettext("Pay %{amount} with M-Pesa", amount: kes(@order.retail_cents))}
-        </button>
-
-        <button
-          :if={not wallet_covers?(@order, @wallet_balance)}
-          class="vn-button vn-button--muted"
-          phx-click="topup"
-          id="topup-wallet"
-        >
-          {gettext("Top up %{amount} and pay from wallet",
-            amount: kes(shortfall(@order, @wallet_balance))
-          )}
-        </button>
-      </div>
-
-      <p :if={@payments_configured} class="vn-muted mt-3">
-        <%= if wallet_covers?(@order, @wallet_balance) do %>
-          {gettext("Your wallet covers this order — no prompt, paid straight away.")}
-        <% else %>
+        <p :if={not @payments_configured} class="vn-error" id="payments-unconfigured">
           {gettext(
-            "The wallet holds %{balance}. Add %{short} to cover this order, or pay with M-Pesa — the prompt goes to %{phone}.",
-            balance: kes(@wallet_balance),
-            short: kes(shortfall(@order, @wallet_balance)),
-            phone: phone(@user)
+            "Payments need the secret key that starts with sk_live_. The client id cannot take a payment."
           )}
-        <% end %>
-      </p>
+        </p>
 
-      <p :if={@payments_configured} class="vn-muted mt-3">
-        {gettext("Your order starts the moment the payment settles.")}
-      </p>
-    </section>
+        <div :if={@payments_configured} class="vn-checkout__prompt">
+          <hr class="vn-checkout__rule" />
+          <.form for={@phone_form} id="prompt-form" phx-change="set_phone">
+            <.input
+              field={@phone_form[:phone]}
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              label={gettext("M-Pesa number")}
+              id="prompt-phone"
+            />
+            <div class="vn-checkout__phone-meta">
+              <p class="vn-checkout__hint" id="prompt-hint">
+                {gettext(
+                  "The prompt goes to this number. Change it to pay or top up from another phone."
+                )}
+              </p>
+              <span :if={network_label(@phone_form)} class="vn-badge vn-badge--ok" id="prompt-network">
+                {network_label(@phone_form)}
+              </span>
+            </div>
+            <p :if={@phone_error} class="vn-error" id="prompt-error">{@phone_error}</p>
+          </.form>
+        </div>
+
+        <div :if={@payments_configured} class="vn-checkout__actions">
+          <button
+            :if={wallet_covers?(@order, @wallet_balance)}
+            class="vn-button"
+            phx-click="pay_wallet"
+            id="pay-wallet"
+          >
+            {gettext("Pay %{amount} from wallet", amount: kes(@order.retail_cents))}
+          </button>
+
+          <button
+            class={["vn-button", wallet_covers?(@order, @wallet_balance) && "vn-button--muted"]}
+            phx-click="pay_mpesa"
+            id="pay-mpesa"
+          >
+            {gettext("Pay %{amount} with M-Pesa", amount: kes(@order.retail_cents))}
+          </button>
+
+          <button
+            :if={not wallet_covers?(@order, @wallet_balance)}
+            class="vn-button vn-button--muted"
+            phx-click="topup"
+            id="topup-wallet"
+          >
+            {gettext("Top up %{amount} and pay from wallet",
+              amount: kes(shortfall(@order, @wallet_balance))
+            )}
+          </button>
+        </div>
+
+        <p :if={@payments_configured} class="vn-checkout__close vn-muted">
+          {gettext("Your order starts the moment the payment settles.")}
+        </p>
+      </section>
+    </div>
     """
   end
 
@@ -271,6 +308,8 @@ defmodule ViewNinjasWeb.CheckoutLive do
     |> assign(:page_title, gettext("Checkout"))
     |> assign(:order, order)
     |> assign(:wallet_balance, Wallet.balance(user))
+    |> assign(:phone_form, phone_form(user))
+    |> assign(:phone_error, nil)
     |> resume_or_review(order)
   end
 
@@ -344,8 +383,8 @@ defmodule ViewNinjasWeb.CheckoutLive do
     |> assign(:mode, :waiting)
   end
 
-  defp start_attempt(socket) do
-    with {:ok, payment} <- Payments.start_order_payment(socket.assigns.order),
+  defp start_attempt(socket, phone) do
+    with {:ok, payment} <- Payments.start_order_payment(socket.assigns.order, phone),
          {:ok, _job} <- CreatePayment.new(%{payment_id: payment.id}) |> Oban.insert() do
       {:ok, payment}
     else
@@ -355,7 +394,7 @@ defmodule ViewNinjasWeb.CheckoutLive do
   end
 
   # One top-up at a time: a pending one is reused rather than prompting twice.
-  defp start_topup(socket, amount) do
+  defp start_topup(socket, amount, phone) do
     user = socket.assigns.current_scope.user
 
     case Payments.pending_topup(user) do
@@ -363,7 +402,7 @@ defmodule ViewNinjasWeb.CheckoutLive do
         {:ok, pending}
 
       nil ->
-        with {:ok, payment} <- Payments.start_topup_payment(user, amount),
+        with {:ok, payment} <- Payments.start_topup_payment(user, amount, phone),
              {:ok, _job} <- CreatePayment.new(%{payment_id: payment.id}) |> Oban.insert() do
           {:ok, payment}
         else
@@ -387,14 +426,44 @@ defmodule ViewNinjasWeb.CheckoutLive do
 
   defp shortfall(order, balance), do: max(order.retail_cents - balance, @min_topup_cents)
 
-  defp check_limits(socket) do
+  # Budgeted per customer and per prompted number. A changed phone must not
+  # become a way to spam one line.
+  defp check_limits(socket, phone) do
     user = socket.assigns.current_scope.user
 
     if RateLimit.allow?("payment:user:#{user.id}", :payment_user) and
-         RateLimit.allow?("payment:phone:#{user.phone}", :payment_phone) do
+         RateLimit.allow?("payment:phone:#{phone}", :payment_phone) do
       :ok
     else
       {:error, :rate_limited}
+    end
+  end
+
+  defp phone_form(%{phone: phone}), do: phone_form(Phone.format(phone) || "")
+  defp phone_form(phone) when is_binary(phone), do: to_form(%{"phone" => phone}, as: :prompt)
+
+  defp prompt_phone(socket) do
+    case Phone.normalize(socket.assigns.phone_form[:phone].value) do
+      {:ok, phone} -> {:ok, phone}
+      {:error, :invalid_phone} -> {:error, :invalid_phone}
+    end
+  end
+
+  defp invalid_phone do
+    gettext("Enter a valid M-Pesa number, e.g. 0712 345 678.")
+  end
+
+  defp network_label(form) do
+    form[:phone].value |> Phone.network() |> Phone.network_name()
+  end
+
+  defp pay_lead(order, balance) do
+    if wallet_covers?(order, balance) do
+      gettext(
+        "Your wallet covers this. Pay from it with no prompt, or send M-Pesa to the number below."
+      )
+    else
+      gettext("Send the prompt to the number below — yours, or another phone.")
     end
   end
 
@@ -404,8 +473,6 @@ defmodule ViewNinjasWeb.CheckoutLive do
       _ -> nil
     end
   end
-
-  defp phone(user), do: Phone.format(user.phone)
 
   defp order_title(%{lane: %{offer: %{title: title}}}), do: title
   defp order_title(_order), do: gettext("Your order")

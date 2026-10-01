@@ -3458,6 +3458,109 @@ p {
   border-top: 1px dashed var(--vn-border);
 }
 
+/* Checkout is one column with even rhythm: the order, then how to pay it.
+ * The prompt field sits between the wallet and the buttons, so changing the
+ * number is part of the decision rather than a footnote. */
+.vn-checkout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-5);
+}
+
+.vn-checkout .vn-card {
+  padding: var(--vn-space-5);
+}
+
+.vn-checkout .vn-detail {
+  gap: var(--vn-space-3) var(--vn-space-6);
+  margin-top: var(--vn-space-4);
+}
+
+.vn-checkout .vn-detail dd {
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-checkout .vn-ticket__total {
+  margin-top: var(--vn-space-5);
+  padding-top: var(--vn-space-4);
+}
+
+.vn-checkout__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+}
+
+.vn-checkout__head h2,
+.vn-checkout__head p {
+  margin: 0;
+}
+
+.vn-checkout__head p {
+  max-width: 36ch;
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-checkout__wallet {
+  margin-top: var(--vn-space-5);
+}
+
+.vn-checkout .vn-meter {
+  margin-bottom: 0;
+}
+
+.vn-checkout__rule {
+  height: 1px;
+  margin: var(--vn-space-5) 0;
+  border: 0;
+  background: var(--vn-border);
+}
+
+.vn-checkout .fieldset {
+  margin-bottom: var(--vn-space-2);
+}
+
+.vn-checkout__phone-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+}
+
+.vn-checkout__hint {
+  margin: 0;
+  flex: 1 1 auto;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-checkout__phone-meta .vn-badge {
+  flex: none;
+  margin: 0;
+}
+
+.vn-checkout__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  margin-top: var(--vn-space-5);
+}
+
+.vn-checkout__actions .vn-button {
+  width: 100%;
+}
+
+.vn-checkout__close {
+  margin: var(--vn-space-4) 0 0;
+  font-size: var(--vn-text-sm);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-checkout #prompt-error {
+  margin-top: var(--vn-space-3);
+}
+
 .vn-arrive {
   animation: vn-rise 420ms var(--vn-ease) backwards;
 }
