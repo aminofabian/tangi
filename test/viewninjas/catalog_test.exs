@@ -27,12 +27,67 @@ defmodule ViewNinjas.CatalogTest do
       assert offer.title == "Instagram followers"
     end
 
-    test "create_offer/1 rejects a duplicate (platform, outcome)" do
+    test "create_offer/1 rejects a duplicate (platform, outcome, target)" do
       attrs = %{platform: "instagram", outcome: "followers", title: "One"}
       assert {:ok, _} = Catalog.create_offer(attrs)
 
       assert {:error, changeset} = Catalog.create_offer(%{attrs | title: "Two"})
       assert {"has already been taken", _} = changeset.errors[:platform]
+    end
+
+    test "a target is what lets two Facebook likes offers both exist" do
+      page = %{
+        platform: "facebook",
+        outcome: "likes",
+        target: "page",
+        title: "Facebook page likes"
+      }
+
+      post = %{
+        platform: "facebook",
+        outcome: "likes",
+        target: "post",
+        title: "Facebook post likes"
+      }
+
+      # The collision that made this necessary: same platform, same outcome.
+      assert {:ok, page_offer} = Catalog.create_offer(page)
+      assert {:ok, post_offer} = Catalog.create_offer(post)
+      assert page_offer.id != post_offer.id
+      assert page_offer.target == "page"
+      assert post_offer.target == "post"
+
+      # The same target twice is still a duplicate.
+      assert {:error, _} = Catalog.create_offer(%{page | title: "Again"})
+    end
+
+    test "create_offer/1 refuses a target nobody knows" do
+      assert {:error, changeset} =
+               Catalog.create_offer(%{
+                 platform: "facebook",
+                 outcome: "likes",
+                 target: "banana",
+                 title: "x"
+               })
+
+      assert {"is not a known target", _} = changeset.errors[:target]
+    end
+
+    test "an offer with no target keeps the old two-part uniqueness" do
+      assert {:ok, _} =
+               Catalog.create_offer(%{
+                 platform: "youtube",
+                 outcome: "views",
+                 title: "One"
+               })
+
+      assert {:error, _} =
+               Catalog.create_offer(%{
+                 platform: "youtube",
+                 outcome: "views",
+                 target: "",
+                 title: "Two"
+               })
     end
 
     test "create_offer/1 demands a lowercase platform and outcome" do

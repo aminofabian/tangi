@@ -3703,8 +3703,9 @@ p {
   font-size: var(--vn-text-sm);
 }
 
-/* Two short paragraphs side by side on a desk, stacked on a phone — the shop is
- * mostly read on a phone, so nothing is hidden behind a wider breakpoint. */
+/* Two short sections in one card. The customer shell is a single 30rem column
+ * by design (scope.md §12), so these stay stacked — a two-column split of 480px
+ * would give each half 200px, which is worse than simply reading down. */
 .vn-prose-pair {
   display: grid;
   grid-template-columns: 1fr;
@@ -3721,12 +3722,6 @@ p {
 .vn-prose-pair p {
   margin: 0;
   line-height: var(--vn-leading-body);
-}
-
-@media (min-width: 48rem) {
-  .vn-prose-pair {
-    grid-template-columns: 1fr 1fr;
-  }
 }
 
 .vn-link-arrow {

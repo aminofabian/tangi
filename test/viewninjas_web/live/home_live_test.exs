@@ -43,7 +43,8 @@ defmodule ViewNinjasWeb.HomeLiveTest do
     {:ok, view, _html} = live(conn, ~p"/")
 
     assert has_element?(view, "#offer-#{offer.id}")
-    assert has_element?(view, "#offer-#{offer.id} a[href='/offers/#{offer.id}']")
+    # The tile is the link now, rather than a row wrapping one.
+    assert has_element?(view, "#offer-#{offer.id}[href='/offers/#{offer.id}']")
     # The default §7 rate: 0.90 USD/1k -> KSh 276.
     assert render(view) =~ "KSh 276"
   end
@@ -82,12 +83,47 @@ defmodule ViewNinjasWeb.HomeLiveTest do
 
     html = view |> element("#chip-tiktok") |> render_click()
 
-    assert html =~ "TikTok likes"
+    # Grouped by platform, and the tile names the outcome — the group header
+    # already says TikTok, so repeating it in every tile is wasted space.
+    assert html =~ "Likes"
     refute has_element?(view, "#offer-#{ig.id}")
     assert has_element?(view, "#offer-#{tt.id}")
+    # With one platform chosen there is no reason to repeat its name as a header.
+    refute has_element?(view, "#group-tiktok .vn-group__name")
 
     html = view |> element("#chip-all") |> render_click()
-    assert html =~ "IG followers"
+    assert has_element?(view, "#group-instagram .vn-group__name")
+    assert html =~ "Followers"
+  end
+
+  test "a target separates two offers that would otherwise be the same row", %{conn: conn} do
+    page =
+      published_offer_fixture(%{
+        title: "Facebook page likes",
+        platform: "facebook",
+        outcome: "likes",
+        target: "page"
+      })
+
+    post =
+      published_offer_fixture(%{
+        title: "Facebook post likes",
+        platform: "facebook",
+        outcome: "likes",
+        target: "post",
+        service_attrs: %{external_id: "778"}
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/")
+
+    # Both are on the market at once, each naming what it actually is.
+    assert has_element?(view, "#offer-#{page.id}")
+    assert has_element?(view, "#offer-#{post.id}")
+    assert render(view) =~ "Page Likes"
+    assert render(view) =~ "Post Likes"
+
+    # And the platform is a heading above them, not repeated on every tile.
+    assert has_element?(view, "#group-facebook")
   end
 
   test "signed in, the homepage is the dashboard with the stubbed strip", %{conn: conn} do
