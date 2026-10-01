@@ -346,7 +346,7 @@ p {
   flex-direction: column;
   align-items: center;
   gap: var(--vn-space-2);
-  padding: var(--vn-space-6) var(--vn-space-4) var(--vn-space-5);
+  padding: var(--vn-space-5) var(--vn-space-4) var(--vn-space-4);
   border-radius: var(--vn-radius-lg);
   border: 1px solid color-mix(in srgb, var(--vn-accent) 16%, var(--vn-border));
   background:
@@ -367,7 +367,8 @@ p {
 
 .vn-hero__logo {
   display: block;
-  width: 10.5rem;
+  /* Small enough that the first offer is still above the fold on a phone. */
+  width: 7rem;
   max-width: 100%;
   height: auto;
 }
@@ -3554,6 +3555,191 @@ p {
   background: var(--vn-accent);
   color: var(--vn-on-accent);
   box-shadow: var(--vn-shadow-1);
+}
+
+/* ---- the market: offers grouped by platform, as compact tiles ---- */
+
+.vn-market__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-1);
+  margin-bottom: var(--vn-space-3);
+}
+
+.vn-market__head h2 {
+  margin: 0;
+}
+
+/* The filter row scrolls sideways rather than wrapping into three rows of
+ * chips, which is what pushed the first offer below the fold. */
+.vn-chips--filter {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: var(--vn-space-1);
+  /* Room for the chip's own focus ring, which would otherwise be clipped. */
+  margin: calc(var(--vn-space-1) * -1);
+  padding-inline: var(--vn-space-1);
+}
+
+.vn-chips--filter::-webkit-scrollbar {
+  display: none;
+}
+
+.vn-chips--filter > .vn-chip {
+  flex: 0 0 auto;
+}
+
+.vn-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-4);
+  margin-top: var(--vn-space-4);
+}
+
+.vn-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+}
+
+.vn-group__name {
+  margin: 0;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.vn-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--vn-space-2);
+}
+
+.vn-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-1);
+  min-height: var(--vn-tap-target);
+  padding: var(--vn-space-3);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+  text-decoration: none;
+  color: var(--vn-text);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-tile:hover {
+    border-color: color-mix(in srgb, var(--vn-accent) 45%, var(--vn-border));
+    box-shadow: var(--vn-shadow-2);
+  }
+}
+
+.vn-tile:active {
+  background: var(--vn-accent-soft);
+  transform: translateY(1px);
+}
+
+.vn-tile:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
+}
+
+.vn-tile__title {
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 700;
+  line-height: var(--vn-leading-tight);
+}
+
+.vn-tile__from {
+  color: var(--vn-accent-text);
+  font-size: var(--vn-text-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---- compact cards ---- */
+
+.vn-card--tight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  padding: var(--vn-space-3) var(--vn-space-4);
+}
+
+.vn-card__title-sm {
+  margin: 0;
+  font-size: var(--vn-text-ui);
+}
+
+.vn-grades-inline {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--vn-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vn-grades-inline li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-1);
+  font-size: var(--vn-text-sm);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-grades-inline .vn-muted {
+  font-size: var(--vn-text-sm);
+}
+
+/* Two short paragraphs side by side on a desk, stacked on a phone — the shop is
+ * mostly read on a phone, so nothing is hidden behind a wider breakpoint. */
+.vn-prose-pair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--vn-space-4);
+}
+
+.vn-prose-pair > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  align-items: flex-start;
+}
+
+.vn-prose-pair p {
+  margin: 0;
+  line-height: var(--vn-leading-body);
+}
+
+@media (min-width: 48rem) {
+  .vn-prose-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.vn-link-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--vn-space-1);
+  color: var(--vn-accent-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.vn-link-arrow:hover {
+  text-decoration: underline;
 }
 
 .vn-table-wrap {

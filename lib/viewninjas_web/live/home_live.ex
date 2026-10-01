@@ -14,7 +14,7 @@ defmodule ViewNinjasWeb.HomeLive do
   use ViewNinjasWeb, :live_view
 
   alias ViewNinjas.{Catalog, Orders, Pricing, Wallet}
-  alias ViewNinjas.Catalog.Grade
+  alias ViewNinjas.Catalog.{Grade, Target}
   alias ViewNinjasWeb.{Analytics, SEO}
 
   @impl true
@@ -170,12 +170,16 @@ defmodule ViewNinjasWeb.HomeLive do
     </section>
 
     <section class="vn-card vn-anchor" id="offers-card">
-      <h2>{gettext("Offers")}</h2>
-      <p class="vn-muted">{gettext("Pick a platform, then an offer to see its grades.")}</p>
+      <div class="vn-market__head">
+        <h2>{gettext("What you can buy")}</h2>
+        <p class="vn-muted">
+          {gettext("Every price is in shillings. Tap one to see its three grades.")}
+        </p>
+      </div>
 
       <%!-- The platform chips are this list's own filter, so they sit with it rather
             than in a card of their own. --%>
-      <div class="vn-chips" id="offer-filters">
+      <div class="vn-chips vn-chips--filter" id="offer-filters">
         <button
           type="button"
           class={["vn-chip", is_nil(@platform) && "vn-chip--on"]}
@@ -193,26 +197,39 @@ defmodule ViewNinjasWeb.HomeLive do
           phx-value-platform={platform}
           id={"chip-#{platform}"}
         >
-          {platform}
+          {platform_label(platform)}
         </button>
       </div>
 
-      <ul class="vn-offers">
-        <li :for={offer <- @offers} id={"offer-#{offer.id}"}>
-          <.link navigate={~p"/offers/#{offer.id}"} class="vn-offer-link">
-            <span class="vn-offer-link__title">{offer.title}</span>
-            <span class="vn-offer-link__from">{from_label(offer, @params)}</span>
-          </.link>
-        </li>
-      </ul>
+      <%!-- Grouped by platform, because that is the first thing a buyer decides
+            and the second thing they decide is *what* on that platform. Facebook
+            page likes and Facebook post likes sit side by side as two tiles, so
+            the difference is something you read rather than something you infer
+            from two rows with the same name. --%>
+      <div class="vn-groups">
+        <div :for={group <- grouped_offers(@offers)} class="vn-group" id={"group-#{group.platform}"}>
+          <p :if={is_nil(@platform)} class="vn-group__name">{platform_label(group.platform)}</p>
+          <div class="vn-tiles">
+            <.link
+              :for={offer <- group.offers}
+              navigate={~p"/offers/#{offer.id}"}
+              class="vn-tile"
+              id={"offer-#{offer.id}"}
+            >
+              <span class="vn-tile__title">{offer_summary(offer)}</span>
+              <span class="vn-tile__from">{from_label(offer, @params)}</span>
+            </.link>
+          </div>
+        </div>
+      </div>
       <p :if={@offers == []} class="vn-muted">
         {gettext("Nothing is on sale right now — check back soon.")}
       </p>
     </section>
 
-    <section class="vn-card" id="grades-card">
-      <h2>{gettext("Three grades, one margin")}</h2>
-      <ul class="vn-grades">
+    <section class="vn-card vn-card--tight" id="grades-card">
+      <h2 class="vn-card__title-sm">{gettext("Three grades, one margin")}</h2>
+      <ul class="vn-grades-inline">
         <li :for={grade <- Grade.all()} id={"legend-#{grade}"}>
           <span class="vn-grade">{Grade.label(grade)}</span>
           <span class="vn-muted">{grade_blurb(grade)}</span>
@@ -220,30 +237,26 @@ defmodule ViewNinjasWeb.HomeLive do
       </ul>
     </section>
 
-    <section class="vn-card" id="market-copy">
-      <h2>{gettext("Buy followers, likes and views in Kenya")}</h2>
-      <p class="vn-muted">
-        {gettext(
-          "Every offer is a platform and an outcome, in three grades: cheap, moderate and quality. The grade decides how fast it moves and whether it comes with a refill — the markup over cost is the same on all three."
-        )}
-      </p>
-      <p class="vn-muted">
-        {gettext(
-          "Pay in shillings by M-Pesa and watch the order from your phone. If an order only partly arrives, the unfinished share is credited back to your wallet automatically."
-        )}
-      </p>
-    </section>
-
-    <section class="vn-card" id="guides-card">
-      <h2>{gettext("Guides")}</h2>
-      <p class="vn-muted">
-        {gettext(
-          "New to buying views? Read our guides to buying YouTube views in Kenya, growing a channel organically and promoting your videos."
-        )}
-      </p>
-      <.link navigate={~p"/blog"} class="vn-button vn-button--muted">
-        {gettext("Read the guides")}
-      </.link>
+    <section class="vn-card vn-card--tight vn-prose-pair" id="market-copy">
+      <div>
+        <h2 class="vn-card__title-sm">{gettext("How it works")}</h2>
+        <p class="vn-muted">
+          {gettext(
+            "Every offer is a platform, an outcome and — where it matters — what your link points at, in three grades: cheap, moderate and quality. The grade decides how fast it moves and whether it comes with a refill; the markup over cost is the same on all three."
+          )}
+        </p>
+      </div>
+      <div>
+        <h2 class="vn-card__title-sm">{gettext("Pay and watch")}</h2>
+        <p class="vn-muted">
+          {gettext(
+            "Pay in shillings by M-Pesa and watch the order from your phone. If an order only partly arrives, the unfinished share is credited back to your wallet automatically."
+          )}
+        </p>
+        <.link navigate={~p"/blog"} class="vn-link-arrow">
+          {gettext("Read the guides")} <span aria-hidden="true">→</span>
+        </.link>
+      </div>
     </section>
 
     <section :if={not @signed_in?} class="vn-card">
@@ -349,6 +362,28 @@ defmodule ViewNinjasWeb.HomeLive do
     do: gettext("The fastest and steadiest. Priced like the service under it.")
 
   defp grade_blurb(_), do: ""
+
+  # Offers arrive ordered (sort, then title), so chunking on the platform keeps a
+  # platform's tiles together without a second sort that could shuffle prices.
+  defp grouped_offers(offers) do
+    offers
+    |> Enum.chunk_by(& &1.platform)
+    |> Enum.map(&%{platform: hd(&1).platform, offers: &1})
+  end
+
+  defp platform_label(platform) when is_binary(platform), do: String.capitalize(platform)
+  defp platform_label(platform), do: to_string(platform)
+
+  # What the offer *is*, in the buyer's words. The target is what separates a
+  # Facebook page like from a post like, so it is part of the name rather than a
+  # detail on the page behind it. Falls back to the stored title if the pair says
+  # nothing at all.
+  defp offer_summary(%{target: target, outcome: outcome, title: title}) do
+    case Target.summary(target, outcome) do
+      "" -> title
+      summary -> summary
+    end
+  end
 
   defp from_label(offer, params) do
     case Catalog.from_selling_cents(offer, params) do
