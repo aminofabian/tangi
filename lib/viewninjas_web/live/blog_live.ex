@@ -304,6 +304,18 @@ defmodule ViewNinjasWeb.BlogLive do
             </tbody>
           </table>
         </div>
+      <% {:image, image} -> %>
+        <figure class="vn-figure">
+          <img
+            src={image.src}
+            alt={image.alt}
+            width={image.width}
+            height={image.height}
+            loading="lazy"
+            decoding="async"
+          />
+          <figcaption :if={image.caption}>{image.caption}</figcaption>
+        </figure>
       <% {:cta, %{text: text, href: href, label: label}} -> %>
         <aside class="vn-cta">
           <p><.rich text={text} /></p>

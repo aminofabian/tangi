@@ -19,6 +19,7 @@ defmodule ViewNinjas.Blog.Post do
     * `{:ol, [text]}` - a numbered list
     * `{:table, %{head: [..], rows: [[..]]}}` - a data table
     * `{:callout, text}` - a highlighted aside
+    * `{:image, %{src: path, alt: text, width: px, height: px, caption: text}}` - a figure
     * `{:cta, %{text: text, href: path, label: label}}` - a call to action
 
   Any `text` may carry inline links written `[label](/path)`, which the web layer
@@ -50,7 +51,20 @@ defmodule ViewNinjas.Blog.Post do
           | {:ol, [String.t()]}
           | {:table, map()}
           | {:callout, String.t()}
+          | {:image, image()}
           | {:cta, map()}
+
+  @typedoc """
+  A screenshot: the source path, alternative text, the intrinsic pixel size (so
+  the page does not jump as the image loads) and an optional visible caption.
+  """
+  @type image :: %{
+          src: String.t(),
+          alt: String.t(),
+          width: pos_integer(),
+          height: pos_integer(),
+          caption: String.t() | nil
+        }
 
   @type section :: %{
           id: String.t(),
@@ -116,6 +130,7 @@ defmodule ViewNinjas.Blog.Post do
   defp text_chunks({:ol, items}), do: items
   defp text_chunks({_tag, text}) when is_binary(text), do: [text]
   defp text_chunks({:table, %{head: head, rows: rows}}), do: head ++ List.flatten(rows)
+  defp text_chunks({:image, image}), do: [image.alt | List.wrap(image.caption)]
   defp text_chunks({:cta, %{text: text}}), do: [text]
   defp text_chunks(_), do: []
 

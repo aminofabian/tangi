@@ -1,13 +1,14 @@
 defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
   @moduledoc """
-  The "buy airtime in Kenya" cluster: one pillar and ten spokes, for the airtime
+  The "buy airtime in Kenya" cluster: one pillar and eleven spokes, for the airtime
   product (`docs/instalipa-airtime.md`).
 
   The pillar carries the broad intent ("buy airtime in Kenya") and the spokes
-  answer the narrower questions — one per network, one per payment method, and
-  the "where do I top up someone else" cases. Every spoke links back up to the
-  pillar and down to the buy screen, and the pillar links to every spoke, so a
-  crawler that lands anywhere can reach the whole set.
+  answer the narrower questions — one per network, one per payment method, the
+  "where do I top up someone else" cases, and one walkthrough of the product
+  itself, screens and all. Every spoke links back up to the pillar and down to
+  the buy screen, and the pillar links to every spoke, so a crawler that lands
+  anywhere can reach the whole set.
 
   ## The cluster
 
@@ -18,7 +19,8 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
         ├── methods:   buy-airtime-with-mpesa · buy-airtime-online-kenya
         │              buy-airtime-without-going-to-shop
         ├── audience:  buy-airtime-for-another-number
-        └── compare:   best-way-to-buy-airtime-kenya
+        ├── compare:   best-way-to-buy-airtime-kenya
+        └── product:   how-to-buy-airtime-with-tangi
 
   ## Keywords
 
@@ -63,7 +65,8 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
       online(),
       for_another_number(),
       without_a_shop(),
-      best_way()
+      best_way(),
+      tangi()
     ]
   end
 
@@ -269,7 +272,7 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
         toc: false,
         blocks: [
           {:p,
-           "Pick the network you are topping up, or the method you want to pay with, from the guides above. If you are not sure which route is best, [the best way to buy airtime in Kenya](/blog/best-way-to-buy-airtime-kenya) compares them side by side."},
+           "Pick the network you are topping up, or the method you want to pay with, from the guides above. If you are not sure which route is best, [the best way to buy airtime in Kenya](/blog/best-way-to-buy-airtime-kenya) compares them side by side. To do it on Tangi, screens and all, start with [how to buy airtime with Tangi](/blog/how-to-buy-airtime-with-tangi)."},
           {:cta,
            %{
              text:
@@ -1317,6 +1320,186 @@ defmodule ViewNinjas.Blog.Clusters.BuyAirtimeKenya do
           question: "Where can I buy airtime for any network in one place?",
           answer:
             "An airtime platform that carries Safaricom, Airtel, Telkom, Faiba and Equitel. You pick the network for each number."
+        }
+      ]
+    }
+  end
+
+  # -------------------------------------------- spoke: buying on Tangi
+
+  defp tangi do
+    %Post{
+      slug: "how-to-buy-airtime-with-tangi",
+      cluster: @cluster,
+      kind: :spoke,
+      updated_on: @updated,
+      eyebrow: "Step by step",
+      title: "How to Buy Airtime With Tangi: Step by Step",
+      meta_title: "How to Buy Airtime With Tangi in Kenya — Step by Step",
+      description:
+        "How to buy airtime on Tangi, step by step: pick a network, add one or more Kenyan numbers, and pay from your wallet or with M-Pesa.",
+      keywords: [
+        "how to buy airtime with Tangi",
+        "buy airtime with Tangi",
+        "Tangi airtime",
+        "buy airtime app Kenya",
+        "top up airtime with Tangi"
+      ],
+      intro: [
+        "Tangi tops up any Kenyan line — Safaricom, Airtel, Telkom or Faiba — from a single screen. You choose the amount, add one or more numbers, and pay. Airtime is face value, so KSh 100 of airtime costs KSh 100, and it lands in seconds.",
+        "You can pay from your Tangi wallet when it is funded, or straight from M-Pesa when it is not — you do not have to top up the wallet first. This is the whole walkthrough, with the real screens."
+      ],
+      sections: [
+        %{
+          id: "before-you-start",
+          heading: "Before You Start",
+          blocks: [
+            {:p,
+             "You need one thing: a Tangi account with a verified phone number. The person receiving the airtime does not need Tangi, and the phone being topped up does not need a data bundle."},
+            {:p,
+             "Airtime is sold at face value, so there is no markup to work around — KSh 100 buys KSh 100 of airtime, whether you pay from the wallet or from M-Pesa. The wallet balance sits at the top of the airtime screen, so you always know what you can spend before you decide."},
+            {:image,
+             %{
+               src: "/images/airtime/wallet.png",
+               alt: "The Tangi wallet card showing a balance of KSh 2,500",
+               width: 716,
+               height: 174,
+               caption: "Your wallet balance, shown above the buy screen."
+             }}
+          ]
+        },
+        %{
+          id: "step-by-step",
+          heading: "Buying Airtime on Tangi, Step by Step",
+          blocks: [
+            {:p,
+             "Open the airtime screen — from the Tangi app, or in a browser at [tangi.co.ke/airtime](/airtime). Everything below happens on that one screen."},
+            {:image,
+             %{
+               src: "/images/airtime/pick.png",
+               alt:
+                 "The Tangi buy airtime screen with network badges, an amount field and a numbers field",
+               width: 716,
+               height: 1378,
+               caption:
+                 "The buy screen. Any network, one amount, and one or more numbers to top up."
+             }},
+            {:h3, "1. Choose the amount"},
+            {:p,
+             "Type the amount per number, or tap a quick chip — KSh 50, 100, 200 or 500. The amount applies to every number in the buy, so a mixed top-up is two separate buys."},
+            {:h3, "2. Add the numbers"},
+            {:p,
+             "Type one number per line under \"Who's getting it?\" — your own, someone else's, or a list of both. Tangi recognises the network for each line automatically. Numbers you have used before appear under \"Recent numbers\"; tap one to add it back, or the × to forget it."},
+            {:h3, "3. Read it back before you buy"},
+            {:p,
+             "As you type, Tangi lists every number it will top up, the network it has matched, and the running total. This is the last check before the money moves, and it is there for a reason: a top-up cannot be recalled."},
+            {:image,
+             %{
+               src: "/images/airtime/review.png",
+               alt:
+                 "The Tangi buy screen filled in with two numbers at KSh 100 each and a KSh 200 total",
+               width: 716,
+               height: 1670,
+               caption:
+                 "Two numbers, KSh 100 each. Tangi shows the network for each line and the KSh 200 total before you confirm."
+             }},
+            {:callout,
+             "A top-up cannot be recalled. Once the buy goes through, a wrong number means the airtime is gone — so read each number back on this step before you tap Buy airtime."}
+          ]
+        },
+        %{
+          id: "wallet-or-mpesa",
+          heading: "Paying From Your Wallet, or With M-Pesa",
+          blocks: [
+            {:p,
+             "If the wallet covers the total, tap Buy airtime and you are done — the airtime goes out without leaving the screen."},
+            {:p,
+             "If it does not, Tangi does not dead-end. It tells you the difference and offers to raise just that amount with M-Pesa, so you still buy in one go. Or you deposit more than the difference and keep the rest in the wallet for next time."},
+            {:image,
+             %{
+               src: "/images/airtime/short.png",
+               alt:
+                 "The Tangi shortfall options: pay KSh 1,500 with M-Pesa, or deposit KSh 2,000 and keep KSh 500",
+               width: 648,
+               height: 604,
+               caption:
+                 "Wallet short? Pay only the difference with M-Pesa — or deposit a round amount, like KSh 2,000, and keep KSh 500 in the wallet."
+             }},
+            {:ul,
+             [
+               "Pay the difference — M-Pesa is charged only the shortfall, and the airtime goes out as soon as it clears.",
+               "Deposit a round amount — against a KSh 1,500 difference, deposit KSh 2,000 and KSh 500 stays in your wallet.",
+               "Fund first — top up the wallet up front and every later buy is a single tap."
+             ]}
+          ]
+        },
+        %{
+          id: "after",
+          heading: "What Happens After You Tap Buy",
+          blocks: [
+            {:p,
+             "The airtime goes out straight away — each number receives its amount within seconds. The buy appears on the screen under \"On its way\", and the numbers you used are saved to \"Recent numbers\" so the next buy is quicker."},
+            {:p,
+             "A bulk buy tops up every number you added, so a long list can take a moment — but there is nothing else to do: no agent, no scratch card, and no code to read out."}
+          ]
+        },
+        %{
+          id: "another-number",
+          heading: "Buying for Someone Else",
+          blocks: [
+            {:p,
+             "Everything above works the same whether the number is yours or not — you simply type theirs. Airtime is a common way to help family, a househelp, a boda rider or a student, and on Tangi it is one screen rather than a trip to a shop."},
+            {:p,
+             "The full picture, including the rules that keep it safe, is in [buy airtime for another number](/blog/buy-airtime-for-another-number)."}
+          ]
+        },
+        %{
+          id: "next",
+          heading: "Where to Go Next",
+          toc: false,
+          blocks: [
+            {:p,
+             "For the wider picture — every network and every way to pay — read [the complete guide to buying airtime in Kenya](/blog/buy-airtime-kenya). If you would rather pay with M-Pesa end to end, see [buy airtime with M-Pesa](/blog/buy-airtime-with-mpesa)."},
+            {:cta,
+             %{
+               text:
+                 "Buy airtime for any Kenyan network with Tangi — face value, paid from your wallet or with M-Pesa, delivered in seconds.",
+               href: "/airtime",
+               label: "Buy airtime"
+             }}
+          ]
+        }
+      ],
+      faqs: [
+        %{
+          question: "Is buying airtime on Tangi instant?",
+          answer:
+            "Yes. Once you confirm, the airtime is sent to each number and usually arrives within seconds."
+        },
+        %{
+          question: "Can I buy airtime for another number on Tangi?",
+          answer:
+            "Yes. Enter any Kenyan number, not just your own — you can add several in one buy, on any network."
+        },
+        %{
+          question: "Do I have to top up my wallet before buying airtime on Tangi?",
+          answer:
+            "No. If the wallet cannot cover the total, Tangi lets you pay just the difference with M-Pesa, or deposit more and keep the change in the wallet."
+        },
+        %{
+          question: "Does Tangi add a fee to airtime?",
+          answer:
+            "Airtime is face value — KSh 100 buys KSh 100 of airtime. There is no markup on the airtime itself."
+        },
+        %{
+          question: "What happens if I enter the wrong number?",
+          answer:
+            "Airtime cannot be recalled. Read the number back on the review step before you confirm — once it is sent, a wrong number is not refunded."
+        },
+        %{
+          question: "Can I buy airtime for several numbers at once?",
+          answer:
+            "Yes. Add one number per line and Tangi tops them all up in a single buy, with one total to confirm."
         }
       ]
     }

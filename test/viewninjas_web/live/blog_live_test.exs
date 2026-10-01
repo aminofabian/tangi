@@ -146,6 +146,20 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     assert has_element?(view, "a[href='/airtime']")
   end
 
+  test "the Tangi walkthrough renders its screenshots and links up to the pillar", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/blog/how-to-buy-airtime-with-tangi")
+
+    assert has_element?(view, "h1.vn-article__title")
+    assert has_element?(view, "a[href='/blog/#{@airtime}']")
+    assert has_element?(view, "a[href='/airtime']")
+
+    for shot <- ~w(wallet pick review short) do
+      assert has_element?(view, "figure.vn-figure img[src='/images/airtime/#{shot}.png']")
+    end
+
+    assert has_element?(view, "figure.vn-figure figcaption")
+  end
+
   test "every airtime spoke carries its own FAQs" do
     for post <- Blog.spokes(@airtime) do
       refute post.faqs == [], "#{post.slug} has no FAQs"

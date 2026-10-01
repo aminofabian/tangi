@@ -3452,6 +3452,34 @@ p {
   line-height: var(--vn-leading-body);
 }
 
+/* A screenshot in the prose. The phone shots are tall and narrow, so the image
+ * is capped rather than left to fill a desktop column at full height. */
+.vn-figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  margin: 0;
+}
+
+.vn-figure img {
+  width: 100%;
+  max-width: 22rem;
+  height: auto;
+  align-self: center;
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+}
+
+.vn-figure figcaption {
+  max-width: 22rem;
+  align-self: center;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+  line-height: var(--vn-leading-body);
+}
+
 .vn-toc {
   padding: var(--vn-space-4);
   border: 1px solid var(--vn-border);
