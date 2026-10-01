@@ -39,6 +39,32 @@ defmodule ViewNinjasWeb.Admin.SettingsLiveTest do
     assert has_element?(lv, "#admin-nav-settings")
   end
 
+  test "a super-admin can set and clear the Resend key", %{conn: conn} do
+    conn = log_in_user(conn, super_admin_fixture())
+
+    {:ok, lv, _html} = live(conn, ~p"/admin/settings")
+
+    assert has_element?(lv, "#settings-Mail")
+    assert has_element?(lv, "#setting-resend_api_key")
+    assert has_element?(lv, "#setting-resend_base_url")
+    assert has_element?(lv, "#setting-mailer_from")
+
+    lv
+    |> form("#settings-form", settings: %{"resend_api_key" => "re_from_the_back_office"})
+    |> render_submit()
+
+    assert Settings.resend_api_key() == "re_from_the_back_office"
+    assert Settings.email_configured?()
+
+    # A secret is never echoed back into the page.
+    refute render(lv) =~ "re_from_the_back_office"
+
+    lv |> element("#clear-resend_api_key") |> render_click()
+
+    refute Settings.stored_settings()["resend_api_key"]
+    refute Settings.email_configured?()
+  end
+
   test "saving a secret stores it and never echoes it back", %{conn: conn} do
     conn = log_in_user(conn, super_admin_fixture())
 

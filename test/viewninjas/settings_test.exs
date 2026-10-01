@@ -16,6 +16,7 @@ defmodule ViewNinjas.SettingsTest do
           {:viewninjas, :sms},
           {:viewninjas, ViewNinjas.Payments.Malipo},
           {:viewninjas, :malipo_webhook_secret},
+          {:viewninjas, :resend},
           {:viewninjas, :mailer_from}
         ] do
       previous = Application.get_env(app, key)
@@ -108,6 +109,43 @@ defmodule ViewNinjas.SettingsTest do
     test "mailer_from is a name and an address" do
       {:ok, _} = Settings.put("mailer_from", "hello@viewninjas.test", nil)
       assert Settings.mailer_from() == {"Tangi", "hello@viewninjas.test"}
+    end
+
+    test "the Resend key is stored encrypted and never shown back" do
+      {:ok, _} = Settings.put("resend_api_key", "re_live_secret", nil)
+
+      assert Settings.resend_api_key() == "re_live_secret"
+      assert Settings.email_configured?()
+
+      %{rows: [[raw]]} =
+        Repo.query!("select encrypted_value from app_settings where key = $1", ["resend_api_key"])
+
+      refute raw =~ "re_live_secret"
+
+      entry = Enum.find(Settings.entries(), &(&1.key == "resend_api_key"))
+      assert entry.secret
+      assert entry.stored
+      assert entry.value == nil
+    end
+
+    test "the Resend key falls back to the environment" do
+      Application.put_env(:viewninjas, :resend, api_key: "re_from_env")
+      assert Settings.resend_api_key() == "re_from_env"
+      assert Settings.email_configured?()
+
+      {:ok, _} = Settings.put("resend_api_key", "re_from_db", nil)
+      assert Settings.resend_api_key() == "re_from_db"
+
+      # Clearing the override puts the environment back in charge.
+      :ok = Settings.clear("resend_api_key")
+      assert Settings.resend_api_key() == "re_from_env"
+    end
+
+    test "email is not configured without a key, and the base URL has a default" do
+      Application.put_env(:viewninjas, :resend, api_key: nil)
+
+      refute Settings.email_configured?()
+      assert Settings.resend_base_url() == "https://api.resend.com"
     end
 
     test "defaults apply when nothing is set" do

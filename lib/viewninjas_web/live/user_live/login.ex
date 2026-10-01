@@ -2,6 +2,7 @@ defmodule ViewNinjasWeb.UserLive.Login do
   use ViewNinjasWeb, :live_view
 
   alias ViewNinjas.Accounts
+  alias ViewNinjas.Settings
 
   @impl true
   def render(assigns) do
@@ -132,7 +133,10 @@ defmodule ViewNinjasWeb.UserLive.Login do
      |> push_navigate(to: ~p"/users/log-in")}
   end
 
+  # The banner offers the local mailbox, which is only true when email is
+  # actually landing there. With a Resend key set, mail really is sent.
   defp local_mail_adapter? do
-    Application.get_env(:viewninjas, ViewNinjas.Mailer)[:adapter] == Swoosh.Adapters.Local
+    not Settings.email_configured?() and
+      Application.get_env(:viewninjas, ViewNinjas.Mailer)[:adapter] == Swoosh.Adapters.Local
   end
 end

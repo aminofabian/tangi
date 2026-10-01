@@ -11,7 +11,7 @@ defmodule ViewNinjas.Digest do
 
   alias ViewNinjas.Accounts
   alias ViewNinjas.Analysis
-  alias ViewNinjas.Mailer
+  alias ViewNinjas.Email
   alias ViewNinjas.Pricing
   alias ViewNinjas.Progress
   alias ViewNinjas.Settings
@@ -25,7 +25,7 @@ defmodule ViewNinjas.Digest do
   def deliver(at \\ Date.utc_today()) do
     digest = Analysis.digest(at)
     recipients = recipients()
-    Enum.each(recipients, &Mailer.deliver(email(digest, &1)))
+    Enum.each(recipients, &Email.deliver(email(digest, &1)))
     length(recipients)
   end
 

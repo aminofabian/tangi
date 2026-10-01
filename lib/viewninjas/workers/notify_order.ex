@@ -19,7 +19,7 @@ defmodule ViewNinjas.Workers.NotifyOrder do
 
   require Logger
 
-  alias ViewNinjas.{Accounts, Mailer, Notifications, Orders, Sms}
+  alias ViewNinjas.{Accounts, Email, Notifications, Orders, Sms}
   alias ViewNinjas.Orders.Order
 
   @impl Oban.Worker
@@ -40,10 +40,9 @@ defmodule ViewNinjas.Workers.NotifyOrder do
 
   defp send_receipt(user, order, event) when event in [:paid, :completed] do
     if present?(user.email) and Notifications.opted_in?(user, :email) do
-      case Mailer.deliver(Notifications.receipt_email(user, order)) do
-        {:ok, _metadata} -> :ok
-        {:error, reason} -> Logger.warning("receipt email failed: #{inspect(reason)}")
-      end
+      # A receipt that cannot be emailed must not roll back a paid order, so the
+      # failure is logged rather than raised.
+      Email.deliver!({"receipt", Notifications.receipt_email(user, order)})
     end
 
     :ok

@@ -7,10 +7,10 @@ defmodule ViewNinjas.Accounts.UserNotifier do
   import Swoosh.Email
 
   alias ViewNinjas.Accounts.User
-  alias ViewNinjas.Mailer
+  alias ViewNinjas.Email
   alias ViewNinjas.Settings
 
-  # Delivers the email using the application mailer.
+  # Delivers the email through the application's mailer (Resend when a key is set).
   defp deliver(recipient, subject, body) do
     email =
       new()
@@ -19,7 +19,7 @@ defmodule ViewNinjas.Accounts.UserNotifier do
       |> subject(subject)
       |> text_body(body)
 
-    with {:ok, _metadata} <- Mailer.deliver(email) do
+    with {:ok, _metadata} <- Email.deliver(email) do
       {:ok, email}
     end
   end

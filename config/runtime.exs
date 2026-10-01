@@ -81,6 +81,12 @@ if config_env() != :test do
     consumer_key: System.get_env("INSTALIPA_CONSUMER_KEY"),
     consumer_secret: System.get_env("INSTALIPA_CONSUMER_SECRET")
 
+  # The airtime rail. The credentials can be set in the back office too; the
+  # environment is the fallback for a first boot or a deploy pipeline.
+  config :viewninjas, :resend,
+    api_key: System.get_env("RESEND_API_KEY"),
+    base_url: System.get_env("RESEND_BASE_URL", "https://api.resend.com")
+
   # Supplier API keys are encrypted with this key. Tests keep the fixed
   # development key from config/config.exs so their ciphertext is stable.
   if cloak_key = System.get_env("CLOAK_KEY") do
@@ -165,6 +171,10 @@ if config_env() == :prod do
   # Transactional email: point the mailer at a real adapter from the
   # environment, so no credentials live in the repo. Without a key the app
   # still boots and the local adapter is not used in production.
+  #
+  # Resend is normally configured in the back office instead (Settings), which
+  # takes effect on the next send; `ViewNinjas.Email` prefers that key over
+  # whatever is chosen here.
   if mailgun_key = System.get_env("MAILGUN_API_KEY") do
     config :viewninjas, ViewNinjas.Mailer,
       adapter: Swoosh.Adapters.Mailgun,

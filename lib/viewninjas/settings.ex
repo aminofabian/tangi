@@ -19,6 +19,7 @@ defmodule ViewNinjas.Settings do
   alias ViewNinjas.Settings.Setting
 
   @default_mailer_from {"Tangi", "no-reply@example.com"}
+  @default_resend_base_url "https://api.resend.com"
 
   # The registry: what the screen shows, where the value comes from, and how a
   # submission is read back. `env` names the environment fallback; `default` is
@@ -183,7 +184,28 @@ defmodule ViewNinjas.Settings do
       key: "mailer_from",
       group: "Mail",
       label: "Mailer From address",
+      hint:
+        "The From on every email. Resend only sends from a domain you have verified, so use that domain here.",
       env: {:mailer, :from}
+    },
+    %{
+      key: "resend_api_key",
+      group: "Mail",
+      label: "Resend API key",
+      secret: true,
+      placeholder: "re_…",
+      hint:
+        "Required to send email. From Resend → API Keys. Stored encrypted and never shown back; saving a new one takes effect on the next send.",
+      env: {:resend, :api_key}
+    },
+    %{
+      key: "resend_base_url",
+      group: "Mail",
+      label: "Resend API base URL",
+      placeholder: "https://api.resend.com",
+      hint: "Leave as the default unless you are pointed at a test endpoint.",
+      env: {:resend, :base_url},
+      default: @default_resend_base_url
     }
   ]
 
@@ -389,7 +411,9 @@ defmodule ViewNinjas.Settings do
   @spec insight_hash_salt() :: String.t()
   def insight_hash_salt, do: resolved_value("insight_hash_salt")
 
-  @doc "The From address on transactional email, as `{name, address}`."
+  @doc """
+  The From address on transactional email, as `{name, address}`.
+  """
   @spec mailer_from() :: {String.t(), String.t()}
   def mailer_from do
     case value("mailer_from") do
@@ -397,6 +421,18 @@ defmodule ViewNinjas.Settings do
       address -> {"Tangi", address}
     end
   end
+
+  @doc "The Resend API key, or nil when email is not configured."
+  @spec resend_api_key() :: String.t() | nil
+  def resend_api_key, do: resolved_value("resend_api_key")
+
+  @doc "The Resend API base URL."
+  @spec resend_base_url() :: String.t()
+  def resend_base_url, do: resolved_value("resend_base_url")
+
+  @doc "Whether a Resend key is in force, so email is worth attempting."
+  @spec email_configured?() :: boolean()
+  def email_configured?, do: present?(resend_api_key())
 
   # -- internals ---------------------------------------------------------
 
@@ -412,6 +448,7 @@ defmodule ViewNinjas.Settings do
   defp from_env(%{env: {:insight, key}}), do: env(:insight, key)
   defp from_env(%{env: {:malipo, key}}), do: malipo_env(key)
   defp from_env(%{env: {:instalipa, key}}), do: instalipa_env(key)
+  defp from_env(%{env: {:resend, key}}), do: env(:resend, key)
   defp from_env(%{env: {:viewninjas, key}}), do: Application.get_env(:viewninjas, key)
 
   defp from_env(%{env: {:mailer, :from}}) do
@@ -474,7 +511,15 @@ defmodule ViewNinjas.Settings do
   defp stringify(value) when is_integer(value), do: Integer.to_string(value)
   defp stringify(value), do: to_string(value)
 
-  defp env(app_key, key), do: :viewninjas |> Application.get_env(app_key, []) |> Keyword.get(key)
+  # Application env is normally a keyword list, but `Application.put_env/3` will
+  # happily store nil for "unset this", and a nil here would crash every settings
+  # read. Treat anything that is not a keyword list as no environment value.
+  defp env(app_key, key) do
+    case Application.get_env(:viewninjas, app_key) do
+      config when is_list(config) -> Keyword.get(config, key)
+      _other -> nil
+    end
+  end
 
   defp malipo_env(key),
     do: :viewninjas |> Application.get_env(ViewNinjas.Payments.Malipo, []) |> Keyword.get(key)
