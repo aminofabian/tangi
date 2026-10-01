@@ -181,4 +181,52 @@ defmodule ViewNinjasWeb.OfferLiveTest do
     assert html =~ "high demand"
     assert ViewNinjas.Repo.aggregate(ViewNinjas.Orders.Order, :count) == 0
   end
+
+  test "the link field asks for the thing this offer grows", %{conn: conn} do
+    post =
+      published_offer_fixture(%{
+        title: "Facebook post likes",
+        platform: "facebook",
+        outcome: "likes",
+        target: "post"
+      })
+
+    page =
+      published_offer_fixture(%{
+        title: "Facebook page likes",
+        platform: "facebook",
+        outcome: "likes",
+        target: "page",
+        service_attrs: %{external_id: "page-likes"}
+      })
+
+    video =
+      published_offer_fixture(%{
+        title: "YouTube views",
+        platform: "youtube",
+        outcome: "views",
+        service_attrs: %{external_id: "yt-views"}
+      })
+
+    {:ok, view, _html} = live(conn, ~p"/offers/#{post.id}")
+
+    assert has_element?(view, "#order-form", "Paste the Facebook post link")
+
+    assert has_element?(
+             view,
+             "#order-link[placeholder='https://facebook.com/yourpage/posts/123456789012345']"
+           )
+
+    assert has_element?(view, "#link-hint", "/posts/")
+    assert has_element?(view, "#link-sample", "facebook.com/yourpage/posts/")
+
+    {:ok, view, _html} = live(conn, ~p"/offers/#{page.id}")
+    assert has_element?(view, "#order-form", "Paste the Facebook page link")
+    assert has_element?(view, "#order-link[placeholder='https://facebook.com/yourpage']")
+    assert has_element?(view, "#link-hint", "page itself")
+
+    {:ok, view, _html} = live(conn, ~p"/offers/#{video.id}")
+    assert has_element?(view, "#order-form", "Paste the YouTube video link")
+    assert has_element?(view, "#order-link[placeholder='https://youtube.com/watch?v=ytExample1']")
+  end
 end

@@ -13,7 +13,7 @@ defmodule ViewNinjasWeb.OfferLive do
   alias ViewNinjas.Catalog
   alias ViewNinjas.Catalog.{Grade, Lane}
   alias ViewNinjas.{Links, Pricing}
-  alias ViewNinjasWeb.{Analytics, SEO}
+  alias ViewNinjasWeb.{Analytics, LinkPrompt, SEO}
 
   import ViewNinjasWeb.JourneyComponents
 
@@ -30,6 +30,7 @@ defmodule ViewNinjasWeb.OfferLive do
      |> assign(:max, nil)
      |> assign(:total, nil)
      |> assign(:quantity_error, nil)
+     |> assign(:link_prompt, LinkPrompt.for_offer(%{platform: "", outcome: ""}))
      |> assign(:form, to_form(%{"link" => "", "quantity" => ""}, as: "order"))}
   end
 
@@ -126,10 +127,18 @@ defmodule ViewNinjasWeb.OfferLive do
       >
         <.input
           field={@form[:link]}
-          label={gettext("The link to grow")}
-          placeholder="https://instagram.com/yourhandle"
+          id="order-link"
+          label={@link_prompt.label}
+          placeholder={@link_prompt.placeholder}
           autocomplete="off"
         />
+        <div class="vn-link-ask" id="link-hint">
+          <p class="vn-link-ask__hint">{@link_prompt.hint}</p>
+          <p class="vn-link-ask__sample" id="link-sample">
+            <span class="vn-link-ask__kicker">{gettext("Example")}</span>
+            {@link_prompt.placeholder}
+          </p>
+        </div>
         <.input
           field={@form[:quantity]}
           type="number"
@@ -183,6 +192,7 @@ defmodule ViewNinjasWeb.OfferLive do
     |> assign(:og_type, "product")
     |> assign(:structured_data, offer_structured_data(offer, socket.assigns.params, canonical))
     |> assign(:offer, offer)
+    |> assign(:link_prompt, LinkPrompt.for_offer(offer))
     |> assign(:grade, grade)
     |> assign(:paused, Lane.paused?(lane))
     |> assign_bounds(lane)

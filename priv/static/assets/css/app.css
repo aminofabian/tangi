@@ -3569,6 +3569,41 @@ p {
   animation-delay: 90ms;
 }
 
+/* The link field names the thing this offer grows, then shows a link of that shape. */
+.vn-link-ask {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  margin: 0 0 var(--vn-space-4);
+}
+
+.vn-link-ask__hint {
+  margin: 0;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-link-ask__sample {
+  margin: 0;
+  padding: var(--vn-space-2) var(--vn-space-3);
+  overflow-wrap: anywhere;
+  border-radius: var(--vn-radius-sm);
+  background: var(--vn-accent-soft);
+  color: var(--vn-text);
+  font-size: var(--vn-text-xs);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-link-ask__kicker {
+  margin-right: var(--vn-space-2);
+  color: var(--vn-muted);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .vn-pop-in {
   display: inline-block;
   animation: vn-pop 420ms var(--vn-ease) both;
