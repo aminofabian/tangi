@@ -9,10 +9,11 @@ defmodule ViewNinjasWeb.CheckoutLive do
   is short, a third button tops it up by the shortfall (the same prompt) and hands
   the buyer the wallet button back.
 
-  The account's phone must be verified first, because that is where the prompt
-  goes. A failure leaves the order exactly where it was — `awaiting_payment` —
-  and a retry is a new attempt with a new idempotency key, never a second prompt
-  on the same one.
+  Phone verification is not required to buy. The prompt goes to the number on the
+  account, and the wallet is offered whenever its balance covers the order. A
+  failure leaves the order exactly where it was — `awaiting_payment` — and a
+  retry is a new attempt with a new idempotency key, never a second prompt on
+  the same one.
   """
   use ViewNinjasWeb, :live_view
 
@@ -182,15 +183,7 @@ defmodule ViewNinjasWeb.CheckoutLive do
       </dl>
     </section>
 
-    <section :if={is_nil(@user.phone_verified_at)} class="vn-card" id="verify-first">
-      <h2>{gettext("Verify your phone to pay")}</h2>
-      <p class="vn-muted">
-        {gettext("The M-Pesa prompt goes to your phone, so we have to prove it is yours first.")}
-      </p>
-      <.link navigate={~p"/users/verify-phone"} class="vn-button">{gettext("Verify now")}</.link>
-    </section>
-
-    <section :if={@user.phone_verified_at} class="vn-card" id="pay">
+    <section class="vn-card" id="pay">
       <h2>{gettext("Pay")}</h2>
       <p :if={not @payments_configured} class="vn-error" id="payments-unconfigured">
         {gettext(

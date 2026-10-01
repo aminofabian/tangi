@@ -29,15 +29,39 @@ defmodule ViewNinjasWeb.CheckoutLiveTest do
     assert {:error, {:live_redirect, %{to: "/orders"}}} = live(conn, ~p"/checkout/#{order.id}")
   end
 
-  test "the phone must be verified before a prompt can be sent", %{conn: conn} do
+  test "an unverified phone can still pay, and the wallet balance is shown", %{conn: conn} do
     user = user_fixture()
     order = order_fixture(%{user: user})
+    credit_fixture(user, 5_000)
     conn = log_in_user(conn, user)
 
     {:ok, lv, _html} = live(conn, ~p"/checkout/#{order.id}")
 
-    assert has_element?(lv, "#verify-first")
-    refute has_element?(lv, "#pay-mpesa")
+    refute has_element?(lv, "#verify-first")
+    assert has_element?(lv, "#pay")
+    assert has_element?(lv, "#pay-mpesa")
+    assert render(lv) =~ "KSh 50"
+    # The wallet is short of the order, so checkout offers a top-up of the gap.
+    refute has_element?(lv, "#pay-wallet")
+    assert has_element?(lv, "#topup-wallet")
+  end
+
+  test "an unverified buyer whose wallet covers the order pays with no prompt", %{conn: conn} do
+    user = user_fixture()
+    order = order_fixture(%{user: user})
+    credit_fixture(user, order.retail_cents)
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/checkout/#{order.id}")
+
+    assert has_element?(lv, "#pay-wallet")
+    refute has_element?(lv, "#verify-first")
+
+    lv |> element("#pay-wallet") |> render_click()
+
+    assert has_element?(lv, "#payment-succeeded")
+    assert Orders.get_order!(order.id).state == :paid
+    assert Wallet.balance(user) == 0
   end
 
   test "a verified buyer sees the summary, the total and the pay button", %{conn: conn} do
