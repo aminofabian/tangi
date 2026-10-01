@@ -48,6 +48,43 @@ defmodule ViewNinjasWeb.OrderComponents do
   def kes(nil), do: "—"
   def kes(cents), do: Pricing.format_kes_cents(cents)
 
+  @doc "The four beats of delivery, once an order is paid."
+  def delivery_steps do
+    [
+      %{label: gettext("Paid")},
+      %{label: gettext("Sent")},
+      %{label: gettext("Arriving")},
+      %{label: gettext("Here")}
+    ]
+  end
+
+  @doc "Where this order sits on the delivery rail, or nil when it has left that story."
+  def runway_index(state) do
+    case state do
+      s when s in [:paid, :placing] -> 0
+      :placed -> 1
+      s when s in [:in_progress, :partial] -> 2
+      :completed -> 3
+      _ -> nil
+    end
+  end
+
+  @doc "The sentence under the delivery rail."
+  def runway_note(:paid),
+    do: gettext("Paid. We're sending it now — this page updates on its own.")
+
+  def runway_note(:placing), do: runway_note(:paid)
+  def runway_note(:placed), do: gettext("Sent. It's in the queue, and you'll see it move here.")
+
+  def runway_note(:in_progress),
+    do: gettext("Arriving. The count on this page moves as they land.")
+
+  def runway_note(:partial),
+    do: gettext("Part of it landed. The rest is back in your wallet.")
+
+  def runway_note(:completed), do: gettext("Here. All of them arrived.")
+  def runway_note(_state), do: nil
+
   @doc "An order state from the raw string on an `OrderEvent`, when we know it."
   @spec state_from_string(String.t() | nil) :: atom() | nil
   def state_from_string(string) when is_binary(string) do

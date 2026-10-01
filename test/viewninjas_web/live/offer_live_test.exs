@@ -39,6 +39,9 @@ defmodule ViewNinjasWeb.OfferLiveTest do
     offer = three_grade_offer()
     {:ok, view, _html} = live(conn, ~p"/offers/#{offer.id}")
 
+    assert has_element?(view, "#journey")
+    assert has_element?(view, "#journey-now")
+    refute render(view) =~ "next release"
     assert has_element?(view, "#pick-cheap")
     assert has_element?(view, "#pick-moderate")
     assert has_element?(view, "#pick-quality")

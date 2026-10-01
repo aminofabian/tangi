@@ -17,6 +17,7 @@ defmodule ViewNinjasWeb.CheckoutLive do
   """
   use ViewNinjasWeb, :live_view
 
+  import ViewNinjasWeb.JourneyComponents
   import ViewNinjasWeb.PaymentComponents
 
   alias ViewNinjas.Accounts.Phone
@@ -143,6 +144,9 @@ defmodule ViewNinjasWeb.CheckoutLive do
             title={gettext("Paid")}
             amount_cents={@order.retail_cents}
             receipt={@receipt}
+            celebrate={true}
+            next={~p"/orders/#{@order.id}"}
+            next_label={gettext("Watch it arrive")}
           />
         <% @mode == :failed -> %>
           <.failed amount_cents={@payment.amount_cents} failure={@failure} />
@@ -167,7 +171,9 @@ defmodule ViewNinjasWeb.CheckoutLive do
 
   defp review(assigns) do
     ~H"""
-    <section class="vn-card" id="order-summary">
+    <.journey step={:pay} />
+
+    <section class="vn-card vn-ticket vn-arrive" id="order-summary">
       <h2>{order_title(@order)}</h2>
       <dl class="vn-detail">
         <dt>{gettext("Grade")}</dt>
@@ -176,42 +182,52 @@ defmodule ViewNinjasWeb.CheckoutLive do
         <dd>{@order.quantity}</dd>
         <dt>{gettext("Link")}</dt>
         <dd class="vn-breakall">{@order.link}</dd>
-        <dt>{gettext("Total")}</dt>
-        <dd>
-          <span class="vn-total__value">{kes(@order.retail_cents)}</span>
-        </dd>
       </dl>
+      <p class="vn-ticket__total">
+        <span class="vn-muted">{gettext("Total")}</span>
+        <span class="vn-total__value">{kes(@order.retail_cents)}</span>
+      </p>
     </section>
 
-    <section class="vn-card" id="pay">
-      <h2>{gettext("Pay")}</h2>
+    <section class="vn-card vn-arrive vn-arrive--late" id="pay">
+      <h2>{gettext("How do you want to pay?")}</h2>
       <p :if={not @payments_configured} class="vn-error" id="payments-unconfigured">
         {gettext(
           "Payments need the secret key that starts with sk_live_. The client id cannot take a payment."
         )}
       </p>
 
-      <dl class="vn-detail">
-        <dt>{gettext("Total")}</dt>
-        <dd>
-          <span class="vn-total__value">{kes(@order.retail_cents)}</span>
-        </dd>
-        <dt>{gettext("Wallet")}</dt>
-        <dd>{kes(@wallet_balance)}</dd>
-      </dl>
+      <p class="vn-meter__label">
+        <span>{gettext("Wallet")}</span>
+        <span>
+          {kes(@wallet_balance)}
+          <span class="vn-muted">/ {kes(@order.retail_cents)}</span>
+        </span>
+      </p>
+      <div
+        class={["vn-meter", wallet_covers?(@order, @wallet_balance) && "vn-meter--full"]}
+        id="wallet-meter"
+        aria-hidden="true"
+      >
+        <span style={"--fill: #{coverage_pct(@order, @wallet_balance)}%"}></span>
+      </div>
 
       <div :if={@payments_configured} class="flex flex-col gap-2">
-        <button class="vn-button" phx-click="pay_mpesa" id="pay-mpesa">
-          {gettext("Pay %{amount} with M-Pesa", amount: kes(@order.retail_cents))}
-        </button>
-
         <button
           :if={wallet_covers?(@order, @wallet_balance)}
-          class="vn-button vn-button--muted"
+          class="vn-button"
           phx-click="pay_wallet"
           id="pay-wallet"
         >
           {gettext("Pay %{amount} from wallet", amount: kes(@order.retail_cents))}
+        </button>
+
+        <button
+          class={["vn-button", wallet_covers?(@order, @wallet_balance) && "vn-button--muted"]}
+          phx-click="pay_mpesa"
+          id="pay-mpesa"
+        >
+          {gettext("Pay %{amount} with M-Pesa", amount: kes(@order.retail_cents))}
         </button>
 
         <button
@@ -362,6 +378,12 @@ defmodule ViewNinjasWeb.CheckoutLive do
   end
 
   defp wallet_covers?(order, balance), do: balance >= order.retail_cents
+
+  defp coverage_pct(%{retail_cents: cents}, _balance) when cents <= 0, do: 0
+
+  defp coverage_pct(%{retail_cents: cents}, balance) do
+    div(min(balance, cents) * 100, cents)
+  end
 
   defp shortfall(order, balance), do: max(order.retail_cents - balance, @min_topup_cents)
 

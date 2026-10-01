@@ -23,6 +23,9 @@ defmodule ViewNinjasWeb.OrderLiveTest do
 
     {:ok, lv, _html} = live(conn, ~p"/orders/#{paid.id}")
 
+    assert has_element?(lv, "#journey")
+    assert has_element?(lv, "#runway")
+    assert has_element?(lv, "#runway-now", "sending it now")
     assert has_element?(lv, "#order-summary")
     assert has_element?(lv, "#order-summary .vn-state--paid")
     assert has_element?(lv, "#timeline")

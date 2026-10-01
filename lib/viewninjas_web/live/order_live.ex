@@ -8,6 +8,7 @@ defmodule ViewNinjasWeb.OrderLive do
   """
   use ViewNinjasWeb, :live_view
 
+  import ViewNinjasWeb.JourneyComponents
   import ViewNinjasWeb.OrderComponents
 
   alias ViewNinjas.{Orders, Payments}
@@ -70,7 +71,20 @@ defmodule ViewNinjasWeb.OrderLive do
       section={:orders}
       title={gettext("Order")}
     >
-      <section :if={@order} class="vn-card" id="order-summary">
+      <.journey :if={@order} step={journey_step(@order)} />
+
+      <section :if={@order && runway_index(@order.state)} class="vn-card vn-arrive" id="delivery">
+        <h2>{gettext("Where it is")}</h2>
+        <.path
+          id="runway"
+          label={gettext("Delivery")}
+          current={runway_index(@order.state)}
+          steps={delivery_steps()}
+          caption={runway_note(@order.state)}
+        />
+      </section>
+
+      <section :if={@order} class="vn-card vn-arrive" id="order-summary">
         <div class="flex items-start justify-between gap-3">
           <h2>{order_title(@order)}</h2>
           <.state_pill state={@order.state} />
@@ -126,6 +140,9 @@ defmodule ViewNinjasWeb.OrderLive do
   end
 
   # -- internals ---------------------------------------------------------
+
+  defp journey_step(%{state: :awaiting_payment}), do: :pay
+  defp journey_step(_order), do: :watch
 
   defp load(socket, %Order{} = order) do
     socket

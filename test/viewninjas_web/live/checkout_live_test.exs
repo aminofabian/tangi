@@ -71,7 +71,9 @@ defmodule ViewNinjasWeb.CheckoutLiveTest do
 
     {:ok, lv, _html} = live(conn, ~p"/checkout/#{order.id}")
 
+    assert has_element?(lv, "#journey")
     assert has_element?(lv, "#order-summary")
+    assert has_element?(lv, "#wallet-meter")
     assert render(lv) =~ "KSh 276"
     assert has_element?(lv, "#pay-mpesa")
     # An empty wallet cannot pay, so the option is not offered.
@@ -100,6 +102,7 @@ defmodule ViewNinjasWeb.CheckoutLiveTest do
     _ = :sys.get_state(lv.pid)
 
     assert has_element?(lv, "#payment-succeeded")
+    assert has_element?(lv, "#watch-order")
     assert render(lv) =~ "QKH7XYZ123"
     assert Orders.get_order!(order.id).state == :paid
   end

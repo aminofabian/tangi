@@ -1,12 +1,12 @@
 defmodule ViewNinjasWeb.OfferLive do
   @moduledoc """
   The offer page (scope.md §11): three grade cards, a link field, a quantity, and
-  a live total in whole shillings.
+  a live total in whole shillings. This is the Choose step of the buyer's path.
 
-  The total is a promise, not a charge — there is no `add` and no money until M7.
   Continue records the "checkout started" step of the funnel and, signed out,
-  sends the buyer to create an account. The link is untrusted input, so it goes
-  through `ViewNinjas.Links` and no server-side fetch is ever made (§13).
+  sends the buyer to create an account. Signed in, it creates the order and
+  hands them the Pay step. The link is untrusted input, so it goes through
+  `ViewNinjas.Links` and no server-side fetch is ever made (§13).
   """
   use ViewNinjasWeb, :live_view
 
@@ -14,6 +14,8 @@ defmodule ViewNinjasWeb.OfferLive do
   alias ViewNinjas.Catalog.{Grade, Lane}
   alias ViewNinjas.{Links, Pricing}
   alias ViewNinjasWeb.{Analytics, SEO}
+
+  import ViewNinjasWeb.JourneyComponents
 
   @impl true
   def mount(_params, session, socket) do
@@ -82,27 +84,25 @@ defmodule ViewNinjasWeb.OfferLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} section={:shop} title={@page_title}>
-      <section :if={@offer} class="vn-card" id="offer">
+      <.journey :if={@offer} step={:choose} signed_in?={signed_in?(@current_scope)} />
+
+      <section :if={@offer} class="vn-card vn-arrive" id="offer">
         <h2>{@offer.title}</h2>
         <p :if={@offer.description} class="vn-muted">{@offer.description}</p>
-        <p class="vn-muted">
-          {gettext(
-            "Buy %{title} in Kenya — priced in shillings and sold from your phone. Pick a grade, paste the link, choose how many, and pay by M-Pesa.",
-            title: @offer.title
-          )}
-        </p>
       </section>
 
       <div :if={@offer} class="vn-grades-pick">
         <button
-          :for={lane <- @offer.lanes}
+          :for={{lane, index} <- Enum.with_index(@offer.lanes)}
           type="button"
           phx-click="choose"
           phx-value-grade={lane.grade}
           class={["vn-grade-card", @grade == lane.grade && "vn-grade-card--on"]}
+          style={"--i: #{index}"}
           aria-pressed={to_string(@grade == lane.grade)}
           id={"pick-#{lane.grade}"}
         >
+          <span :if={@grade == lane.grade} class="vn-grade-card__tick" aria-hidden="true">✓</span>
           <span class="vn-grade">{Grade.label(lane.grade)}</span>
           <span class="vn-price">{price_label(lane, @params)}</span>
           <span class="vn-muted">{meta_label(lane)}</span>
@@ -116,7 +116,14 @@ defmodule ViewNinjasWeb.OfferLive do
         {demand_note()}
       </p>
 
-      <.form :if={@offer} for={@form} id="order-form" phx-change="update" phx-submit="checkout">
+      <.form
+        :if={@offer}
+        for={@form}
+        id="order-form"
+        class="vn-card vn-arrive vn-arrive--late"
+        phx-change="update"
+        phx-submit="checkout"
+      >
         <.input
           field={@form[:link]}
           label={gettext("The link to grow")}
@@ -133,19 +140,22 @@ defmodule ViewNinjasWeb.OfferLive do
         />
         <p class="vn-total" id="total">
           <span class="vn-muted">{gettext("Total")}</span>
-          <span class="vn-total__value">{@total || "—"}</span>
+          <span id={"quote-#{quote_key(@total)}"} class="vn-total__value vn-pop-in">
+            {@total || "—"}
+          </span>
         </p>
         <p :if={@quantity_error} class="vn-error" id="quantity-error">{@quantity_error}</p>
         <button class="vn-button" id="checkout" disabled={is_nil(@total) or @paused}>
-          {gettext("Continue")}
+          <%= if @total && signed_in?(@current_scope) do %>
+            {gettext("Pay %{total}", total: @total)}
+          <% else %>
+            {gettext("Continue")}
+          <% end %>
         </button>
+        <p class="vn-muted">
+          {gettext("Nothing is charged until you confirm on the next screen.")}
+        </p>
       </.form>
-
-      <p :if={@offer} class="vn-muted">
-        {gettext(
-          "No charge yet — paying arrives with the next release. This total is a promise, not a payment."
-        )}
-      </p>
 
       <p :if={@offer} class="vn-muted">
         <.link navigate={~p"/refunds"} class="text-brand hover:underline" id="refund-link">
@@ -371,12 +381,15 @@ defmodule ViewNinjasWeb.OfferLive do
     if Lane.on_sale?(lane), do: :ok, else: {:error, demand_message()}
   end
 
-  defp signed_in?(socket) do
-    case socket.assigns[:current_scope] do
-      %{user: %{}} -> true
-      _ -> false
-    end
-  end
+  defp signed_in?(%Phoenix.LiveView.Socket{} = socket),
+    do: signed_in?(socket.assigns[:current_scope])
+
+  defp signed_in?(%{user: %{}}), do: true
+  defp signed_in?(_), do: false
+
+  # A fresh node each time the quote changes, so the price pops again.
+  defp quote_key(nil), do: "empty"
+  defp quote_key(total), do: :erlang.phash2(total)
 
   defp price_label(lane, params),
     do: Pricing.format_selling_cents(Lane.selling_cents(lane, params))

@@ -91,6 +91,8 @@ defmodule ViewNinjasWeb.PaymentComponents do
   attr :celebrate, :boolean, default: false
   attr :balance, :string, default: nil
   attr :closer, :string, default: nil
+  attr :next, :string, default: nil
+  attr :next_label, :string, default: nil
 
   def succeeded(assigns) do
     ~H"""
@@ -111,13 +113,21 @@ defmodule ViewNinjasWeb.PaymentComponents do
       <p :if={@celebrate && @balance} class="vn-muted">
         {gettext("Your wallet now holds %{balance}.", balance: @balance)}
       </p>
-      <p :if={!@celebrate} class="vn-muted">
+      <p :if={@next} class="vn-muted">
+        {gettext("It's paid. Watch it leave — the next screen updates on its own.")}
+      </p>
+      <p :if={is_nil(@next) and not @celebrate} class="vn-muted">
         {gettext("We're starting your order now. You'll see it move on the Orders tab.")}
       </p>
       <button :if={@closer} class="vn-button" phx-click={@closer} id="topup-done">
         {gettext("Back to wallet")}
       </button>
-      <.link :if={!@closer} navigate={~p"/orders"} class="vn-button">{gettext("See your orders")}</.link>
+      <.link :if={@next} navigate={@next} class="vn-button" id="watch-order">
+        {@next_label || gettext("Watch it arrive")}
+      </.link>
+      <.link :if={is_nil(@closer) and is_nil(@next)} navigate={~p"/orders"} class="vn-button">
+        {gettext("See your orders")}
+      </.link>
     </section>
     """
   end

@@ -1904,6 +1904,7 @@ p {
 }
 
 .vn-grade-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--vn-space-1);
@@ -1918,6 +1919,29 @@ p {
     border-color var(--vn-fast) var(--vn-ease),
     box-shadow var(--vn-fast) var(--vn-ease),
     transform var(--vn-fast) var(--vn-ease);
+}
+
+.vn-grades-pick .vn-grade-card {
+  animation: vn-rise 420ms var(--vn-ease) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+.vn-grade-card__tick {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  display: grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-accent);
+  color: var(--vn-on-accent);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  line-height: 1;
+  animation: vn-pop 320ms var(--vn-ease) both;
 }
 
 @media (hover: hover) {
@@ -3247,6 +3271,186 @@ p {
   }
 }
 
+/* The buyer's path: Choose → Pay → Watch, and the delivery rail under it.
+ * `backwards` (not `both`) so a later hover transform is not pinned by the
+ * entrance animation. */
+.vn-path {
+  display: grid;
+  grid-template-columns: repeat(var(--steps, 3), minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vn-path__stop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--vn-space-1);
+  text-align: center;
+  animation: vn-rise 360ms var(--vn-ease) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+.vn-path__stop:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 0.4rem;
+  left: calc(50% + 0.6rem);
+  width: calc(100% - 1.2rem);
+  height: 2px;
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-border);
+}
+
+.vn-path__stop--done:not(:last-child)::before {
+  background: var(--vn-accent);
+  transform-origin: left center;
+  animation: vn-draw 480ms var(--vn-ease) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms + 140ms);
+}
+
+.vn-path__dot {
+  position: relative;
+  z-index: 1;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid var(--vn-border);
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-surface);
+}
+
+.vn-path__stop--done .vn-path__dot {
+  border-color: var(--vn-accent);
+  background: var(--vn-accent);
+}
+
+.vn-path__stop--now .vn-path__dot {
+  border-color: var(--vn-accent);
+  background: var(--vn-accent);
+  animation: vn-glow 1.6s ease-in-out infinite;
+}
+
+.vn-path__label {
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-2xs);
+  font-weight: 700;
+  color: var(--vn-muted);
+}
+
+.vn-path__stop--now .vn-path__label,
+.vn-path__stop--done .vn-path__label {
+  color: var(--vn-text);
+}
+
+.vn-path__now {
+  margin: var(--vn-space-2) 0 0;
+  text-align: center;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+  animation: vn-rise 420ms var(--vn-ease) backwards;
+  animation-delay: 180ms;
+}
+
+.vn-meter__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  margin: 0 0 var(--vn-space-2);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.vn-meter {
+  height: 0.5rem;
+  margin: 0 0 var(--vn-space-4);
+  overflow: hidden;
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-border);
+}
+
+.vn-meter > span {
+  display: block;
+  height: 100%;
+  width: var(--fill, 0%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--tangi-cyan), var(--vn-accent));
+  transform-origin: left center;
+  animation: vn-fill 700ms var(--vn-ease) both;
+}
+
+.vn-meter--full > span {
+  background: linear-gradient(90deg, var(--tangi-cyan), var(--tangi-yellow));
+}
+
+.vn-ticket__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vn-space-4);
+  margin: var(--vn-space-3) 0 0;
+  padding-top: var(--vn-space-3);
+  border-top: 1px dashed var(--vn-border);
+}
+
+.vn-arrive {
+  animation: vn-rise 420ms var(--vn-ease) backwards;
+}
+
+.vn-arrive--late {
+  animation-delay: 90ms;
+}
+
+.vn-pop-in {
+  display: inline-block;
+  animation: vn-pop 420ms var(--vn-ease) both;
+}
+
+@keyframes vn-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.45rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes vn-draw {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes vn-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--vn-accent-soft);
+  }
+
+  50% {
+    box-shadow: 0 0 0 0.35rem var(--vn-accent-soft);
+  }
+}
+
+@keyframes vn-fill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -3631,10 +3835,31 @@ p {
   text-decoration: none;
   color: var(--vn-text);
   -webkit-tap-highlight-color: transparent;
+  animation: vn-rise 400ms var(--vn-ease) backwards;
   transition:
     border-color var(--vn-fast) var(--vn-ease),
     box-shadow var(--vn-fast) var(--vn-ease),
     transform var(--vn-fast) var(--vn-ease);
+}
+
+.vn-tiles .vn-tile:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.vn-tiles .vn-tile:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.vn-tiles .vn-tile:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.vn-tiles .vn-tile:nth-child(5) {
+  animation-delay: 160ms;
+}
+
+.vn-tiles .vn-tile:nth-child(n + 6) {
+  animation-delay: 200ms;
 }
 
 @media (hover: hover) {
