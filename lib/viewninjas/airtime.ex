@@ -64,7 +64,7 @@ defmodule ViewNinjas.Airtime do
         # Queued only once the debit has committed, so a job never runs against
         # uncommitted state.
         _ = Enum.each(orders, &SendAirtime.enqueue(&1.id))
-        _ = touch_recipients(user, phones)
+        _ = remember_recipients(user, phones)
         ok
 
       error ->
@@ -286,39 +286,36 @@ defmodule ViewNinjas.Airtime do
 
   # -- saved recipients --------------------------------------------------
 
-  @doc "The customer's saved numbers, most recently used first."
+  @doc "The customer's remembered numbers, most recently bought first."
   @spec list_recipients(User.t()) :: [SavedRecipient.t()]
   def list_recipients(%User{id: user_id}) do
     SavedRecipient
     |> where([r], r.user_id == ^user_id)
-    |> order_by([r], desc_nulls_last: r.last_used_at, desc: r.inserted_at)
+    # `id` breaks a same-second tie, so the order is stable.
+    |> order_by([r], desc_nulls_last: r.last_used_at, desc: r.id)
     |> Repo.all()
   end
 
   @doc """
-  Saves a number for future buys. Idempotent: saving the same number again only
-  updates its label, never duplicates it.
+  Files each recipient away for reuse, so **saving happens by buying** — there is no
+  separate "save this number" step. Idempotent and label-preserving: a number already
+  on the list only has its `last_used_at` bumped, so the picker floats it and a name it
+  may carry later is never wiped.
   """
-  @spec save_recipient(User.t(), String.t(), String.t() | nil) ::
-          {:ok, SavedRecipient.t()} | {:error, term()}
-  def save_recipient(%User{} = user, raw_phone, label) do
-    case Phone.normalize(raw_phone) do
-      {:ok, phone} -> insert_recipient(user, phone, label)
-      {:error, :invalid_phone} -> {:error, :invalid_phone}
-    end
-  end
+  @spec remember_recipients(User.t(), [String.t()]) :: :ok
+  def remember_recipients(%User{id: user_id}, phones) when is_list(phones) do
+    now = DateTime.utc_now(:second)
 
-  defp insert_recipient(user, phone, label) do
-    %SavedRecipient{}
-    |> SavedRecipient.changeset(%{
-      user_id: user.id,
-      phone: phone,
-      label: label && String.trim(label)
-    })
-    |> Repo.insert(
-      on_conflict: {:replace, [:label, :updated_at]},
-      conflict_target: [:user_id, :phone]
-    )
+    Enum.each(phones, fn phone ->
+      %SavedRecipient{}
+      |> SavedRecipient.changeset(%{user_id: user_id, phone: phone, last_used_at: now})
+      |> Repo.insert(
+        on_conflict: {:replace, [:last_used_at, :updated_at]},
+        conflict_target: [:user_id, :phone]
+      )
+    end)
+
+    :ok
   end
 
   @doc "Removes a saved number, but only one this customer owns."
@@ -327,18 +324,6 @@ defmodule ViewNinjas.Airtime do
     SavedRecipient
     |> where([r], r.id == ^id and r.user_id == ^user_id)
     |> Repo.delete_all()
-
-    :ok
-  end
-
-  @doc "Stamps the saved numbers in this buy as just used, so the picker floats them."
-  @spec touch_recipients(User.t(), [String.t()]) :: :ok
-  def touch_recipients(%User{id: user_id}, phones) when is_list(phones) do
-    now = DateTime.utc_now(:second)
-
-    SavedRecipient
-    |> where([r], r.user_id == ^user_id and r.phone in ^phones)
-    |> Repo.update_all(set: [last_used_at: now, updated_at: now])
 
     :ok
   end

@@ -105,27 +105,42 @@ defmodule ViewNinjas.AirtimeTest do
     end
   end
 
-  describe "saved recipients" do
-    test "saves a canonical number once, and updates its label" do
-      user = user_fixture()
+  describe "remembered numbers" do
+    test "buying a number remembers it for next time" do
+      user = funded_user(100_000)
 
-      assert {:ok, recipient} = Airtime.save_recipient(user, "0712 345 678", "Mum")
-      assert recipient.phone == "254712345678"
+      {:ok, _orders} =
+        Airtime.buy(user, %{amount_cents: 5_000, phones: ["0712345678", "0722000111"]})
 
-      assert {:ok, again} = Airtime.save_recipient(user, "254712345678", "Mum ❤")
-      assert again.id == recipient.id
-      assert again.label == "Mum ❤"
-      assert length(Airtime.list_recipients(user)) == 1
+      phones = user |> Airtime.list_recipients() |> Enum.map(& &1.phone)
+      assert Enum.sort(phones) == ["254712345678", "254722000111"]
     end
 
-    test "an invalid number is refused" do
-      assert {:error, :invalid_phone} = Airtime.save_recipient(user_fixture(), "nope", nil)
+    test "remembering the same number twice does not duplicate it" do
+      user = user_fixture()
+
+      :ok = Airtime.remember_recipients(user, ["254712345678"])
+      :ok = Airtime.remember_recipients(user, ["254712345678"])
+
+      assert [recipient] = Airtime.list_recipients(user)
+      assert recipient.phone == "254712345678"
+    end
+
+    test "the most recently bought number floats first" do
+      user = funded_user(100_000)
+
+      {:ok, _} = Airtime.buy(user, %{amount_cents: 5_000, phones: ["0712345678"]})
+      {:ok, _} = Airtime.buy(user, %{amount_cents: 5_000, phones: ["0722000111"]})
+
+      assert [first | _] = Airtime.list_recipients(user)
+      assert first.phone == "254722000111"
     end
 
     test "delete removes only the customer's own number" do
       user = user_fixture()
       other = user_fixture()
-      {:ok, recipient} = Airtime.save_recipient(user, "0712345678", nil)
+      :ok = Airtime.remember_recipients(user, ["254712345678"])
+      [recipient] = Airtime.list_recipients(user)
 
       :ok = Airtime.delete_recipient(other, recipient.id)
       assert length(Airtime.list_recipients(user)) == 1

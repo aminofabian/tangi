@@ -2,8 +2,9 @@ defmodule ViewNinjasWeb.AirtimeLive do
   @moduledoc """
   Buying airtime (scope: `docs/instalipa-airtime.md` §8).
 
-  One number or a bulk list, paid from the wallet. Saved numbers are reusable — the
-  picker drops one into the list — and this is also where they are kept.
+  One number or a bulk list, paid from the wallet, with a running total so nothing
+  irreversible is a surprise. The numbers you buy for are **remembered as you buy** —
+  there is no separate "save" step — and offered back for the next time.
   """
 
   use ViewNinjasWeb, :live_view
@@ -20,12 +21,13 @@ defmodule ViewNinjasWeb.AirtimeLive do
      socket
      |> assign(:analytics, Analytics.capture(socket, session))
      |> assign(:form, buy_form("", ""))
-     |> assign(:recipient_form, to_form(%{"phone" => "", "label" => ""}, as: "recipient"))
      |> assign(:error, nil)
      |> assign(:purchased, [])
+     |> assign(:preview, %{})
      |> load_wallet()
      |> load_saved()
-     |> load_recent()}
+     |> load_recent()
+     |> refresh_preview()}
   end
 
   @impl true
@@ -36,19 +38,28 @@ defmodule ViewNinjasWeb.AirtimeLive do
 
   @impl true
   def handle_event("validate", %{"airtime" => params}, socket) do
-    {:noreply, assign(socket, form: to_form(params, as: "airtime"))}
+    {:noreply, socket |> assign(:form, to_form(params, as: "airtime")) |> refresh_preview()}
   end
 
   def handle_event("pick_amount", %{"amount" => amount}, socket) do
     numbers = socket.assigns.form[:numbers].value
-    {:noreply, assign(socket, form: buy_form(amount, numbers))}
+    {:noreply, socket |> assign(:form, buy_form(amount, numbers)) |> refresh_preview()}
   end
 
+  # Tap a remembered number and it drops into the list.
   def handle_event("use_recipient", %{"phone" => phone}, socket) do
     numbers = socket.assigns.form[:numbers].value || ""
     joined = if String.trim(numbers) == "", do: phone, else: numbers <> "\n" <> phone
 
-    {:noreply, assign(socket, form: buy_form(socket.assigns.form[:amount].value, joined))}
+    {:noreply,
+     socket
+     |> assign(:form, buy_form(socket.assigns.form[:amount].value, joined))
+     |> refresh_preview()}
+  end
+
+  def handle_event("delete_recipient", %{"id" => id}, socket) do
+    _ = Airtime.delete_recipient(socket.assigns.current_scope.user, String.to_integer(id))
+    {:noreply, load_saved(socket)}
   end
 
   def handle_event("buy", %{"airtime" => params}, socket) do
@@ -64,15 +75,13 @@ defmodule ViewNinjasWeb.AirtimeLive do
            |> assign(:purchased, orders)
            |> assign(:form, buy_form("", ""))
            |> load_wallet()
-           |> load_recent()}
+           |> load_saved()
+           |> load_recent()
+           |> refresh_preview()}
 
         {:error, :insufficient_funds} ->
           {:noreply,
-           assign(
-             socket,
-             :error,
-             gettext("Your wallet does not cover this. Add money, then try again.")
-           )}
+           assign(socket, :error, gettext("Your wallet does not cover this. Add money first."))}
 
         {:error, reason} ->
           {:noreply, assign(socket, :error, error_copy(reason))}
@@ -80,29 +89,6 @@ defmodule ViewNinjasWeb.AirtimeLive do
     else
       {:error, message} -> {:noreply, assign(socket, :error, message)}
     end
-  end
-
-  def handle_event("save_recipient", %{"recipient" => params}, socket) do
-    user = socket.assigns.current_scope.user
-
-    case Airtime.save_recipient(user, params["phone"], params["label"]) do
-      {:ok, _recipient} ->
-        {:noreply,
-         socket
-         |> assign(:recipient_form, to_form(%{"phone" => "", "label" => ""}, as: "recipient"))
-         |> load_saved()}
-
-      {:error, :invalid_phone} ->
-        {:noreply, put_flash(socket, :error, gettext("That is not a Kenyan mobile number."))}
-
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, gettext("Could not save that number."))}
-    end
-  end
-
-  def handle_event("delete_recipient", %{"id" => id}, socket) do
-    _ = Airtime.delete_recipient(socket.assigns.current_scope.user, String.to_integer(id))
-    {:noreply, load_saved(socket)}
   end
 
   @impl true
@@ -114,7 +100,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
       section={:shop}
       title={gettext("Airtime")}
     >
-      <section class="vn-card">
+      <section class="vn-card" id="airtime-wallet">
         <p class="vn-muted">{gettext("Wallet")}</p>
         <p class="vn-total__value">{kes(@balance)}</p>
       </section>
@@ -122,7 +108,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
       <section class="vn-card" id="buy-airtime">
         <h2>{gettext("Buy airtime")}</h2>
         <p class="vn-muted">
-          {gettext("Type a number (or several, one per line) and an amount. Paid from your wallet.")}
+          {gettext("Pick an amount, add one or more numbers, and it goes out at once.")}
         </p>
 
         <.form for={@form} id="airtime-form" phx-submit="buy" phx-change="validate">
@@ -157,22 +143,53 @@ defmodule ViewNinjasWeb.AirtimeLive do
             field={@form[:numbers]}
             type="textarea"
             rows="3"
-            label={gettext("Numbers")}
+            label={gettext("Who's getting it?")}
             placeholder={gettext("0712 345 678\n0722 000 111")}
           />
 
-          <div :if={@saved != []} class="vn-chips" id="saved-picker">
-            <button
-              :for={recipient <- @saved}
-              type="button"
-              id={"use-#{recipient.id}"}
-              class="vn-chip"
-              phx-click="use_recipient"
-              phx-value-phone={recipient.phone}
-            >
-              {recipient.label || Phone.format(recipient.phone)}
-            </button>
+          <section :if={@saved != []} id="airtime-recents">
+            <p class="vn-muted">{gettext("Recent numbers — tap to add")}</p>
+            <div class="vn-recents">
+              <span :for={recipient <- @saved} class="vn-recent" id={"saved-#{recipient.id}"}>
+                <button
+                  type="button"
+                  class="vn-recent__add"
+                  phx-click="use_recipient"
+                  phx-value-phone={recipient.phone}
+                >
+                  {recipient.label || Phone.format(recipient.phone)}
+                </button>
+                <button
+                  type="button"
+                  class="vn-recent__forget"
+                  phx-click="delete_recipient"
+                  phx-value-id={recipient.id}
+                  aria-label={gettext("Forget this number")}
+                >
+                  <.icon name="hero-x-mark" class="size-3" />
+                </button>
+              </span>
+            </div>
+          </section>
+
+          <p :if={@preview[:invalid] not in [nil, []]} class="vn-error" id="airtime-invalid">
+            {gettext("Not a Kenyan number: %{list}", list: Enum.join(@preview.invalid, ", "))}
+          </p>
+
+          <div
+            :if={summary?(@preview)}
+            class={["vn-summary", @preview.short && "vn-summary--short"]}
+            id="airtime-summary"
+          >
+            <span>{summary_label(@preview)}</span>
+            <span class="vn-summary__total">{kes(@preview.total_cents)}</span>
           </div>
+
+          <p :if={@preview[:short]} class="vn-muted">
+            {gettext("Add %{short} to your wallet to cover it.",
+              short: kes(@preview.total_cents - @balance)
+            )}
+          </p>
 
           <p :if={@error} class="vn-error" id="airtime-error">{@error}</p>
 
@@ -182,6 +199,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
 
       <section :if={@purchased != []} class="vn-card" id="airtime-purchased">
         <h2>{gettext("On its way")}</h2>
+        <p class="vn-muted">{gettext("Saved to your numbers for next time.")}</p>
         <ul class="vn-detail">
           <li :for={order <- @purchased} id={"purchased-#{order.id}"}>
             <span>{Phone.format(order.phone)}</span>
@@ -189,47 +207,6 @@ defmodule ViewNinjasWeb.AirtimeLive do
             <span class="vn-price">{kes(order.amount_cents)}</span>
           </li>
         </ul>
-      </section>
-
-      <section class="vn-card" id="saved-recipients">
-        <h2>{gettext("Saved numbers")}</h2>
-        <p class="vn-muted">{gettext("Keep the numbers you top up often.")}</p>
-
-        <.form for={@recipient_form} id="recipient-form" phx-submit="save_recipient">
-          <.input
-            field={@recipient_form[:phone]}
-            type="tel"
-            inputmode="tel"
-            label={gettext("Number")}
-            placeholder={gettext("0712 345 678")}
-          />
-          <.input
-            field={@recipient_form[:label]}
-            type="text"
-            label={gettext("Name (optional)")}
-            placeholder={gettext("Mum")}
-          />
-          <button class="vn-button vn-button--muted" id="save-recipient">
-            {gettext("Save number")}
-          </button>
-        </.form>
-
-        <ul class="vn-detail" id="saved-list">
-          <li :for={recipient <- @saved} id={"saved-#{recipient.id}"}>
-            <span>{recipient.label || Phone.format(recipient.phone)}</span>
-            <span class="vn-muted">{Phone.format(recipient.phone)}</span>
-            <button
-              type="button"
-              class="vn-button vn-button--muted"
-              phx-click="delete_recipient"
-              phx-value-id={recipient.id}
-              aria-label={gettext("Remove")}
-            >
-              <.icon name="hero-x-mark" class="size-4" />
-            </button>
-          </li>
-        </ul>
-        <p :if={@saved == []} class="vn-muted">{gettext("No saved numbers yet.")}</p>
       </section>
 
       <section :if={@recent != []} class="vn-card" id="airtime-recent">
@@ -263,9 +240,52 @@ defmodule ViewNinjasWeb.AirtimeLive do
     to_form(%{"amount" => amount || "", "numbers" => numbers || ""}, as: "airtime")
   end
 
+  # The running total, so an irreversible buy is never a surprise. Lenient: it reads
+  # whatever is typed and says what it makes of it, rather than waiting for submit.
+  defp refresh_preview(socket) do
+    amount = parse_shillings(socket.assigns.form[:amount].value)
+    numbers = split_numbers(socket.assigns.form[:numbers].value)
+    {valid, invalid} = Enum.split_with(numbers, &Phone.valid?/1)
+    count = valid |> Enum.map(&Phone.normalize_or_self/1) |> Enum.uniq() |> length()
+    total = if amount, do: amount * count, else: nil
+
+    assign(socket, :preview, %{
+      amount_cents: amount,
+      count: count,
+      invalid: invalid,
+      total_cents: total,
+      short: is_integer(total) and total > socket.assigns.balance
+    })
+  end
+
+  defp summary?(preview), do: preview[:count] > 0 and is_integer(preview[:amount_cents])
+
+  defp summary_label(preview) do
+    if preview.short do
+      gettext("Your wallet is short")
+    else
+      gettext("%{each} each to %{count}",
+        each: kes(preview.amount_cents),
+        count: recipient_count(preview.count)
+      )
+    end
+  end
+
+  defp recipient_count(1), do: gettext("1 number")
+  defp recipient_count(count), do: gettext("%{count} numbers", count: count)
+
   defp amounts, do: [50, 100, 200, 500]
 
   defp picked?(form, amount), do: to_string(form[:amount].value) == to_string(amount)
+
+  defp parse_shillings(value) when is_binary(value) do
+    case Integer.parse(String.trim(value)) do
+      {shillings, ""} when shillings > 0 -> shillings * 100
+      _ -> nil
+    end
+  end
+
+  defp parse_shillings(_value), do: nil
 
   defp parse_amount(value) when is_binary(value) do
     case Integer.parse(String.trim(value)) do
@@ -276,12 +296,14 @@ defmodule ViewNinjasWeb.AirtimeLive do
 
   defp parse_amount(_value), do: {:error, gettext("Enter an amount.")}
 
+  # Split on lines and separators only — never on spaces, because a Kenyan number is
+  # often written "0722 000 111" and splitting on spaces tears it in three.
+  defp split_numbers(text) when is_binary(text), do: String.split(text, ~r/[\n,;]+/, trim: true)
+  defp split_numbers(_text), do: []
+
   defp parse_phones(text) when is_binary(text) do
-    # Split on lines and separators only — never on spaces, because a Kenyan
-    # number is often written "0722 000 111" and splitting on spaces tears it in
-    # three. `Phone.normalize/1` strips the spaces inside each entry.
     text
-    |> String.split(~r/[\n,;]+/, trim: true)
+    |> split_numbers()
     |> Enum.reduce_while({:ok, []}, fn number, {:ok, acc} ->
       case Phone.normalize(number) do
         {:ok, phone} -> {:cont, {:ok, [phone | acc]}}

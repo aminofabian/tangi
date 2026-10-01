@@ -555,6 +555,98 @@ p {
   padding-inline: var(--vn-space-3);
 }
 
+/* ------------------------------------------- remembered recipients (§ airtime) */
+
+/* The numbers a customer has bought for before. Tapping the number adds it; the
+ * trailing × forgets it, inside the same pill. */
+.vn-recents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vn-space-2);
+  margin-top: var(--vn-space-2);
+}
+
+.vn-recent {
+  display: inline-flex;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
+}
+
+.vn-recent__add {
+  border: 0;
+  background: transparent;
+  min-height: var(--vn-control-h);
+  padding: 0 var(--vn-space-2) 0 var(--vn-space-4);
+  font-family: var(--vn-font-display);
+  font-weight: 700;
+  font-size: var(--vn-text-ui);
+  color: var(--vn-text);
+  cursor: pointer;
+}
+
+.vn-recent__forget {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  border-left: 1px solid var(--vn-border);
+  background: transparent;
+  min-height: var(--vn-control-h);
+  padding: 0 var(--vn-space-3);
+  color: var(--vn-muted);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .vn-recent__add:hover {
+    background: var(--vn-accent-soft);
+  }
+
+  .vn-recent__forget:hover {
+    background: var(--vn-danger-soft);
+    color: var(--vn-danger);
+  }
+}
+
+.vn-recent__add:focus-visible,
+.vn-recent__forget:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: -3px;
+}
+
+/* --------------------------------------------- the live buy summary (§ airtime) */
+
+/* What the buy adds up to, said before the button: an irreversible spend must not
+ * be a surprise. */
+.vn-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  margin-top: var(--vn-space-3);
+  padding: var(--vn-space-3) var(--vn-space-4);
+  border-radius: var(--vn-radius-sm);
+  background: var(--vn-accent-soft);
+  color: var(--vn-text);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+}
+
+.vn-summary--short {
+  background: var(--vn-danger-soft);
+  color: var(--vn-danger);
+}
+
+.vn-summary__total {
+  font-family: var(--vn-font-display);
+  font-weight: 700;
+  font-size: var(--vn-text-lg);
+  white-space: nowrap;
+}
+
 /* A row of actions that wraps.
  *
  * Note: Tailwind's `flex flex-wrap` is *not* in default.css — it only ships the

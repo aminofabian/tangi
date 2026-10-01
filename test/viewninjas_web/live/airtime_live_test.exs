@@ -84,27 +84,62 @@ defmodule ViewNinjasWeb.AirtimeLiveTest do
     assert Airtime.list_for_user(user) == []
   end
 
-  test "saves a number, offers it back, and removes it", %{conn: conn} do
+  test "a bought number is remembered and offered back", %{conn: conn} do
     user = funded_user(50_000)
     conn = log_in_user(conn, user)
 
     {:ok, lv, _html} = live(conn, ~p"/airtime")
 
     lv
-    |> form("#recipient-form", recipient: %{phone: "0712 345 678", label: "Mum"})
+    |> form("#airtime-form", airtime: %{amount: "100", numbers: "0712345678"})
     |> render_submit()
 
     assert [recipient] = Airtime.list_recipients(user)
     assert recipient.phone == "254712345678"
-    assert has_element?(lv, "#saved-#{recipient.id}", "Mum")
+    assert has_element?(lv, "#saved-#{recipient.id}")
 
-    # The picker drops the number into the list.
-    html = lv |> element("#use-#{recipient.id}") |> render_click()
+    # Tapping it drops the number back into the list.
+    html = lv |> element("#saved-#{recipient.id} .vn-recent__add") |> render_click()
     assert html =~ "254712345678"
 
-    # And it can be removed.
-    lv |> element("#saved-#{recipient.id} button") |> render_click()
+    # And it can be forgotten from the same pill.
+    lv |> element("#saved-#{recipient.id} .vn-recent__forget") |> render_click()
     assert Airtime.list_recipients(user) == []
-    assert has_element?(lv, "#saved-recipients", "No saved numbers yet")
+  end
+
+  test "shows the running total before buying", %{conn: conn} do
+    user = funded_user(50_000)
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/airtime")
+
+    html =
+      lv
+      |> form("#airtime-form", airtime: %{amount: "100", numbers: "0712345678\n0722000111"})
+      |> render_change()
+
+    assert html =~ "airtime-summary"
+    assert html =~ "KSh 200"
+    refute html =~ "vn-summary--short"
+  end
+
+  test "warns when the wallet is short of the total", %{conn: conn} do
+    user = funded_user(20_000)
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/airtime")
+
+    html =
+      lv
+      |> form("#airtime-form",
+        airtime: %{
+          amount: "100",
+          numbers: "0712345678\n0722000111\n0733000222"
+        }
+      )
+      |> render_change()
+
+    assert html =~ "vn-summary--short"
+    assert html =~ "Add KSh 100"
   end
 end
