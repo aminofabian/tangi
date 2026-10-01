@@ -611,6 +611,50 @@ p {
   outline-offset: -3px;
 }
 
+/* --------------------------------------------------- networks (§ airtime) */
+
+/* The networks airtime reaches, and the one a number sits on. One quiet, on-brand
+ * pill for all of them: a per-network colour would be arbitrary here and could read
+ * as a status. */
+.vn-nets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--vn-space-2);
+  margin-top: var(--vn-space-2);
+}
+
+.vn-net {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem var(--vn-space-2);
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-accent-soft);
+  color: var(--vn-accent-text);
+  font-size: var(--vn-text-xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* A plain list of rows inside a card — a label on the left, its value on the right.
+ * (`.vn-detail` is a dt/dd grid, which is not what a list of <li>s is.) */
+.vn-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vn-rows li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  font-size: var(--vn-text-ui);
+}
+
 /* --------------------------------------------- the live buy summary (§ airtime) */
 
 /* What the buy adds up to, said before the button: an irreversible spend must not

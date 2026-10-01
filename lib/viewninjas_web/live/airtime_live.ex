@@ -175,8 +175,14 @@ defmodule ViewNinjasWeb.AirtimeLive do
     <section class="vn-card" id="buy-airtime">
       <h2>{gettext("Buy airtime")}</h2>
       <p class="vn-muted">
-        {gettext("Pick an amount, add one or more numbers, and it goes out at once.")}
+        {gettext("Any Kenyan number, on any network — add one or more and it goes out at once.")}
       </p>
+      <%!-- Named up front, so "any network" reads as an answer rather than a claim. --%>
+      <div class="vn-nets" id="airtime-networks" aria-label={gettext("Networks we top up")}>
+        <span :for={network <- Phone.networks()} class="vn-net" id={"net-#{network}"}>
+          {Phone.network_name(network)}
+        </span>
+      </div>
 
       <.form for={@form} id="airtime-form" phx-submit="buy" phx-change="validate">
         <div class="vn-amount">
@@ -243,6 +249,20 @@ defmodule ViewNinjasWeb.AirtimeLive do
           {gettext("Not a Kenyan number: %{list}", list: Enum.join(@preview.invalid, ", "))}
         </p>
 
+        <%!-- What we make of the list so far, number by number — and which network
+              each one is on, so nothing about the buy is a guess. --%>
+        <div :if={@preview.recipients != []} id="airtime-recipients">
+          <p class="vn-muted">{gettext("Going to")}</p>
+          <ul class="vn-rows">
+            <li :for={recipient <- @preview.recipients} id={"going-#{recipient.phone}"}>
+              <span>{Phone.format(recipient.phone)}</span>
+              <span :if={recipient.network} class="vn-net">
+                {Phone.network_name(recipient.network)}
+              </span>
+            </li>
+          </ul>
+        </div>
+
         <div
           :if={summary?(@preview)}
           class={["vn-summary", @preview.short && "vn-summary--short"]}
@@ -293,7 +313,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
     <section :if={@purchased != []} class="vn-card" id="airtime-purchased">
       <h2>{gettext("On its way")}</h2>
       <p class="vn-muted">{gettext("Saved to your numbers for next time.")}</p>
-      <ul class="vn-detail">
+      <ul class="vn-rows">
         <li :for={order <- @purchased} id={"purchased-#{order.id}"}>
           <span>{Phone.format(order.phone)}</span>
           <span class="vn-muted">{state_label(order.state)}</span>
@@ -304,7 +324,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
 
     <section :if={@recent != []} class="vn-card" id="airtime-recent">
       <h2>{gettext("Recent airtime")}</h2>
-      <ul class="vn-detail">
+      <ul class="vn-rows">
         <li :for={order <- @recent} id={"airtime-#{order.id}"}>
           <span>{Phone.format(order.phone)}</span>
           <span class="vn-muted">{state_label(order.state)}</span>
@@ -490,16 +510,25 @@ defmodule ViewNinjasWeb.AirtimeLive do
 
   # The running total, so an irreversible buy is never a surprise. Lenient: it reads
   # whatever is typed and says what it makes of it, rather than waiting for submit.
+  # Each number carries its network, because airtime reaches all of them and the
+  # customer should be able to see we know which one they mean.
   defp refresh_preview(socket) do
     amount = parse_shillings(socket.assigns.form[:amount].value)
     numbers = split_numbers(socket.assigns.form[:numbers].value)
     {valid, invalid} = Enum.split_with(numbers, &Phone.valid?/1)
-    count = valid |> Enum.map(&Phone.normalize_or_self/1) |> Enum.uniq() |> length()
-    total = if amount, do: amount * count, else: nil
+
+    recipients =
+      valid
+      |> Enum.map(&Phone.normalize_or_self/1)
+      |> Enum.uniq()
+      |> Enum.map(&%{phone: &1, network: Phone.network(&1)})
+
+    total = if amount, do: amount * length(recipients), else: nil
 
     assign(socket, :preview, %{
       amount_cents: amount,
-      count: count,
+      recipients: recipients,
+      count: length(recipients),
       invalid: invalid,
       total_cents: total,
       short: is_integer(total) and total > socket.assigns.balance,

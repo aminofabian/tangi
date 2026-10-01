@@ -161,6 +161,52 @@ defmodule ViewNinjasWeb.AirtimeLiveTest do
     assert Airtime.list_for_user(user) == []
   end
 
+  test "says any network works, and names the four up front", %{conn: conn} do
+    conn = log_in_user(conn, funded_user(50_000))
+
+    {:ok, lv, _html} = live(conn, ~p"/airtime")
+
+    assert render(lv) =~ "any network"
+
+    for name <- ~w(Safaricom Airtel Telkom Faiba) do
+      assert has_element?(lv, "#airtime-networks", name), "expected #{name} to be named"
+    end
+  end
+
+  test "names the network behind each number, because any network works", %{conn: conn} do
+    conn = log_in_user(conn, funded_user(50_000))
+
+    {:ok, lv, _html} = live(conn, ~p"/airtime")
+
+    lv
+    |> form("#airtime-form",
+      airtime: %{
+        amount: "50",
+        numbers: "0712345678\n0733000222\n0770000111\n0747000111"
+      }
+    )
+    |> render_change()
+
+    assert has_element?(lv, "#going-254712345678", "Safaricom")
+    assert has_element?(lv, "#going-254733000222", "Airtel")
+    assert has_element?(lv, "#going-254770000111", "Telkom")
+    assert has_element?(lv, "#going-254747000111", "Faiba")
+  end
+
+  test "a valid number we cannot place shows no network, never a wrong one", %{conn: conn} do
+    conn = log_in_user(conn, funded_user(50_000))
+
+    {:ok, lv, _html} = live(conn, ~p"/airtime")
+
+    # 0763 is Equitel, which is not on the published list.
+    lv
+    |> form("#airtime-form", airtime: %{amount: "50", numbers: "0763000111"})
+    |> render_change()
+
+    assert has_element?(lv, "#going-254763000111")
+    refute has_element?(lv, "#going-254763000111 .vn-net")
+  end
+
   test "a bought number is remembered and offered back", %{conn: conn} do
     user = funded_user(50_000)
     conn = log_in_user(conn, user)

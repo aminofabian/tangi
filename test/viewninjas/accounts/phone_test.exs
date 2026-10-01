@@ -88,6 +88,63 @@ defmodule ViewNinjas.Accounts.PhoneTest do
     end
   end
 
+  describe "network/1" do
+    test "places each published range" do
+      assert Phone.network("0700 000 111") == :safaricom
+      assert Phone.network("0729 000 111") == :safaricom
+      assert Phone.network("0740 000 111") == :safaricom
+      assert Phone.network("0743 000 111") == :safaricom
+      assert Phone.network("0790 000 111") == :safaricom
+      assert Phone.network("0799 000 111") == :safaricom
+      assert Phone.network("0110 000 111") == :safaricom
+      assert Phone.network("0119 000 111") == :safaricom
+
+      assert Phone.network("0730 000 111") == :airtel
+      assert Phone.network("0739 000 111") == :airtel
+      assert Phone.network("0750 000 111") == :airtel
+      assert Phone.network("0756 000 111") == :airtel
+      assert Phone.network("0780 000 111") == :airtel
+      assert Phone.network("0789 000 111") == :airtel
+      assert Phone.network("0100 000 111") == :airtel
+      assert Phone.network("0109 000 111") == :airtel
+
+      assert Phone.network("0770 000 111") == :telkom
+      assert Phone.network("0779 000 111") == :telkom
+      assert Phone.network("0120 000 111") == :telkom
+      assert Phone.network("0129 000 111") == :telkom
+
+      assert Phone.network("0747 000 111") == :faiba
+    end
+
+    test "does not leak across a boundary" do
+      # 0729 is Safaricom and 0730 Airtel; 0743 Safaricom, 0744 nothing, 0747 Faiba.
+      assert Phone.network("0729 000 111") == :safaricom
+      assert Phone.network("0730 000 111") == :airtel
+      assert Phone.network("0743 000 111") == :safaricom
+      assert Phone.network("0744 000 111") == nil
+      assert Phone.network("0746 000 111") == nil
+      assert Phone.network("0747 000 111") == :faiba
+      assert Phone.network("0748 000 111") == nil
+    end
+
+    test "says nothing rather than guessing" do
+      # 0763 is Equitel, a valid number that is not on the published list.
+      assert Phone.network("0763 000 111") == nil
+      assert Phone.network("12345") == nil
+      assert Phone.network(nil) == nil
+    end
+
+    test "every network it names has a display name" do
+      assert Phone.networks() == [:safaricom, :airtel, :telkom, :faiba]
+
+      for network <- Phone.networks() do
+        assert is_binary(Phone.network_name(network))
+      end
+
+      assert Phone.network_name(:nothing) == nil
+    end
+  end
+
   describe "normalize_or_self/1" do
     test "passes through what it cannot parse" do
       assert Phone.normalize_or_self("0712345678") == "254712345678"

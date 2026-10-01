@@ -102,7 +102,92 @@ defmodule ViewNinjas.Accounts.Phone do
     end
   end
 
+  @doc """
+  The Kenyan mobile network a number sits on, or `nil` when we cannot say.
+
+  Airtime reaches all of them, so this is only ever a label: it tells the customer
+  which network they are topping up. The ranges are the published national
+  prefixes, and a valid number that falls outside them — Equitel, for one — comes
+  back `nil` rather than as a guess.
+
+      iex> ViewNinjas.Accounts.Phone.network("0712 345 678")
+      :safaricom
+
+      iex> ViewNinjas.Accounts.Phone.network("0733 000 222")
+      :airtel
+
+      iex> ViewNinjas.Accounts.Phone.network("0770 000 111")
+      :telkom
+
+      iex> ViewNinjas.Accounts.Phone.network("0747 000 111")
+      :faiba
+
+      iex> ViewNinjas.Accounts.Phone.network("0763 000 111")
+      nil
+
+      iex> ViewNinjas.Accounts.Phone.network("nonsense")
+      nil
+  """
+  @spec network(term()) :: atom() | nil
+  def network(phone) do
+    case normalize(phone) do
+      {:ok, <<"254", prefix::binary-size(3), _rest::binary>>} -> network_for(prefix)
+      _ -> nil
+    end
+  end
+
+  @doc """
+  Every network airtime reaches, in the order a legend should show them.
+
+      iex> ViewNinjas.Accounts.Phone.networks()
+      [:safaricom, :airtel, :telkom, :faiba]
+  """
+  @spec networks() :: [atom()]
+  def networks, do: [:safaricom, :airtel, :telkom, :faiba]
+
+  @doc """
+  The display name of a network, or `nil` for anything else.
+
+      iex> ViewNinjas.Accounts.Phone.network_name(:safaricom)
+      "Safaricom"
+
+      iex> ViewNinjas.Accounts.Phone.network_name(nil)
+      nil
+  """
+  @spec network_name(atom() | nil) :: String.t() | nil
+  def network_name(:safaricom), do: "Safaricom"
+  def network_name(:airtel), do: "Airtel"
+  def network_name(:telkom), do: "Telkom"
+  def network_name(:faiba), do: "Faiba"
+  def network_name(_), do: nil
+
   # -- internals ---------------------------------------------------------
+
+  # The published national prefix ranges, keyed on the three digits that follow
+  # `254`. Faiba (Jamii Telecommunications) holds a single range, which is why the
+  # match is three digits and not two. Equitel (0763–0769) is deliberately absent:
+  # we would rather show nothing than the wrong network.
+  @network_ranges [
+    {:safaricom, 700, 729},
+    {:safaricom, 740, 743},
+    {:safaricom, 790, 799},
+    {:safaricom, 110, 119},
+    {:airtel, 730, 739},
+    {:airtel, 750, 756},
+    {:airtel, 780, 789},
+    {:airtel, 100, 109},
+    {:telkom, 770, 779},
+    {:telkom, 120, 129},
+    {:faiba, 747, 747}
+  ]
+
+  defp network_for(prefix) do
+    prefix = String.to_integer(prefix)
+
+    Enum.find_value(@network_ranges, fn {network, from, to} ->
+      if prefix >= from and prefix <= to, do: network
+    end)
+  end
 
   defp strip_international_prefix("+" <> rest), do: strip_double_zero(rest)
   defp strip_international_prefix(digits), do: strip_double_zero(digits)
