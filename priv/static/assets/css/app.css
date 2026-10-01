@@ -3515,6 +3515,43 @@ p {
   text-decoration: underline;
 }
 
+/* Two ways to prove who you are, one of them chosen. A switch rather than two
+ * competing forms, so the screen asks for the email once and reads as a single
+ * decision. */
+.vn-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--vn-space-1);
+  padding: var(--vn-space-1);
+  border: 1px solid var(--vn-border);
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-surface);
+}
+
+.vn-segmented__option {
+  min-height: var(--vn-control-h);
+  padding: 0 var(--vn-space-4);
+  border: 0;
+  border-radius: var(--vn-radius-pill);
+  background: transparent;
+  color: var(--vn-muted);
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-ui);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.vn-segmented__option:hover {
+  color: var(--vn-text);
+}
+
+.vn-segmented__option--on {
+  background: var(--vn-accent);
+  color: var(--vn-on-accent);
+  box-shadow: var(--vn-shadow-1);
+}
+
 .vn-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--vn-border);

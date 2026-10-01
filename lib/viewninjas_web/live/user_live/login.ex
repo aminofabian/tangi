@@ -1,4 +1,18 @@
 defmodule ViewNinjasWeb.UserLive.Login do
+  @moduledoc """
+  Logging in (scope.md §6).
+
+  There are two ways in — a password, or a link by email — but they are **one
+  decision, not two forms**. The screen used to ask for the email twice, once
+  above a "Log in with email" button and once above the password fields, which
+  read as two unrelated boxes and made it unclear which one to fill in. Now the
+  email is typed once and the method is a switch beneath it, so the page states
+  one identity and then asks how to prove it.
+
+  The password branch needs a real POST, because logging in has to issue a session
+  cookie; the link branch is handled here and never leaves the LiveView.
+  """
+
   use ViewNinjasWeb, :live_view
 
   alias ViewNinjas.Accounts
@@ -37,15 +51,15 @@ defmodule ViewNinjasWeb.UserLive.Login do
         </div>
 
         <.form
-          :let={f}
           for={@form}
-          id="login_form_magic"
+          id="login_form"
           action={~p"/users/log-in"}
-          phx-submit="submit_magic"
+          phx-submit="submit"
+          phx-trigger-action={@trigger_submit}
         >
           <.input
             readonly={!!@current_scope}
-            field={f[:email]}
+            field={@form[:email]}
             type="email"
             label="Email"
             autocomplete="username"
@@ -53,8 +67,45 @@ defmodule ViewNinjasWeb.UserLive.Login do
             required
             phx-mounted={JS.focus()}
           />
-          <.button class="btn btn-primary w-full">
-            Log in with email <span aria-hidden="true">→</span>
+
+          <div class="vn-segmented" role="group" aria-label="How would you like to log in?">
+            <button
+              :for={{method, label} <- method_choices()}
+              type="button"
+              class={[
+                "vn-segmented__option",
+                @method == method && "vn-segmented__option--on"
+              ]}
+              id={"login-method-#{method}"}
+              aria-pressed={to_string(@method == method)}
+              phx-click="pick_method"
+              phx-value-method={method}
+            >
+              {label}
+            </button>
+          </div>
+
+          <div :if={@method == :password} id="login-password-fields" class="space-y-1">
+            <.input
+              field={@form[:password]}
+              type="password"
+              label="Password"
+              autocomplete="current-password"
+              spellcheck="false"
+            />
+            <.input
+              field={@form[:remember_me]}
+              type="checkbox"
+              label="Keep me logged in on this device"
+            />
+          </div>
+
+          <p :if={@method == :link} class="vn-muted" id="login-link-hint">
+            {gettext("We'll email you a link that signs you straight in — no password needed.")}
+          </p>
+
+          <.button class="vn-button w-full" id="login-submit">
+            {submit_label(@method)} <span aria-hidden="true">→</span>
           </.button>
         </.form>
 
@@ -63,40 +114,6 @@ defmodule ViewNinjasWeb.UserLive.Login do
             Forgot your password?
           </.link>
         </p>
-
-        <div class="divider">or</div>
-
-        <.form
-          :let={f}
-          for={@form}
-          id="login_form_password"
-          action={~p"/users/log-in"}
-          phx-submit="submit_password"
-          phx-trigger-action={@trigger_submit}
-        >
-          <.input
-            readonly={!!@current_scope}
-            field={f[:email]}
-            type="email"
-            label="Email"
-            autocomplete="username"
-            spellcheck="false"
-            required
-          />
-          <.input
-            field={@form[:password]}
-            type="password"
-            label="Password"
-            autocomplete="current-password"
-            spellcheck="false"
-          />
-          <.button class="btn btn-primary w-full" name={@form[:remember_me].name} value="true">
-            Log in and stay logged in <span aria-hidden="true">→</span>
-          </.button>
-          <.button class="btn btn-primary btn-soft w-full mt-2">
-            Log in only this time
-          </.button>
-        </.form>
       </div>
     </Layouts.app>
     """
@@ -110,30 +127,58 @@ defmodule ViewNinjasWeb.UserLive.Login do
 
     form = to_form(%{"email" => email}, as: "user")
 
-    {:ok, assign(socket, form: form, trigger_submit: false)}
+    {:ok,
+     socket
+     |> assign(:form, form)
+     # Password is the default: most people who reach this screen have one.
+     |> assign(:method, :password)
+     |> assign(:trigger_submit, false)}
   end
 
   @impl true
-  def handle_event("submit_password", _params, socket) do
-    {:noreply, assign(socket, :trigger_submit, true)}
+  def handle_event("pick_method", %{"method" => method}, socket) do
+    case parse_method(method) do
+      nil -> {:noreply, socket}
+      method -> {:noreply, assign(socket, :method, method)}
+    end
   end
 
-  def handle_event("submit_magic", %{"user" => %{"email" => email}}, socket) do
+  def handle_event("submit", %{"user" => %{"email" => email}}, socket) do
+    if socket.assigns.method == :link do
+      {:noreply, deliver_login_link(socket, email)}
+    else
+      # Hand off to the controller: a session cookie cannot be set from here.
+      {:noreply, assign(socket, :trigger_submit, true)}
+    end
+  end
+
+  # The reply is the same whether or not the address exists, so this screen cannot
+  # be used to discover who has an account.
+  defp deliver_login_link(socket, email) do
     if user = Accounts.get_user_by_email(email) do
-      Accounts.deliver_login_instructions(
-        user,
-        &url(~p"/users/log-in/#{&1}")
-      )
+      Accounts.deliver_login_instructions(user, &url(~p"/users/log-in/#{&1}"))
     end
 
-    info =
-      "If your email is in our system, you will receive instructions for logging in shortly."
-
-    {:noreply,
-     socket
-     |> put_flash(:info, info)
-     |> push_navigate(to: ~p"/users/log-in")}
+    socket
+    |> put_flash(
+      :info,
+      gettext(
+        "If your email is in our system, you will receive instructions for logging in shortly."
+      )
+    )
+    |> push_navigate(to: ~p"/users/log-in")
   end
+
+  # Matched against the known methods rather than converted with `String.to_atom/1`:
+  # the value arrives from the browser, and an unbounded atom table is a leak.
+  defp parse_method("password"), do: :password
+  defp parse_method("link"), do: :link
+  defp parse_method(_method), do: nil
+
+  defp method_choices, do: [{:password, gettext("Password")}, {:link, gettext("Email link")}]
+
+  defp submit_label(:link), do: gettext("Send me a login link")
+  defp submit_label(_password), do: gettext("Log in")
 
   # The banner offers the local mailbox, which is only true when email is
   # actually landing there. With a Resend key set, mail really is sent.
