@@ -22,9 +22,9 @@ defmodule ViewNinjas.Email do
   @doc """
   Delivers an email through Resend.
 
-  Returns `{:error, :email_not_configured}` when no Resend key is in force, rather
-  than raising, so a worker can treat a missing key the way it treats a missing SMS
-  key: log it and let the application be the record.
+  With no Resend key in force this falls back to the adapter chosen at boot, which
+  in development is Swoosh's `Local` adapter — so a developer can read the message
+  without a key. Use `test_email/1` when the point is to prove Resend itself works.
   """
   @spec deliver(Swoosh.Email.t()) :: {:ok, term()} | {:error, term()}
   def deliver(%Swoosh.Email{} = email) do
@@ -37,6 +37,64 @@ defmodule ViewNinjas.Email do
       Mailer.deliver(email)
     end
   end
+
+  @doc """
+  Sends a short diagnostic email to `recipient`, to check the Resend key really works.
+
+  Unlike `deliver/1` this **never falls back**: it returns
+  `{:error, :email_not_configured}` when no key is set, because a send that
+  quietly succeeded through the local adapter would tell the super-admin their key
+  is fine when Resend has never been contacted.
+
+  Resend's own refusals are returned as `{:error, {status, message}}`, so the
+  caller can show what was actually wrong rather than a generic failure.
+  """
+  @spec test_email(String.t()) :: {:ok, term()} | {:error, term()}
+  def test_email(recipient) when is_binary(recipient) and recipient != "" do
+    if resend_ready?() do
+      Mailer.deliver(test_message(recipient), resend_config())
+    else
+      {:error, :email_not_configured}
+    end
+  end
+
+  def test_email(_recipient), do: {:error, :no_recipient}
+
+  @doc """
+  The diagnostic message `test_email/1` sends, exposed so its recipient and sender
+  can be asserted on without a network call.
+  """
+  @spec test_message(String.t()) :: Swoosh.Email.t()
+  def test_message(recipient) do
+    Swoosh.Email.new()
+    |> Swoosh.Email.to(recipient)
+    |> Swoosh.Email.from(Settings.mailer_from())
+    |> Swoosh.Email.subject("Tangi — test email")
+    |> Swoosh.Email.text_body("""
+    This is a test from Tangi's settings screen.
+
+    If you are reading it, the Resend API key is working and transactional email
+    (order receipts, password resets, magic links) is going out.
+    """)
+  end
+
+  @doc """
+  Turns a delivery failure into something worth showing an operator.
+
+  Swoosh returns Resend's refusals as `{status, body}`; a transport failure comes
+  back as an exception struct. Both are flattened to one line here, because the
+  audience is a super-admin staring at a button, not a log parser.
+  """
+  @spec failure_reason(term()) :: String.t()
+  def failure_reason({status, %{"message" => message}}) when is_binary(message) do
+    "#{status} — #{message}"
+  end
+
+  def failure_reason({status, _body}) when is_integer(status), do: "HTTP #{status}"
+  def failure_reason(:email_not_configured), do: "no Resend API key is set"
+  def failure_reason(:no_recipient), do: "no address to send to"
+  def failure_reason(%{__exception__: true} = exception), do: Exception.message(exception)
+  def failure_reason(other), do: inspect(other)
 
   @doc """
   Delivers an email and reports whether it went out, logging the reason if not.
@@ -64,6 +122,16 @@ defmodule ViewNinjas.Email do
       base_url: Settings.resend_base_url()
     ]
   end
+
+  @doc """
+  Whether Resend is genuinely ready to send: a key **and** an HTTP API client.
+
+  This is what the back office keys its "send a test email" button off, so the
+  button is never enabled for a deployment that would silently fall back to the
+  local adapter.
+  """
+  @spec configured?() :: boolean()
+  def configured?, do: resend_ready?()
 
   # Resend needs both a key and an HTTP API client. Swoosh's API clients are
   # disabled outside production (`api_client: false`), so a key saved in a

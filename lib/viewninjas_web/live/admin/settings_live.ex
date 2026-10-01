@@ -15,6 +15,7 @@ defmodule ViewNinjasWeb.Admin.SettingsLive do
 
   use ViewNinjasWeb, :live_view
 
+  alias ViewNinjas.Email
   alias ViewNinjas.Settings
 
   @impl true
@@ -49,6 +50,25 @@ defmodule ViewNinjasWeb.Admin.SettingsLive do
      socket
      |> put_flash(:info, gettext("Cleared — the environment or the default applies again."))
      |> load()}
+  end
+
+  # Sends to the super-admin's own address rather than an arbitrary one: this is a
+  # check that the key works, and a free relay out of the back office is not worth
+  # having. The recipient is never taken from the browser.
+  def handle_event("send_test_email", _params, socket) do
+    case Email.test_email(actor(socket).email) do
+      {:ok, _metadata} ->
+        {:noreply,
+         put_flash(socket, :info, gettext("Test email sent. Check your inbox in a moment."))}
+
+      {:error, reason} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext("Resend did not send it: %{reason}", reason: Email.failure_reason(reason))
+         )}
+    end
   end
 
   @impl true
@@ -106,6 +126,32 @@ defmodule ViewNinjasWeb.Admin.SettingsLive do
         <button class="vn-button" id="settings-submit">{gettext("Save")}</button>
       </.form>
 
+      <%!-- Resend only accepts a key against the API, and only sends from a domain
+            it has verified — both are easy to get wrong and invisible until a
+            customer notices a missing receipt. So the key is testable in place. --%>
+      <section class="vn-card" id="settings-test-email">
+        <h2>{gettext("Send a test email")}</h2>
+        <p class="vn-muted">
+          {gettext(
+            "Sends a short message to your own address using the saved key. If nothing arrives, check the key, and that the From address is on a domain Resend has verified."
+          )}
+        </p>
+
+        <p :if={!@email_configured} class="vn-error" id="test-email-not-configured">
+          {gettext("Email is not ready to send yet. Save a Resend API key above first.")}
+        </p>
+
+        <button
+          type="button"
+          class="vn-button vn-button--muted"
+          id="send-test-email"
+          phx-click="send_test_email"
+          disabled={!@email_configured}
+        >
+          {gettext("Email me a test")}
+        </button>
+      </section>
+
       <section class="vn-card" id="settings-bootstrap">
         <h2>{gettext("Set in the environment")}</h2>
         <p class="vn-muted">
@@ -125,6 +171,7 @@ defmodule ViewNinjasWeb.Admin.SettingsLive do
 
     assign(socket,
       groups: grouped(entries),
+      email_configured: Email.configured?(),
       form: to_form(Map.new(entries, &{&1.key, &1.value || ""}), as: "settings")
     )
   end

@@ -113,6 +113,64 @@ defmodule ViewNinjas.EmailTest do
     end
   end
 
+  describe "test_email/1" do
+    test "refuses without a key rather than quietly falling back" do
+      Application.put_env(:viewninjas, :resend, api_key: nil)
+      Application.put_env(:swoosh, :api_client, false)
+
+      # A send that "succeeded" through the local adapter would tell the
+      # super-admin their key works when Resend was never contacted.
+      assert {:error, :email_not_configured} = Email.test_email("someone@viewninjas.test")
+      refute_email_sent()
+    end
+
+    test "refuses a blank recipient" do
+      assert {:error, :no_recipient} = Email.test_email("")
+    end
+
+    test "the message goes to the address it is handed and from the saved sender" do
+      Application.put_env(:viewninjas, :resend, api_key: nil)
+      {:ok, _} = Settings.put("mailer_from", "hello@viewninjas.test", nil)
+
+      message = Email.test_message("someone@viewninjas.test")
+
+      assert message.to == [{"", "someone@viewninjas.test"}]
+      assert message.from == {"Tangi", "hello@viewninjas.test"}
+      assert message.subject =~ "test email"
+      assert message.text_body =~ "Resend API key"
+    end
+
+    test "a stored key with no API client is not ready" do
+      {:ok, _} = Settings.put("resend_api_key", "re_a_key", nil)
+      Application.put_env(:swoosh, :api_client, false)
+
+      refute Email.configured?()
+      assert {:error, :email_not_configured} = Email.test_email("someone@viewninjas.test")
+
+      Application.put_env(:swoosh, :api_client, Swoosh.ApiClient.Req)
+      assert Email.configured?()
+    end
+  end
+
+  describe "failure_reason/1" do
+    test "uses Resend's own message" do
+      assert Email.failure_reason({401, %{"message" => "API key is invalid"}}) ==
+               "401 — API key is invalid"
+    end
+
+    test "falls back to the status when there is no message" do
+      assert Email.failure_reason({422, %{"other" => "shape"}}) == "HTTP 422"
+      assert Email.failure_reason({500, "gateway timeout"}) == "HTTP 500"
+    end
+
+    test "explains a missing key, a missing recipient and a transport failure" do
+      assert Email.failure_reason(:email_not_configured) == "no Resend API key is set"
+      assert Email.failure_reason(:no_recipient) == "no address to send to"
+
+      assert Email.failure_reason(%Req.TransportError{reason: :econnrefused}) =~ "refused"
+    end
+  end
+
   # Mirrors the private configuration `ViewNinjas.Email` builds. Kept here rather
   # than exporting the function, because what is under test is the config Swoosh
   # ends up merging, not the module's own plumbing.
