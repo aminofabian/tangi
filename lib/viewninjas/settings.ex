@@ -107,6 +107,58 @@ defmodule ViewNinjas.Settings do
       env: {:viewninjas, :malipo_webhook_secret}
     },
     %{
+      key: "instalipa_base_url",
+      group: "Airtime",
+      label: "Endpoint base URL",
+      placeholder: "https://business.instalipa.co.ke",
+      hint: "The host Instalipa gives you. Token, send and status are joined onto it.",
+      env: {:instalipa, :base_url},
+      default: "https://business.instalipa.co.ke"
+    },
+    %{
+      key: "instalipa_token_path",
+      group: "Airtime",
+      label: "Access token path",
+      placeholder: "/api/v1/token",
+      hint: "POST path, or a full https URL. Default /api/v1/token.",
+      env: {:instalipa, :token_path},
+      default: "/api/v1/token"
+    },
+    %{
+      key: "instalipa_airtime_path",
+      group: "Airtime",
+      label: "Send airtime path",
+      placeholder: "/api/v1/airtime",
+      hint: "POST path, or a full https URL. Default /api/v1/airtime.",
+      env: {:instalipa, :airtime_path},
+      default: "/api/v1/airtime"
+    },
+    %{
+      key: "instalipa_status_path",
+      group: "Airtime",
+      label: "Transaction status path",
+      placeholder: "/api/v1/status/{id}",
+      hint: "GET path. {id} is replaced. Default /api/v1/status/{id}.",
+      env: {:instalipa, :status_path},
+      default: "/api/v1/status/{id}"
+    },
+    %{
+      key: "instalipa_consumer_key",
+      group: "Airtime",
+      label: "Consumer key",
+      secret: true,
+      hint: "Required. The consumer key from the Instalipa app's API credentials.",
+      env: {:instalipa, :consumer_key}
+    },
+    %{
+      key: "instalipa_consumer_secret",
+      group: "Airtime",
+      label: "Consumer secret",
+      secret: true,
+      hint: "Required. Shown once in the portal; regenerate if lost.",
+      env: {:instalipa, :consumer_secret}
+    },
+    %{
       key: "fx_source_url",
       group: "Pricing",
       label: "FX source URL",
@@ -301,6 +353,30 @@ defmodule ViewNinjas.Settings do
   @spec malipo_webhook_secret() :: String.t() | nil
   def malipo_webhook_secret, do: resolved_value("malipo_webhook_secret")
 
+  @doc "The Instalipa base URL."
+  @spec instalipa_base_url() :: String.t()
+  def instalipa_base_url, do: resolved_value("instalipa_base_url")
+
+  @doc "Path or absolute URL for POST the access token."
+  @spec instalipa_token_path() :: String.t()
+  def instalipa_token_path, do: resolved_value("instalipa_token_path")
+
+  @doc "Path or absolute URL for POST airtime."
+  @spec instalipa_airtime_path() :: String.t()
+  def instalipa_airtime_path, do: resolved_value("instalipa_airtime_path")
+
+  @doc "Path or absolute URL for GET a transaction status. `{id}` is replaced."
+  @spec instalipa_status_path() :: String.t()
+  def instalipa_status_path, do: resolved_value("instalipa_status_path")
+
+  @doc "The Instalipa consumer key."
+  @spec instalipa_consumer_key() :: String.t() | nil
+  def instalipa_consumer_key, do: resolved_value("instalipa_consumer_key")
+
+  @doc "The Instalipa consumer secret."
+  @spec instalipa_consumer_secret() :: String.t() | nil
+  def instalipa_consumer_secret, do: resolved_value("instalipa_consumer_secret")
+
   @doc "The daily FX feed URL, or nil when there is none."
   @spec fx_source_url() :: String.t() | nil
   def fx_source_url, do: resolved_value("fx_source_url")
@@ -335,6 +411,7 @@ defmodule ViewNinjas.Settings do
   defp from_env(%{env: {:pricing, key}}), do: env(:pricing, key)
   defp from_env(%{env: {:insight, key}}), do: env(:insight, key)
   defp from_env(%{env: {:malipo, key}}), do: malipo_env(key)
+  defp from_env(%{env: {:instalipa, key}}), do: instalipa_env(key)
   defp from_env(%{env: {:viewninjas, key}}), do: Application.get_env(:viewninjas, key)
 
   defp from_env(%{env: {:mailer, :from}}) do
@@ -402,12 +479,16 @@ defmodule ViewNinjas.Settings do
   defp malipo_env(key),
     do: :viewninjas |> Application.get_env(ViewNinjas.Payments.Malipo, []) |> Keyword.get(key)
 
+  defp instalipa_env(key),
+    do: :viewninjas |> Application.get_env(ViewNinjas.Airtime.Instalipa, []) |> Keyword.get(key)
+
   defp present?(value), do: is_binary(value) and value != ""
 
   defp group_order("SMS"), do: 0
   defp group_order("Payments"), do: 1
-  defp group_order("Pricing"), do: 2
-  defp group_order("Insight"), do: 3
-  defp group_order("Mail"), do: 4
+  defp group_order("Airtime"), do: 2
+  defp group_order("Pricing"), do: 3
+  defp group_order("Insight"), do: 4
+  defp group_order("Mail"), do: 5
   defp group_order(_other), do: 99
 end

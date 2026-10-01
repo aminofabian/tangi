@@ -70,6 +70,17 @@ if config_env() != :test do
   # Optional: when set, a Malipo callback must carry a matching signature.
   config :viewninjas, :malipo_webhook_secret, System.get_env("MALIPO_WEBHOOK_SECRET")
 
+  # The airtime rail (docs/instalipa-airtime.md). With no consumer key and secret
+  # the client reports `:not_configured` rather than sending; the base URL can be
+  # pointed at a sandbox. The credentials can also be set in the back office.
+  config :viewninjas, ViewNinjas.Airtime.Instalipa,
+    base_url: System.get_env("INSTALIPA_BASE_URL", "https://business.instalipa.co.ke"),
+    token_path: System.get_env("INSTALIPA_TOKEN_PATH", "/api/v1/token"),
+    airtime_path: System.get_env("INSTALIPA_AIRTIME_PATH", "/api/v1/airtime"),
+    status_path: System.get_env("INSTALIPA_STATUS_PATH", "/api/v1/status/{id}"),
+    consumer_key: System.get_env("INSTALIPA_CONSUMER_KEY"),
+    consumer_secret: System.get_env("INSTALIPA_CONSUMER_SECRET")
+
   # Supplier API keys are encrypted with this key. Tests keep the fixed
   # development key from config/config.exs so their ciphertext is stable.
   if cloak_key = System.get_env("CLOAK_KEY") do

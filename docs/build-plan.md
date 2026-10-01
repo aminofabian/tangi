@@ -340,6 +340,30 @@ Drip (`runs`, `interval`). Non-default service types, each as its own form. Astr
 
 ---
 
+## Airtime — a second product line (A1–A5)
+
+**Size:** L, in slices · **Depends on:** M7 (wallet + payments), M11 (notifications)
+
+Selling airtime through Instalipa. It is not a catalog offer and it is cash-equivalent,
+so it gets its own context and table and its own abuse controls. Full scope in
+[`instalipa-airtime.md`](instalipa-airtime.md); the slices are:
+
+- **A1 — The rail, proven.** Token cache, client, `Provider` behaviour, `Settings` keys,
+  and a "prove it" that fetches a token. No money.
+- **A2 — Buy, wallet-first.** Schema, context, states, the buy screen, the wallet debit,
+  the send job, the receipt. Failures refund the wallet. Polls; no callback yet.
+- **A3 — Confirm and sweep.** Callback, confirming job, sweep, the status GET as the
+  source of truth, `needs_review` for a person.
+- **A4 — Float and limits.** Float from send responses, pause, alerts, the caps and
+  velocity, the admin screen.
+- **A5 — Optional.** Direct M-Pesa-for-airtime, markup, reporting.
+
+**Exit criteria.** A customer buys KES 100 of airtime to a number, it arrives, the receipt
+is kept, and a failed send refunds the wallet without a person. A kill switch stops the
+line in one tap.
+
+---
+
 ## Schema by milestone
 
 A table lands in the milestone that first needs it, in a migration named for that milestone. Migrations are additive: add a column, backfill, and never fold a destructive rename into the same step. The money tables are append-only — `ledger_entries`, `pricing_settings`, and `fx_rates` are never `UPDATE`d, only appended to (a correction is a new row).
@@ -358,6 +382,7 @@ A table lands in the milestone that first needs it, in a migration named for tha
 | M10 | `analytics_daily`, `costs`, `targets`, `settlement_lines` | `payments.fee_cents`; reads `page_views` |
 | M11 | `notification_preferences` | reuse `sms_messages` |
 | M12 | *(none — constraints and indexes)* | — |
+| A2 | `airtime_orders`, `airtime_events` | `ledger_entries.airtime_order_id` |
 | M13 | as needed | drip fields, reseller keys |
 
 The two rows that matter most are M6 and M7. M6 adds only `page_views` — an append-only write with no screen of its own, so the traffic has history by the time M10 draws it. M7 creates `orders` **fully shaped** rather than growing it later — a mid-flight additive change to a table that is already taking money is exactly the kind of step the additive rule exists to avoid.

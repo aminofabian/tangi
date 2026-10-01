@@ -22,6 +22,8 @@ defmodule ViewNinjas.Application do
         {Oban, Application.fetch_env!(:viewninjas, Oban)},
         # In-memory rate limiter (Hammer/ETS); owns its own ETS table.
         ViewNinjas.RateLimit,
+        # Caches the Instalipa bearer for the app's lifetime; owns its own ETS table.
+        ViewNinjas.Airtime.Instalipa.Token,
         # Start to serve requests, typically the last entry
         ViewNinjasWeb.Endpoint
       ]

@@ -1045,6 +1045,74 @@ p {
   border-color: color-mix(in srgb, var(--vn-danger) 55%, var(--vn-border));
 }
 
+/* The amount is the whole point of the top-up card, so it is the one field that
+ * is not a default field: taller, set in the display face at the size of the
+ * payment sheet's figure, with round numerals, a soft brand fill and an in-field
+ * "KSh". The phone field below stays plain, and that contrast is what makes the
+ * amount unmissable. */
+.vn-amount {
+  /* One height, shared by the field and the prefix that floats over it. */
+  --vn-amount-h: 3.75rem;
+  position: relative;
+  /* The gap belongs to the whole group, so the prefix can pin to the control. */
+  margin-bottom: var(--vn-space-4);
+}
+
+.vn-amount .fieldset {
+  margin-bottom: 0;
+}
+
+.vn-amount__prefix {
+  position: absolute;
+  left: var(--vn-space-4);
+  /* Pinned to the control: with the field's own margin cleared, the wrapper's
+   * bottom edge is the input's bottom edge. */
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  height: var(--vn-amount-h);
+  pointer-events: none;
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-xl);
+  font-weight: 600;
+  color: var(--vn-muted);
+}
+
+.vn-amount-field.input {
+  min-height: var(--vn-amount-h);
+  padding-left: 4.25rem;
+  font-family: var(--vn-font-display);
+  font-size: var(--vn-text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  background: color-mix(in srgb, var(--vn-accent) 5%, var(--vn-surface));
+  border-color: color-mix(in srgb, var(--vn-accent) 40%, var(--vn-border));
+  box-shadow: var(--vn-shadow-1);
+}
+
+/* The placeholder is guidance, not a figure, so it does not wear the display
+ * face — the eye should land on the number the customer types. */
+.vn-amount-field.input::placeholder {
+  font-family: var(--vn-font-body);
+  font-size: var(--vn-text-lg);
+  font-weight: 600;
+}
+
+/* The native steppers are unusable on a phone and overlap the figure. */
+.vn-amount-field.input::-webkit-outer-spin-button,
+.vn-amount-field.input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.vn-amount-field.input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
 .checkbox {
   border-radius: 0.375rem;
   border-color: var(--vn-border);

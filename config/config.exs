@@ -152,6 +152,15 @@ config :viewninjas, ViewNinjas.Payments.Malipo,
   create_path: "/v1/payments",
   check_path: "/v1/payments/{id}"
 
+# Client config for the airtime rail (docs/instalipa-airtime.md). Same rule: the
+# consumer key and secret come from the environment at runtime or the back office,
+# so no secret is ever in the repo.
+config :viewninjas, ViewNinjas.Airtime.Instalipa,
+  base_url: "https://business.instalipa.co.ke",
+  token_path: "/api/v1/token",
+  airtime_path: "/api/v1/airtime",
+  status_path: "/api/v1/status/{id}"
+
 # The pricing knobs live in the database, not config (scope.md §7). Only the FX
 # source the daily job reads is configured here; with no URL the job no-ops.
 config :viewninjas, :pricing,

@@ -184,15 +184,19 @@ defmodule ViewNinjasWeb.WalletLive do
       <h2>{gettext("Add money")}</h2>
       <p class="vn-muted">{gettext("Type any amount in shillings, or start from one of these.")}</p>
       <.form for={@form} id="topup-form" phx-submit="topup" phx-change="validate_topup">
-        <.input
-          field={@form[:amount]}
-          type="number"
-          inputmode="numeric"
-          step="1"
-          min="1"
-          label={gettext("Amount in shillings")}
-          placeholder={gettext("Any amount")}
-        />
+        <div class="vn-amount">
+          <span class="vn-amount__prefix" aria-hidden="true">{gettext("KSh")}</span>
+          <.input
+            field={@form[:amount]}
+            type="number"
+            inputmode="numeric"
+            step="1"
+            min="1"
+            label={gettext("Amount in shillings")}
+            placeholder={gettext("Any amount")}
+            class="w-full input vn-amount-field"
+          />
+        </div>
         <div class="vn-chips" id="topup-amounts">
           <button
             :for={amount <- topup_amounts()}

@@ -270,6 +270,14 @@ stateDiagram-v2
 
 `Partial` is a normal outcome in this industry, not a bug. The customer sees how many remain. The unused portion returns to the wallet automatically once the supplier status is terminal, using the remains count and the KES-per-unit captured on the order. Support can override that credit; the default is to credit.
 
+### Airtime (a second product line)
+
+Airtime is **not** a catalog offer: it is bought as a shilling amount to a phone, priced
+in KES, delivered instantly and irreversibly, and its cost is a KES discount rather than
+USD-per-1,000. So it gets its own `airtime_orders` table and its own `Airtime` context,
+and reuses the money machinery around it — the wallet debit, the ledger, the payment
+funnel and the alerts. Scoped in [`instalipa-airtime.md`](instalipa-airtime.md).
+
 ### Insight
 
 Tables that exist to answer the super-admin's questions, not to run the storefront.
@@ -612,6 +620,7 @@ viewninjas/
     orders/            place, status map, refill, review
     wallet/            ledger
     payments/          malipo client, callbacks
+    airtime/           instalipa client, token cache (scope: instalipa-airtime.md)
     workers/           oban jobs
   lib/viewninjas_web/
     components/        app shell, tab bar, price, pay sheet
@@ -624,6 +633,7 @@ viewninjas/
   docs/
     scope.md
     malipo-connect.md
+    instalipa-airtime.md
     build-plan.md
 ```
 
