@@ -3586,6 +3586,29 @@ p {
   font-size: var(--vn-text-lg);
 }
 
+.vn-clusters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-3);
+}
+
+.vn-clusters > h2 {
+  margin: 0;
+  font-size: var(--vn-text-lg);
+}
+
+.vn-clusters__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--vn-space-3);
+}
+
+/* The feature card carries its own top margin for the hub; inside this stack the
+ * gap already spaces it. */
+.vn-clusters__list .vn-feature {
+  margin-top: 0;
+}
+
 @media (hover: hover) {
   .vn-feature:hover,
   .vn-post-list__link:hover {

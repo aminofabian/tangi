@@ -242,6 +242,18 @@ defmodule ViewNinjasWeb.BlogLiveTest do
     assert has_element?(bundles_spoke, "a[href='/blog/buy-airtime-for-another-number']")
   end
 
+  test "a pillar shows a related-clusters block, a spoke does not", %{conn: conn} do
+    {:ok, airtime_view, _html} = live(conn, ~p"/blog/#{@airtime}")
+    assert has_element?(airtime_view, "#related-clusters")
+    assert has_element?(airtime_view, "#related-clusters a[href='/blog/#{@bundles}']")
+
+    {:ok, bundles_view, _html} = live(conn, ~p"/blog/#{@bundles}")
+    assert has_element?(bundles_view, "#related-clusters a[href='/blog/#{@airtime}']")
+
+    {:ok, spoke_view, _html} = live(conn, ~p"/blog/buy-safaricom-airtime")
+    refute has_element?(spoke_view, "#related-clusters")
+  end
+
   test "an unknown slug returns to the hub", %{conn: conn} do
     assert {:error, {:live_redirect, %{to: "/blog"}}} = live(conn, ~p"/blog/does-not-exist")
   end

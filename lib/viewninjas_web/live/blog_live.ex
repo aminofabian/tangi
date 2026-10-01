@@ -30,7 +30,8 @@ defmodule ViewNinjasWeb.BlogLive do
      |> assign(:structured_data, [])
      |> assign(:clusters, [])
      |> assign(:post, nil)
-     |> assign(:related, [])}
+     |> assign(:related, [])
+     |> assign(:related_clusters, [])}
   end
 
   @impl true
@@ -51,7 +52,7 @@ defmodule ViewNinjasWeb.BlogLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope} section={:blog} title={@page_title}>
       <%= if @post do %>
-        <.article post={@post} related={@related} />
+        <.article post={@post} related={@related} related_clusters={@related_clusters} />
       <% else %>
         <.hub clusters={@clusters} />
       <% end %>
@@ -109,6 +110,7 @@ defmodule ViewNinjasWeb.BlogLive do
         socket
         |> assign(:post, post)
         |> assign(:related, Blog.related(post))
+        |> assign(:related_clusters, related_clusters(post))
         |> assign(:meta_title, post.meta_title)
         |> assign(:page_description, post.description)
         |> assign(:canonical_url, canonical)
@@ -118,6 +120,13 @@ defmodule ViewNinjasWeb.BlogLive do
   end
 
   defp show(socket, _params, _uri), do: push_navigate(socket, to: ~p"/blog")
+
+  # Only a pillar carries the cross-cluster block; a spoke already points back up
+  # to its own pillar and across to its siblings.
+  defp related_clusters(%Post{kind: :pillar, cluster: cluster}),
+    do: Blog.related_clusters(cluster)
+
+  defp related_clusters(%Post{}), do: []
 
   defp structured_data(post, canonical) do
     base = [
@@ -203,6 +212,7 @@ defmodule ViewNinjasWeb.BlogLive do
 
   attr :post, :any, required: true
   attr :related, :list, required: true
+  attr :related_clusters, :list, required: true
 
   defp article(assigns) do
     assigns =
@@ -264,6 +274,13 @@ defmodule ViewNinjasWeb.BlogLive do
           </li>
         </ul>
       </aside>
+
+      <section :if={@related_clusters != []} class="vn-clusters" id="related-clusters">
+        <h2>{gettext("Related guides")}</h2>
+        <div class="vn-clusters__list">
+          <.pillar_link :for={post <- @related_clusters} post={post} />
+        </div>
+      </section>
     </article>
     """
   end

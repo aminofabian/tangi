@@ -23,6 +23,20 @@ defmodule ViewNinjas.Blog do
     ViewNinjas.Blog.Clusters.BuyDataBundlesKenya
   ]
 
+  # Editorial: which clusters a reader should see next from a given pillar. The
+  # airtime and data-bundle clusters are siblings, and the three social clusters
+  # cross-reference each other. A cluster with no entry shows no related block.
+  @related %{
+    "buy-youtube-views-kenya" => ["top-youtube-views-providers-kenya"],
+    "top-youtube-views-providers-kenya" => [
+      "buy-youtube-views-kenya",
+      "top-tiktok-followers-providers-kenya"
+    ],
+    "top-tiktok-followers-providers-kenya" => ["top-youtube-views-providers-kenya"],
+    "buy-airtime-kenya" => ["buy-data-bundles-kenya"],
+    "buy-data-bundles-kenya" => ["buy-airtime-kenya"]
+  }
+
   @doc "Every cluster, in the order they are published."
   @spec list_clusters() :: [Cluster.t()]
   def list_clusters, do: Enum.map(@clusters, & &1.cluster())
@@ -70,6 +84,22 @@ defmodule ViewNinjas.Blog do
   @spec related(Post.t()) :: [Post.t()]
   def related(%Post{cluster: cluster, slug: slug}) do
     Enum.reject(posts_in_cluster(cluster), &(&1.slug == slug))
+  end
+
+  @doc """
+  The pillar of each cluster related to this one, for the "related guides" block
+  on a pillar page.
+
+  The relation is hand-picked (see `@related`) rather than inferred, because
+  "related" is an editorial call: the airtime and data-bundle clusters answer the
+  same questions, and the social clusters are variations on one topic. A cluster
+  with no entry returns `[]`, and its pillar simply shows no block.
+  """
+  @spec related_clusters(Cluster.slug() | term()) :: [Post.t()]
+  def related_clusters(slug) do
+    @related
+    |> Map.get(slug, [])
+    |> Enum.flat_map(&List.wrap(pillar(&1)))
   end
 
   defp ordered_posts(cluster_module) do
