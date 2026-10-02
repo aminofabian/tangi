@@ -10,6 +10,17 @@ defmodule ViewNinjas.Orders do
   `mark_paid/1` after a confirming GET says a M-Pesa payment settled, and
   `pay_from_wallet/1` as a single debit-and-mark-paid transaction. Filtering is by
   `user_id`; the web layer passes `current_scope.user`.
+
+  ## One order per service at a time
+
+  A customer may hold **one** order per lane at a time. `create_order/1` refuses with
+  `{:error, :service_in_progress}` while one is still owed, so the rule holds no matter
+  which door they came through — the offer page, "order again", or a repeat.
+
+  The states that block are the ones where money has been taken and work is still owed
+  (`Order.blocking_states/0`). An unpaid `awaiting_payment` order deliberately does
+  **not** block: it costs the customer nothing, and nothing ever expires it, so blocking
+  on it would strand them on a lane they can no longer buy after one abandoned checkout.
   """
 
   import Ecto.Query
@@ -33,15 +44,65 @@ defmodule ViewNinjas.Orders do
 
   The lane must be preloaded with its `supplier_service` (and its supplier, so a
   paused panel can be refused before any money moves — scope.md §10).
+
+  Refused with `{:error, :service_in_progress}` when this customer already has an order
+  on this lane that is still owed — one purchase of a service at a time, whichever door
+  the customer came through.
   """
-  @spec create_order(map()) :: {:ok, Order.t()} | {:error, Ecto.Changeset.t() | :lane_paused}
+  @spec create_order(map()) ::
+          {:ok, Order.t()} | {:error, Ecto.Changeset.t() | :lane_paused | :service_in_progress}
   def create_order(%{user: %User{} = user, lane: %Lane{} = lane, link: link, quantity: quantity}) do
-    if Lane.paused?(lane) do
-      # The supplier is out of float: the grade shows as paused before payment.
-      {:error, :lane_paused}
-    else
-      insert_order(user, lane, link, quantity)
+    cond do
+      Lane.paused?(lane) ->
+        # The supplier is out of float: the grade shows as paused before payment.
+        {:error, :lane_paused}
+
+      in_progress?(user.id, lane.id) ->
+        {:error, :service_in_progress}
+
+      true ->
+        insert_order(user, lane, link, quantity)
     end
+  end
+
+  @doc """
+  Whether this customer already has an order on this lane that is still owed.
+
+  Serialised on the user, so two taps that arrive together cannot both pass the check
+  and leave the customer with two live orders for one service.
+  """
+  @spec in_progress?(integer(), integer() | nil) :: boolean()
+  def in_progress?(_user_id, nil), do: false
+
+  def in_progress?(user_id, lane_id) do
+    _lock = lock_user(user_id)
+
+    Repo.exists?(
+      from o in Order,
+        where:
+          o.user_id == ^user_id and o.lane_id == ^lane_id and o.state in ^Order.blocking_states()
+    )
+  end
+
+  # One customer's orders are serialised the same way airtime's are, so two taps on
+  # "buy" cannot both pass the in-progress check.
+  defp lock_user(user_id) do
+    Repo.one!(from u in User, where: u.id == ^user_id, lock: "FOR UPDATE")
+  end
+
+  @doc """
+  The customer's still-owed order for a lane, for the message that explains the block.
+  """
+  @spec in_progress_order(User.t(), integer() | nil) :: Order.t() | nil
+  def in_progress_order(_user, nil), do: nil
+
+  def in_progress_order(%User{id: user_id}, lane_id) do
+    Order
+    |> where([o], o.user_id == ^user_id and o.lane_id == ^lane_id)
+    |> where([o], o.state in ^Order.blocking_states())
+    |> order_by([o], desc: o.id)
+    |> limit(1)
+    |> Repo.one()
   end
 
   defp insert_order(%User{} = user, %Lane{} = lane, link, quantity) do
@@ -73,11 +134,15 @@ defmodule ViewNinjas.Orders do
   @doc """
   A fresh order with the same link, grade and quantity, priced as of now.
 
-  An order still `awaiting_payment` is not copied — that one is finished by
-  paying it. A lane that has come off sale returns `{:error, :unavailable}`.
+  An order still `awaiting_payment` is not copied — that one is finished by paying it,
+  not by starting another. An order still being delivered is not copied either, because
+  `create_order/1` holds one-per-lane: buying the same service again while one is owed
+  would stack two live orders on one service. A lane that has come off sale returns
+  `{:error, :unavailable}`.
   """
   @spec repeat_order(User.t(), Order.t()) ::
-          {:ok, Order.t()} | {:error, :still_open | :unavailable | :not_found | term()}
+          {:ok, Order.t()}
+          | {:error, :still_open | :unavailable | :not_found | :service_in_progress | term()}
   def repeat_order(%User{id: user_id} = user, %Order{user_id: user_id} = order) do
     lane = lane_for_repeat(order.lane_id)
 

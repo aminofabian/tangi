@@ -122,14 +122,25 @@ defmodule ViewNinjas.Workers.SyncOrderStatusesTest do
 
   test "chunks to the panel's multi-status limit" do
     offer = published_offer_fixture()
-    lane = List.first(offer.lanes)
+    first = List.first(offer.lanes)
     user = verified_user_fixture()
 
-    for id <- ["a", "b"] do
-      place_order_on(lane, user, id)
-    end
+    # A second lane on the same panel, so the two orders to poll belong to one
+    # supplier. A customer may only hold one order per lane at a time, so the chunking
+    # has to be exercised across two lanes rather than two orders of the same one.
+    second =
+      lane_fixture(%{
+        offer: offer,
+        service: service_fixture(%{supplier: first.supplier_service.supplier}),
+        grade: :quality
+      })
 
-    supplier = Suppliers.get_supplier!(lane.supplier_service.supplier_id)
+    assert second.id != first.id
+
+    place_order_on(first, user, "a")
+    place_order_on(second, user, "b")
+
+    supplier = Suppliers.get_supplier!(first.supplier_service.supplier_id)
 
     {:ok, _} =
       Suppliers.update_supplier(supplier, %{

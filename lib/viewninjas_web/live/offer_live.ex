@@ -10,6 +10,7 @@ defmodule ViewNinjasWeb.OfferLive do
   """
   use ViewNinjasWeb, :live_view
 
+  alias ViewNinjas.Accounts.User
   alias ViewNinjas.Catalog
   alias ViewNinjas.Catalog.{Grade, Lane}
   alias ViewNinjas.{Links, Pricing}
@@ -154,13 +155,30 @@ defmodule ViewNinjasWeb.OfferLive do
           </span>
         </p>
         <p :if={@quantity_error} class="vn-error" id="quantity-error">{@quantity_error}</p>
-        <button class="vn-button" id="checkout" disabled={is_nil(@total) or @paused}>
-          <%= if @total && signed_in?(@current_scope) do %>
-            {gettext("Pay %{total}", total: @total)}
+        <button
+          class="vn-button"
+          id="checkout"
+          disabled={is_nil(@total) or @paused or not is_nil(@in_progress)}
+        >
+          <%= if @in_progress do %>
+            {gettext("You already have one of these")}
           <% else %>
-            {gettext("Continue")}
+            {if @total && signed_in?(@current_scope),
+              do: gettext("Pay %{total}", total: @total),
+              else: gettext("Continue")}
           <% end %>
         </button>
+        <%!-- The order that is holding this lane is named and reachable, so the
+              disabled button is an answer rather than a dead end. --%>
+        <p :if={@in_progress} class="vn-muted" id="in-progress-note">
+          {gettext(
+            "Order #%{id} for this is still on its way. Order it again once that one is done.",
+            id: @in_progress.id
+          )}
+          <.link navigate={~p"/orders/#{@in_progress.id}"} class="text-brand hover:underline">
+            {gettext("See it")}
+          </.link>
+        </p>
         <p class="vn-muted">
           {gettext("Nothing is charged until you confirm on the next screen.")}
         </p>
@@ -195,9 +213,22 @@ defmodule ViewNinjasWeb.OfferLive do
     |> assign(:link_prompt, LinkPrompt.for_offer(offer))
     |> assign(:grade, grade)
     |> assign(:paused, Lane.paused?(lane))
+    |> assign(:in_progress, in_progress_order(socket, lane))
     |> assign_bounds(lane)
     |> assign_form(%{"link" => carried_link(params), "quantity" => quantity})
     |> preview()
+  end
+
+  # A customer may hold one order per lane. When this lane is already owed, the buy
+  # button says so before checkout rather than after it.
+  defp in_progress_order(socket, lane) do
+    with %{user: %User{}} = scope <- socket.assigns[:current_scope],
+         order when not is_nil(order) <-
+           ViewNinjas.Orders.in_progress_order(scope.user, lane.id) do
+      order
+    else
+      _ -> nil
+    end
   end
 
   # -- search ------------------------------------------------------------
@@ -323,8 +354,28 @@ defmodule ViewNinjasWeb.OfferLive do
       {:error, :lane_paused} ->
         {:noreply, put_flash(socket, :error, demand_message())}
 
+      # One purchase of a service at a time. The server refuses regardless of which
+      # door this came through, so the button is gone and the page says why.
+      {:error, :service_in_progress} ->
+        {:noreply, put_flash(socket, :error, in_progress_message(socket, lane))}
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, put_flash(socket, :error, changeset_message(changeset))}
+    end
+  end
+
+  # Names the order that is already running, so "you already have one" is a sentence
+  # about their own account rather than a rule they have to infer.
+  defp in_progress_message(socket, lane) do
+    case ViewNinjas.Orders.in_progress_order(socket.assigns.current_scope.user, lane.id) do
+      nil ->
+        gettext("You already have one of these on the way. We'll let you know when it's done.")
+
+      order ->
+        gettext(
+          "Your previous order #%{id} for this is still on its way. You can order this again once it is done.",
+          id: order.id
+        )
     end
   end
 

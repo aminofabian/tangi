@@ -101,6 +101,15 @@ defmodule ViewNinjasWeb.OrdersLive do
           >
             {gettext("Order again")} <span aria-hidden="true">→</span>
           </button>
+          <%!-- Why "order again" is missing, said here rather than left to be
+                discovered by pressing a button that refuses. --%>
+          <p
+            :if={note = in_progress_note(order)}
+            class="vn-muted"
+            id={"in-progress-#{order.id}"}
+          >
+            {note}
+          </p>
         </li>
       </ul>
     </Layouts.app>
@@ -128,12 +137,28 @@ defmodule ViewNinjasWeb.OrdersLive do
       {:ok, fresh} ->
         push_navigate(socket, to: ~p"/checkout/#{fresh.id}")
 
+      {:error, :service_in_progress} ->
+        in_progress(socket, order)
+
       {:error, :unavailable} ->
         unavailable(socket, order)
 
       {:error, _reason} ->
         put_flash(socket, :error, gettext("That order can't be placed again."))
     end
+  end
+
+  # One at a time. The order already on its way is named, so this reads as "wait for
+  # yours" rather than a refusal.
+  defp in_progress(socket, order) do
+    put_flash(
+      socket,
+      :error,
+      gettext(
+        "Order #%{id} for this is still on its way. You can order it again once that one is done.",
+        id: order.id
+      )
+    )
   end
 
   defp unavailable(socket, order) do

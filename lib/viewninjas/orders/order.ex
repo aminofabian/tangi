@@ -29,6 +29,11 @@ defmodule ViewNinjas.Orders.Order do
   # Money has been taken; the supplier still owes the work.
   @open_states ~w(paid placing placed needs_review in_progress partial)a
 
+  # The states that hold a customer to one order of this service at a time. Same as
+  # `@open_states` today, but named for the rule it serves: a second order for a lane
+  # with one of these outstanding is a duplicate, not a follow-up.
+  @blocking_states ~w(paid placing placed needs_review in_progress partial)a
+
   # The states worth asking the panel about: placed, and moving.
   @pollable_states ~w(placed in_progress partial)a
 
@@ -85,6 +90,26 @@ defmodule ViewNinjas.Orders.Order do
   @spec open?(t() | atom()) :: boolean()
   def open?(%__MODULE__{state: state}), do: open?(state)
   def open?(state), do: state in @open_states
+
+  @doc """
+  The states in which this customer may not start the same service again.
+
+  Money has been taken and the supplier still owes the work, so a second order for the
+  same lane would be a duplicate they are paying for twice (scope.md §7).
+
+  `awaiting_payment` is deliberately absent. It has cost them nothing, and nothing in
+  the system ever expires it — `ConfirmPayment` leaves a cancelled prompt as
+  `awaiting_payment` on purpose — so treating it as blocking would mean one abandoned
+  checkout silently locks a customer out of that lane for good. `failed` is absent for
+  the same reason: nothing more is owed on it.
+  """
+  @spec blocking_states() :: [atom()]
+  def blocking_states, do: @blocking_states
+
+  @doc "Whether this order stops the customer starting the same service again."
+  @spec blocking?(t() | atom()) :: boolean()
+  def blocking?(%__MODULE__{state: state}), do: blocking?(state)
+  def blocking?(state), do: state in @blocking_states
 
   @doc "Records a state change, refusing to move a finished order."
   @spec state_changeset(t(), atom(), keyword()) :: Ecto.Changeset.t()

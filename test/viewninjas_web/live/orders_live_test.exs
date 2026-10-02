@@ -89,9 +89,11 @@ defmodule ViewNinjasWeb.OrdersLiveTest do
              lv |> element("#finish-#{order.id}") |> render_click()
   end
 
-  test "a placed order can be ordered again, at a new checkout", %{conn: conn} do
+  test "a finished order can be ordered again, at a new checkout", %{conn: conn} do
     user = verified_user_fixture()
-    placed = supplier_order_fixture(%{user: user})
+    # A completed order, not a placed one: one order of a service at a time, so only a
+    # finished one can be repeated.
+    placed = completed_order_fixture(%{user: user})
     conn = log_in_user(conn, user)
 
     {:ok, lv, _html} = live(conn, ~p"/orders")
@@ -110,9 +112,27 @@ defmodule ViewNinjasWeb.OrdersLiveTest do
     assert fresh.quantity == placed.quantity
   end
 
-  test "a grade that has come off sale sends the buyer back to the offer", %{conn: conn} do
+  test "an order still on its way cannot be ordered again, and says why", %{conn: conn} do
     user = verified_user_fixture()
     placed = supplier_order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/orders")
+
+    # The button is gone, and the reason is on the row rather than discovered by
+    # pressing something that refuses.
+    refute has_element?(lv, "#reorder-#{placed.id}")
+    assert has_element?(lv, "#in-progress-#{placed.id}")
+
+    # And the server refuses even if the event is sent directly.
+    render_click(lv, "reorder", %{"id" => to_string(placed.id)})
+
+    assert Orders.list_orders(user) |> length() == 1
+  end
+
+  test "a grade that has come off sale sends the buyer back to the offer", %{conn: conn} do
+    user = verified_user_fixture()
+    placed = completed_order_fixture(%{user: user})
     {:ok, _} = Catalog.unpublish_lane(Catalog.get_lane!(placed.lane_id))
     offer_id = Orders.get_order_for_user(user, placed.id).lane.offer.id
     conn = log_in_user(conn, user)

@@ -106,9 +106,9 @@ defmodule ViewNinjasWeb.OrderLiveTest do
              lv |> element("#finish-paying-button") |> render_click()
   end
 
-  test "a placed order can be ordered again from its page", %{conn: conn} do
+  test "a finished order can be ordered again from its page", %{conn: conn} do
     user = verified_user_fixture()
-    placed = supplier_order_fixture(%{user: user})
+    placed = completed_order_fixture(%{user: user})
     conn = log_in_user(conn, user)
 
     {:ok, lv, _html} = live(conn, ~p"/orders/#{placed.id}")
@@ -124,5 +124,23 @@ defmodule ViewNinjasWeb.OrderLiveTest do
     assert fresh.link == placed.link
     assert fresh.quantity == placed.quantity
     assert fresh.state == :awaiting_payment
+  end
+
+  test "an order still on its way says one at a time instead of offering a repeat", %{
+    conn: conn
+  } do
+    user = verified_user_fixture()
+    placed = supplier_order_fixture(%{user: user})
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/orders/#{placed.id}")
+
+    refute has_element?(lv, "#reorder-button")
+    assert has_element?(lv, "#reorder-blocked")
+
+    # The server refuses the repeat whatever the page offers.
+    render_click(lv, "reorder", %{})
+
+    assert Orders.list_orders(user) |> length() == 1
   end
 end

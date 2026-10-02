@@ -69,6 +69,19 @@ defmodule ViewNinjasWeb.OrderLive do
          )
          |> push_navigate(to: offer_again_path(order))}
 
+      # One at a time. The order on its way is named, so this is an answer rather
+      # than a refusal.
+      {:error, :service_in_progress} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           gettext(
+             "Order #%{id} for this is still on its way. You can order it again once that one is done.",
+             id: blocking_id(socket, order)
+           )
+         )}
+
       {:error, _reason} ->
         {:noreply, put_flash(socket, :error, gettext("That order can't be placed again."))}
     end
@@ -162,6 +175,16 @@ defmodule ViewNinjasWeb.OrderLive do
         </button>
       </section>
 
+      <%!-- The "order again" card is gone while this one is still owed, so it says
+            why here rather than leaving a customer to wonder. --%>
+      <section :if={@order && in_progress_note(@order)} class="vn-card" id="reorder-blocked">
+        <h2>{gettext("One at a time")}</h2>
+        <p class="vn-muted">{in_progress_note(@order)}</p>
+        <.link navigate={~p"/orders"} class="vn-text-button">
+          {gettext("See your orders")} <span aria-hidden="true">→</span>
+        </.link>
+      </section>
+
       <section :if={@order && @refillable} class="vn-card" id="refill">
         <h2>{gettext("Refill")}</h2>
         <p class="vn-muted">
@@ -192,6 +215,14 @@ defmodule ViewNinjasWeb.OrderLive do
   end
 
   # -- internals ---------------------------------------------------------
+
+  # Prefer the order that is actually holding the lane; fall back to this one.
+  defp blocking_id(socket, order) do
+    case Orders.in_progress_order(socket.assigns.current_scope.user, order.lane_id) do
+      nil -> order.id
+      blocking -> blocking.id
+    end
+  end
 
   defp journey_step(%{state: :awaiting_payment}), do: :pay
   defp journey_step(_order), do: :watch

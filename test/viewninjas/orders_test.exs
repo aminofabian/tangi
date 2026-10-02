@@ -96,6 +96,146 @@ defmodule ViewNinjas.OrdersTest do
     end
   end
 
+  describe "one order of a service at a time" do
+    setup do
+      offer = published_offer_fixture()
+      %{user: verified_user_fixture(), offer: offer, lane: List.first(offer.lanes)}
+    end
+
+    test "an order already on its way refuses a second one of the same lane", %{
+      user: user,
+      lane: lane
+    } do
+      supplier_order_fixture(%{user: user, lane: lane})
+
+      assert {:error, :service_in_progress} =
+               Orders.create_order(%{
+                 user: user,
+                 lane: lane,
+                 link: "https://x.test",
+                 quantity: 500
+               })
+
+      # Only the one that is already out.
+      assert Orders.list_orders(user) |> length() == 1
+    end
+
+    test "a different lane is not blocked — the rule is per service", %{
+      user: user,
+      offer: offer,
+      lane: lane
+    } do
+      supplier_order_fixture(%{user: user, lane: lane})
+
+      other =
+        lane_fixture(%{
+          offer: offer,
+          grade: :quality,
+          service: service_fixture(%{supplier: lane.supplier_service.supplier})
+        })
+
+      assert {:ok, _fresh} =
+               Orders.create_order(%{
+                 user: user,
+                 lane: other,
+                 link: "https://x.test",
+                 quantity: 500
+               })
+    end
+
+    test "another customer's order on the same lane does not block", %{user: user, lane: lane} do
+      supplier_order_fixture(%{user: verified_user_fixture(), lane: lane})
+
+      assert {:ok, _fresh} =
+               Orders.create_order(%{
+                 user: user,
+                 lane: lane,
+                 link: "https://x.test",
+                 quantity: 500
+               })
+    end
+
+    test "a finished order frees the lane again", %{user: user, lane: lane} do
+      completed_order_fixture(%{user: user, lane: lane})
+
+      assert {:ok, fresh} =
+               Orders.create_order(%{
+                 user: user,
+                 lane: lane,
+                 link: "https://x.test",
+                 quantity: 500
+               })
+
+      assert fresh.state == :awaiting_payment
+    end
+
+    test "an unpaid order does not block, so an abandoned checkout is not a trap", %{
+      user: user,
+      lane: lane
+    } do
+      # Nothing expires an `awaiting_payment` order — `ConfirmPayment` leaves a
+      # cancelled prompt there on purpose. Blocking on it would lock the customer out
+      # of the lane for good after one abandoned checkout.
+      order_fixture(%{user: user, lane: lane})
+
+      assert {:ok, _fresh} =
+               Orders.create_order(%{
+                 user: user,
+                 lane: lane,
+                 link: "https://x.test",
+                 quantity: 500
+               })
+    end
+
+    test "every still-owed state blocks", %{user: user, lane: lane} do
+      for state <- Order.blocking_states() do
+        # The *same* customer holds the lane: the rule is one order per service per
+        # customer, not one per shop.
+        order = supplier_order_fixture(%{user: user, lane: lane})
+        {:ok, _moved} = Orders.transition(order, state, reason: "test")
+
+        assert Orders.get_order!(order.id).state == state
+        assert Orders.in_progress?(user.id, lane.id), "expected #{state} to hold the lane"
+
+        assert {:error, :service_in_progress} =
+                 Orders.create_order(%{
+                   user: user,
+                   lane: lane,
+                   link: "https://x.test",
+                   quantity: 500
+                 }),
+               "expected #{state} to hold the lane"
+
+        # Release it again so the next state starts from a clean lane.
+        {:ok, _done} = Orders.transition(Orders.get_order!(order.id), :completed, reason: "test")
+        refute Orders.in_progress?(user.id, lane.id)
+      end
+    end
+
+    test "in_progress?/2 and in_progress_order/2 read the same answer", %{user: user, lane: lane} do
+      refute Orders.in_progress?(user.id, lane.id)
+      assert Orders.in_progress_order(user, lane.id) == nil
+
+      blocked = supplier_order_fixture(%{user: user, lane: lane})
+
+      assert Orders.in_progress?(user.id, lane.id)
+      assert Orders.in_progress_order(user, lane.id).id == blocked.id
+    end
+
+    test "repeating an order still on its way is refused", %{user: user, lane: lane} do
+      placed = supplier_order_fixture(%{user: user, lane: lane})
+
+      assert {:error, :service_in_progress} = Orders.repeat_order(user, placed)
+    end
+
+    test "repeating a finished order works", %{user: user, lane: lane} do
+      done = completed_order_fixture(%{user: user, lane: lane})
+
+      assert {:ok, fresh} = Orders.repeat_order(user, done)
+      assert fresh.lane_id == done.lane_id
+    end
+  end
+
   describe "reads" do
     test "list_orders/2 and count_open/1 stay inside one customer" do
       mine = verified_user_fixture()

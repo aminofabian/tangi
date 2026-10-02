@@ -42,10 +42,28 @@ defmodule ViewNinjasWeb.OrderComponents do
   def payable?(%{state: :awaiting_payment}), do: true
   def payable?(_order), do: false
 
-  @doc "An order they can buy again. An open payment is finished, not copied."
+  @doc """
+  An order they can buy again.
+
+  One at a time: an order still being delivered is not repeated, because buying the
+  same service again now would be a duplicate the customer pays for twice. An open
+  payment is finished, not copied.
+  """
   def repeatable?(%{state: :awaiting_payment}), do: false
-  def repeatable?(%{state: state}) when is_atom(state), do: true
+  def repeatable?(%{state: state}) when is_atom(state), do: not Order.blocking?(state)
   def repeatable?(_order), do: false
+
+  @doc """
+  The note shown on an order that is holding its service, so "order again" is absent
+  for a reason the customer can read.
+  """
+  def in_progress_note(%{state: state}) when is_atom(state) do
+    if Order.blocking?(state) do
+      gettext("This one's still on its way. Order it again once it's done.")
+    end
+  end
+
+  def in_progress_note(_order), do: nil
 
   @doc "The offer to land on when the old grade is off sale, with the link kept."
   def offer_again_path(%{lane: %{offer: %{id: id}}, link: link, quantity: quantity}) do

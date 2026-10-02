@@ -9,6 +9,7 @@ defmodule ViewNinjasWeb.OfferLiveTest do
   import Phoenix.LiveViewTest
   import ViewNinjas.AccountsFixtures
   import ViewNinjas.CatalogFixtures
+  import ViewNinjas.OrdersFixtures
 
   alias ViewNinjas.Catalog
   alias ViewNinjas.Insight
@@ -43,6 +44,46 @@ defmodule ViewNinjasWeb.OfferLiveTest do
 
     assert has_element?(view, "input[name='order[link]'][value='https://instagram.com/kept']")
     assert has_element?(view, "#total", "KSh 552")
+  end
+
+  test "a grade this customer already has on the way cannot be bought again", %{conn: conn} do
+    offer = three_grade_offer()
+    user = verified_user_fixture()
+    lane = Enum.find(offer.lanes, &(&1.grade == :cheap))
+    supplier_order_fixture(%{user: user, lane: lane})
+
+    conn = log_in_user(conn, user)
+    {:ok, view, _html} = live(conn, ~p"/offers/#{offer.id}")
+
+    # The button is disabled and says why, rather than letting them fill in a form
+    # that will be refused at checkout.
+    assert has_element?(view, "#checkout[disabled]")
+    assert has_element?(view, "#in-progress-note")
+
+    # And the server refuses it regardless.
+    assert {:error, :service_in_progress} =
+             ViewNinjas.Orders.create_order(%{
+               user: user,
+               lane: lane,
+               link: "https://instagram.com/viewninjas",
+               quantity: 1000
+             })
+  end
+
+  test "another grade on the same offer is still buyable", %{conn: _conn} do
+    offer = three_grade_offer()
+    user = verified_user_fixture()
+    cheap = Enum.find(offer.lanes, &(&1.grade == :cheap))
+    quality = Enum.find(offer.lanes, &(&1.grade == :quality))
+    supplier_order_fixture(%{user: user, lane: cheap})
+
+    assert {:ok, _fresh} =
+             ViewNinjas.Orders.create_order(%{
+               user: user,
+               lane: quality,
+               link: "https://instagram.com/viewninjas",
+               quantity: 1000
+             })
   end
 
   test "shows the three grades with their bounds and refill", %{conn: conn} do
