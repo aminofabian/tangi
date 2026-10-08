@@ -140,6 +140,17 @@
   --vn-focus: var(--vn-accent);
   --vn-ring: 0 0 0 3px color-mix(in srgb, var(--vn-focus) 20%, transparent);
 
+  /* The shared press colour and glow for a brand fill. Both derive from the
+   * accent, so a pink or muted button inherits them without a second rule. */
+  --vn-accent-hover: color-mix(in srgb, var(--vn-accent) 88%, var(--tangi-navy));
+  --vn-accent-glow: 0 4px 14px -6px color-mix(in srgb, var(--vn-accent) 80%, transparent);
+  --vn-accent-glow-lift: 0 6px 18px -6px
+    color-mix(in srgb, var(--vn-accent) 90%, transparent);
+
+  /* One tracking for every all-caps micro-label — eyebrows, table heads, badges,
+   * stat labels — so the small type reads as one system, not a set of one-offs. */
+  --vn-track-caps: 0.06em;
+
   /* ------------------------------------------- daisyUI theme bridge */
   /* default.css ships the stock daisyUI theme inside `@layer theme`; these
    * unlayered overrides win, so the generated CoreComponents (buttons, inputs,
@@ -932,7 +943,7 @@ p {
   font-family: var(--vn-font-body);
   font-size: var(--vn-text-2xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -1080,7 +1091,7 @@ p {
   margin-top: var(--vn-space-3);
 }
 
-/* ---------------------------------------------------------------- buttons */
+/* The panel browser's rail, continued: selection and hover. */
 
 @media (hover: hover) {
   .vn-rail__item:hover {
@@ -1115,6 +1126,8 @@ p {
 
 /* ---------------------------------------------------------------- buttons */
 
+/* One button, three weights. The pill, the height and the type are shared; the
+ * fill is what changes, and it carries its own hover, glow and press. */
 .vn-button {
   display: inline-flex;
   align-items: center;
@@ -1129,26 +1142,30 @@ p {
   font-family: var(--vn-font-display);
   font-size: var(--vn-text-ui);
   font-weight: 600;
+  line-height: var(--vn-leading-tight);
   letter-spacing: 0;
   text-decoration: none;
   cursor: pointer;
-  /* The shadow takes its hue from whatever the fill is, so the pink variant
-   * glows pink without a second rule. */
-  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--vn-accent) 80%, transparent);
+  -webkit-tap-highlight-color: transparent;
+  /* The shadow takes its hue from the fill, so the pink variant glows pink
+   * without a second rule. */
+  box-shadow: var(--vn-accent-glow);
   transition:
     background-color var(--vn-fast) var(--vn-ease),
+    border-color var(--vn-fast) var(--vn-ease),
+    color var(--vn-fast) var(--vn-ease),
     box-shadow var(--vn-fast) var(--vn-ease),
     transform var(--vn-fast) var(--vn-ease);
 }
 
 @media (hover: hover) {
-  .vn-button:hover {
-    background: color-mix(in srgb, var(--vn-accent) 88%, var(--tangi-navy));
-    box-shadow: 0 6px 18px -6px color-mix(in srgb, var(--vn-accent) 90%, transparent);
+  .vn-button:not(:disabled, [aria-disabled="true"]):hover {
+    background: var(--vn-accent-hover);
+    box-shadow: var(--vn-accent-glow-lift);
   }
 }
 
-.vn-button:active {
+.vn-button:not(:disabled, [aria-disabled="true"]):active {
   transform: translateY(1px);
   box-shadow: var(--vn-shadow-1);
 }
@@ -1170,6 +1187,7 @@ p {
   cursor: not-allowed;
 }
 
+/* The secondary weight: a paper fill with a hairline, quiet beside the primary. */
 .vn-button--muted {
   background: var(--vn-surface);
   color: var(--vn-text);
@@ -1178,15 +1196,23 @@ p {
 }
 
 @media (hover: hover) {
-  .vn-button--muted:hover {
+  .vn-button--muted:not(:disabled, [aria-disabled="true"]):hover {
     background: var(--vn-accent-soft);
     border-color: color-mix(in srgb, var(--vn-accent) 40%, var(--vn-border));
+    /* The secondary weight never wears the brand glow: it lifts a little instead. */
+    box-shadow: var(--vn-shadow-2);
   }
 }
 
+/* The brand-pink weight, for the rare action that wants the second colour. It
+ * re-points the shared hover and glow tokens, so the fill above needs no
+ * sibling rules. */
 .vn-button--accent {
   background: var(--tangi-pink);
-  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--tangi-pink) 80%, transparent);
+  --vn-accent-hover: color-mix(in srgb, var(--tangi-pink) 88%, var(--tangi-navy));
+  --vn-accent-glow: 0 4px 14px -6px color-mix(in srgb, var(--tangi-pink) 80%, transparent);
+  --vn-accent-glow-lift: 0 6px 18px -6px
+    color-mix(in srgb, var(--tangi-pink) 90%, transparent);
 }
 
 /* Definition list used by the account and settings screens. */
@@ -1218,11 +1244,13 @@ p {
 .vn-badge {
   display: inline-block;
   margin-left: var(--vn-space-2);
-  padding: 0.125rem var(--vn-space-2);
+  padding: var(--vn-space-1) var(--vn-space-2);
   border-radius: var(--vn-radius-pill);
   font-size: var(--vn-text-xs);
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.35;
   letter-spacing: 0;
+  white-space: nowrap;
   vertical-align: middle;
   background: var(--vn-border);
   color: var(--vn-muted);
@@ -1277,6 +1305,7 @@ p {
   font-family: var(--vn-font-body);
   font-size: var(--vn-text-body);
   color: var(--vn-text);
+  caret-color: var(--vn-accent);
   background: var(--vn-surface);
   border: 1px solid var(--vn-border);
   border-radius: var(--vn-radius-field);
@@ -1314,6 +1343,22 @@ p {
 .input-error:focus,
 .input-error:focus-within {
   border-color: color-mix(in srgb, var(--vn-danger) 55%, var(--vn-border));
+}
+
+/* A field that cannot be edited reads as paper, not as a live control: no fill
+ * change on hover, no focus halo, and the muted ink. */
+.input:disabled,
+.select:disabled,
+.textarea:disabled {
+  background: color-mix(in srgb, var(--vn-border) 40%, var(--vn-surface));
+  color: var(--vn-muted);
+  cursor: not-allowed;
+}
+
+.input:disabled:hover,
+.select:disabled:hover,
+.textarea:disabled:hover {
+  border-color: var(--vn-border);
 }
 
 /* The amount is the whole point of the top-up card, so it is the one field that
@@ -1402,25 +1447,27 @@ p {
   font-family: var(--vn-font-display);
   font-size: var(--vn-text-ui);
   font-weight: 600;
+  line-height: var(--vn-leading-tight);
   letter-spacing: 0;
   box-shadow: var(--vn-shadow-1);
   transition:
     background-color var(--vn-fast) var(--vn-ease),
+    border-color var(--vn-fast) var(--vn-ease),
     box-shadow var(--vn-fast) var(--vn-ease),
     transform var(--vn-fast) var(--vn-ease);
 }
 
 .btn-primary {
-  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--vn-accent) 80%, transparent);
+  box-shadow: var(--vn-accent-glow);
 }
 
 @media (hover: hover) {
-  .btn-primary:hover {
-    background: color-mix(in srgb, var(--vn-accent) 88%, var(--tangi-navy));
+  .btn-primary:not(:disabled, [disabled], .btn-disabled):hover {
+    background: var(--vn-accent-hover);
   }
 }
 
-.btn:active {
+.btn:not(:disabled, [disabled], .btn-disabled):active {
   transform: translateY(1px);
 }
 
@@ -1432,6 +1479,7 @@ p {
   color: var(--vn-muted);
   box-shadow: none;
   transform: none;
+  cursor: not-allowed;
 }
 
 .btn:focus-visible {
@@ -1498,12 +1546,25 @@ p {
   color: var(--vn-muted);
   font-size: var(--vn-text-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
 .vn-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+/* A pointer over the table lights the row it is about to act on, so a long
+ * inventory can be read across without losing the line. The picked row keeps its
+ * own stronger fill. */
+@media (hover: hover) {
+  .vn-table tbody tr:hover td {
+    background: color-mix(in srgb, var(--vn-accent) 6%, var(--vn-surface));
+  }
+
+  .vn-table tbody tr.vn-catalog-row--picked:hover td {
+    background: var(--vn-accent-soft);
+  }
 }
 
 /* The catalog workspace (build-plan.md M4): an offer card, its three lanes, and
@@ -1551,6 +1612,7 @@ p {
   text-underline-offset: 0.15em;
   text-decoration-color: color-mix(in srgb, var(--vn-accent-text) 35%, transparent);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: text-decoration-color var(--vn-fast) var(--vn-ease);
 }
 
@@ -1753,9 +1815,10 @@ p {
 
 @media (hover: hover) {
   .vn-button--muted.vn-star--on:hover {
-    background: color-mix(in srgb, var(--vn-accent) 88%, var(--tangi-navy));
+    background: var(--vn-accent-hover);
     border-color: var(--vn-accent);
     color: var(--vn-on-accent);
+    box-shadow: var(--vn-shadow-2);
   }
 }
 
@@ -1804,13 +1867,19 @@ p {
   transition:
     background-color var(--vn-fast) var(--vn-ease),
     border-color var(--vn-fast) var(--vn-ease),
-    box-shadow var(--vn-fast) var(--vn-ease);
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
 }
 
 @media (hover: hover) {
-  .vn-chip:hover {
+  .vn-chip:not(:disabled):hover {
     border-color: color-mix(in srgb, var(--vn-accent) 45%, var(--vn-border));
   }
+}
+
+.vn-chip:not(:disabled):active {
+  background: color-mix(in srgb, var(--vn-accent) 8%, var(--vn-surface));
+  transform: translateY(1px);
 }
 
 .vn-chip:focus-visible,
@@ -2140,7 +2209,7 @@ p {
   font-family: var(--vn-font-display);
   font-size: var(--vn-text-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -2277,7 +2346,7 @@ p {
   color: var(--vn-muted);
   font-size: var(--vn-text-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -2294,7 +2363,7 @@ p {
   margin: 0;
   color: var(--vn-muted);
   font-size: var(--vn-text-xs);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -2476,7 +2545,7 @@ p {
   color: var(--vn-muted);
   font-size: var(--vn-text-xs);
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -2689,7 +2758,7 @@ p {
   margin: 0;
   font-size: var(--vn-text-xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -2982,26 +3051,45 @@ p {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--vn-space-2);
 }
 
 .vn-order-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: var(--vn-space-3);
   min-height: var(--vn-tap-target);
-  padding: 0.75rem 1rem;
+  padding: var(--vn-space-3) var(--vn-space-4);
   border: 1px solid var(--vn-border);
   border-radius: var(--vn-radius);
   background: var(--vn-surface);
+  box-shadow: var(--vn-shadow-1);
   text-decoration: none;
   color: var(--vn-text);
   -webkit-tap-highlight-color: transparent;
+  transition:
+    background-color var(--vn-fast) var(--vn-ease),
+    border-color var(--vn-fast) var(--vn-ease),
+    box-shadow var(--vn-fast) var(--vn-ease),
+    transform var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-order-link:hover {
+    border-color: color-mix(in srgb, var(--vn-accent) 45%, var(--vn-border));
+    box-shadow: var(--vn-shadow-2);
+  }
 }
 
 .vn-order-link:active {
   background: var(--vn-accent-soft);
+  transform: translateY(1px);
+}
+
+.vn-order-link:focus-visible {
+  outline: 2px solid var(--vn-focus);
+  outline-offset: 2px;
 }
 
 /* A list row that carries its own action, so Finish paying is never buried
@@ -3050,6 +3138,7 @@ p {
 .vn-text-button {
   display: inline-flex;
   align-items: center;
+  gap: var(--vn-space-1);
   min-height: var(--vn-control-h);
   padding: 0;
   border: 0;
@@ -3059,6 +3148,14 @@ p {
   font-size: var(--vn-text-ui);
   font-weight: 700;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--vn-fast) var(--vn-ease);
+}
+
+@media (hover: hover) {
+  .vn-text-button:hover {
+    color: color-mix(in srgb, var(--vn-accent-text) 80%, var(--tangi-navy));
+  }
 }
 
 .vn-text-button:focus-visible {
@@ -3070,7 +3167,7 @@ p {
 .vn-order-link__body {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
+  gap: var(--vn-space-1);
 }
 
 .vn-order-link__title {
@@ -3079,15 +3176,18 @@ p {
 
 .vn-order-link__meta {
   color: var(--vn-muted);
-  font-size: 0.8125rem;
+  font-size: var(--vn-text-sm);
 }
 
+/* One status pill, the same shape and size as a badge — a row can wear either
+ * without the two reading as different systems. */
 .vn-state {
   display: inline-block;
-  padding: 0.125rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.6875rem;
+  padding: var(--vn-space-1) var(--vn-space-2);
+  border-radius: var(--vn-radius-pill);
+  font-size: var(--vn-text-xs);
   font-weight: 700;
+  line-height: 1.35;
   white-space: nowrap;
   background: var(--vn-border);
   color: var(--vn-muted);
@@ -3119,19 +3219,19 @@ p {
 
 .vn-timeline {
   margin: 0;
-  padding: 0 0 0 1rem;
+  padding: 0 0 0 var(--vn-space-4);
   list-style: none;
   border-left: 2px solid var(--vn-border);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: var(--vn-space-3);
 }
 
 .vn-timeline__item {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  font-size: 0.875rem;
+  gap: var(--vn-space-1);
+  font-size: var(--vn-text-ui);
 }
 
 .vn-timeline__state {
@@ -3139,7 +3239,8 @@ p {
 }
 
 .vn-timeline__at {
-  font-size: 0.75rem;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-xs);
 }
 
 /* ------------------------------------------------------------------ icons */
@@ -3155,8 +3256,6 @@ p {
   mask-position: center;
   background-color: currentColor;
   display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
 }
 
 .hero-receipt-percent {
@@ -3167,8 +3266,6 @@ p {
   mask-position: center;
   background-color: currentColor;
   display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
 }
 
 .hero-wallet {
@@ -3179,8 +3276,6 @@ p {
   mask-position: center;
   background-color: currentColor;
   display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
 }
 
 .hero-user {
@@ -3191,8 +3286,6 @@ p {
   mask-position: center;
   background-color: currentColor;
   display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
 }
 
 .hero-home {
@@ -3203,8 +3296,6 @@ p {
   mask-position: center;
   background-color: currentColor;
   display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
 }
 
 /* The shop's two product lines: an upward trend for social growth, a handset for
@@ -3217,8 +3308,6 @@ p {
   mask-position: center;
   background-color: currentColor;
   display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
 }
 
 .hero-device-phone-mobile {
@@ -3229,8 +3318,23 @@ p {
   mask-position: center;
   background-color: currentColor;
   display: inline-block;
-  width: 1.5rem;
-  height: 1.5rem;
+}
+
+/* The default extent, held in `components` rather than unlayered. The `size-*`
+ * utilities that `<.icon class>` always carries live in `utilities`, and must be
+ * able to win — otherwise the same glyph would sit at two sizes depending on
+ * which stylesheet happened to define it. */
+@layer components {
+  .hero-shopping-bag,
+  .hero-receipt-percent,
+  .hero-wallet,
+  .hero-user,
+  .hero-home,
+  .hero-arrow-trending-up,
+  .hero-device-phone-mobile {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
 }
 
 /* ------------------------------------------------- the back office, at a desk */
@@ -3296,7 +3400,7 @@ p {
     font-family: var(--vn-font-body);
     font-size: var(--vn-text-2xs);
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: var(--vn-track-caps);
     text-transform: uppercase;
   }
 
@@ -3425,7 +3529,7 @@ p {
     color: var(--vn-muted);
     font-size: var(--vn-text-2xs);
     font-weight: 700;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--vn-track-caps);
     text-transform: uppercase;
   }
 
@@ -3703,7 +3807,7 @@ p {
   color: var(--vn-muted);
   font-size: var(--vn-text-2xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -3771,8 +3875,8 @@ p {
   margin: 0;
   white-space: pre-wrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.85rem;
-  color: var(--vn-ink);
+  font-size: var(--vn-text-sm);
+  color: var(--vn-text);
 }
 
 /* ------------------------------------------------------------------- blog */
@@ -3810,7 +3914,7 @@ p {
   color: var(--vn-accent-text);
   font-size: var(--vn-text-2xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -3857,7 +3961,7 @@ p {
   color: var(--vn-accent-text);
   font-size: var(--vn-text-2xs);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -4002,7 +4106,7 @@ p {
   color: var(--vn-muted);
   font-size: var(--vn-text-2xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
@@ -4116,7 +4220,7 @@ p {
   color: var(--vn-muted);
   font-size: var(--vn-text-2xs);
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--vn-track-caps);
   text-transform: uppercase;
 }
 
