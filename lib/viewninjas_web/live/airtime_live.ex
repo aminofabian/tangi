@@ -9,6 +9,10 @@ defmodule ViewNinjasWeb.AirtimeLive do
   When the wallet is short the buy does not dead-end: the shortfall is raised with
   M-Pesa, or the customer deposits more and keeps the rest. Either way the airtime
   goes out the moment the wallet can cover it.
+
+  The M-Pesa number is a step of its own, filled from the account and **editable** — a
+  prompt can be paid from any phone, so the number that pays is named and changed
+  rather than assumed.
   """
 
   use ViewNinjasWeb, :live_view
@@ -33,7 +37,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
      |> assign(:mode, :idle)
      |> assign(:payment, nil)
      |> assign(:intent, nil)
-     |> assign(:form, buy_form("", ""))
+     |> assign(:form, buy_form("", "", default_phone(socket.assigns.current_scope.user)))
      |> assign(:error, nil)
      |> assign(:purchased, [])
      |> assign(:preview, %{})
@@ -56,18 +60,23 @@ defmodule ViewNinjasWeb.AirtimeLive do
   end
 
   def handle_event("pick_amount", %{"amount" => amount}, socket) do
-    numbers = socket.assigns.form[:numbers].value
-    {:noreply, socket |> assign(:form, buy_form(amount, numbers)) |> refresh_preview()}
+    form = socket.assigns.form
+
+    {:noreply,
+     socket
+     |> assign(:form, buy_form(amount, form[:numbers].value, form[:phone].value))
+     |> refresh_preview()}
   end
 
   # Tap a remembered number and it drops into the list.
   def handle_event("use_recipient", %{"phone" => phone}, socket) do
-    numbers = socket.assigns.form[:numbers].value || ""
+    form = socket.assigns.form
+    numbers = form[:numbers].value || ""
     joined = if String.trim(numbers) == "", do: phone, else: numbers <> "\n" <> phone
 
     {:noreply,
      socket
-     |> assign(:form, buy_form(socket.assigns.form[:amount].value, joined))
+     |> assign(:form, buy_form(form[:amount].value, joined, form[:phone].value))
      |> refresh_preview()}
   end
 
@@ -200,11 +209,6 @@ defmodule ViewNinjasWeb.AirtimeLive do
 
   defp buy_page(assigns) do
     ~H"""
-    <section class="vn-card" id="airtime-wallet">
-      <p class="vn-muted">{gettext("Wallet")}</p>
-      <p class="vn-total__value">{kes(@balance)}</p>
-    </section>
-
     <section class="vn-card" id="buy-airtime">
       <h2>{gettext("Buy airtime")}</h2>
       <p class="vn-muted">
@@ -218,82 +222,137 @@ defmodule ViewNinjasWeb.AirtimeLive do
       </div>
 
       <.form for={@form} id="airtime-form" phx-submit="buy" phx-change="validate">
-        <div class="vn-amount">
-          <span class="vn-amount__prefix" aria-hidden="true">{gettext("KSh")}</span>
+        <div class="vn-step">
+          <p class="vn-step__label">
+            <span class="vn-step__num" aria-hidden="true">1</span>
+            {gettext("Amount per number")}
+          </p>
+          <div class="vn-amount">
+            <span class="vn-amount__prefix" aria-hidden="true">{gettext("KSh")}</span>
+            <.input
+              field={@form[:amount]}
+              type="number"
+              inputmode="numeric"
+              step="1"
+              min="1"
+              label={gettext("Amount in shillings")}
+              placeholder={gettext("Any amount")}
+              class="w-full input vn-amount-field"
+            />
+          </div>
+
+          <div class="vn-chips" id="airtime-amounts">
+            <button
+              :for={amount <- amounts()}
+              type="button"
+              id={"airtime-amount-#{amount}"}
+              class={["vn-chip", picked?(@form, amount) && "vn-chip--on"]}
+              phx-click="pick_amount"
+              phx-value-amount={amount}
+            >
+              {kes(amount * 100)}
+            </button>
+          </div>
+        </div>
+
+        <div class="vn-step">
+          <p class="vn-step__label">
+            <span class="vn-step__num" aria-hidden="true">2</span>
+            {gettext("Who's getting it?")}
+          </p>
           <.input
-            field={@form[:amount]}
-            type="number"
-            inputmode="numeric"
-            step="1"
-            min="1"
-            label={gettext("Amount per number")}
-            placeholder={gettext("Any amount")}
-            class="w-full input vn-amount-field"
+            field={@form[:numbers]}
+            type="textarea"
+            rows="3"
+            label={gettext("One number per line")}
+            placeholder={gettext("0712 345 678\n0722 000 111")}
           />
+
+          <section :if={@saved != []} id="airtime-recents">
+            <p class="vn-muted">{gettext("Recent numbers — tap to add")}</p>
+            <div class="vn-recents">
+              <span :for={recipient <- @saved} class="vn-recent" id={"saved-#{recipient.id}"}>
+                <button
+                  type="button"
+                  class="vn-recent__add"
+                  phx-click="use_recipient"
+                  phx-value-phone={recipient.phone}
+                >
+                  {recipient.label || Phone.format(recipient.phone)}
+                </button>
+                <button
+                  type="button"
+                  class="vn-recent__forget"
+                  phx-click="delete_recipient"
+                  phx-value-id={recipient.id}
+                  aria-label={gettext("Forget this number")}
+                >
+                  <.icon name="hero-x-mark" class="size-3" />
+                </button>
+              </span>
+            </div>
+          </section>
+
+          <p :if={@preview[:invalid] not in [nil, []]} class="vn-error" id="airtime-invalid">
+            {gettext("Not a Kenyan number: %{list}", list: Enum.join(@preview.invalid, ", "))}
+          </p>
+
+          <%!-- What we make of the list so far, number by number — and which network
+                each one is on, so nothing about the buy is a guess. --%>
+          <div :if={@preview.recipients != []} id="airtime-recipients">
+            <p class="vn-muted">{gettext("Going to")}</p>
+            <ul class="vn-rows">
+              <li :for={recipient <- @preview.recipients} id={"going-#{recipient.phone}"}>
+                <span>{Phone.format(recipient.phone)}</span>
+                <span :if={recipient.network} class="vn-net">
+                  {Phone.network_name(recipient.network)}
+                </span>
+              </li>
+            </ul>
+          </div>
         </div>
 
-        <div class="vn-chips" id="airtime-amounts">
-          <button
-            :for={amount <- amounts()}
-            type="button"
-            id={"airtime-amount-#{amount}"}
-            class={["vn-chip", picked?(@form, amount) && "vn-chip--on"]}
-            phx-click="pick_amount"
-            phx-value-amount={amount}
-          >
-            {kes(amount * 100)}
-          </button>
-        </div>
+        <%!-- The way it is paid for, named rather than assumed: the wallet first, and
+              the M-Pesa number that would take the prompt if the wallet falls short.
+              A step of its own and always editable, so the number that pays is seen —
+              and can be changed — before any prompt goes out. --%>
+        <div
+          class={["vn-step", "vn-pay", @preview[:short] && "vn-pay--short"]}
+          id="airtime-pay"
+        >
+          <p class="vn-step__label">
+            <span class="vn-step__num" aria-hidden="true">3</span>
+            {gettext("How you'll pay")}
+          </p>
 
-        <.input
-          field={@form[:numbers]}
-          type="textarea"
-          rows="3"
-          label={gettext("Who's getting it?")}
-          placeholder={gettext("0712 345 678\n0722 000 111")}
-        />
+          <div class="vn-pay__wallet" id="airtime-wallet">
+            <span class="vn-pay__wallet-mark" aria-hidden="true">
+              <.icon name="hero-wallet" class="size-5" />
+            </span>
+            <span class="vn-muted">{gettext("Wallet")}</span>
+            <span class="vn-total__value">{kes(@balance)}</span>
+          </div>
 
-        <section :if={@saved != []} id="airtime-recents">
-          <p class="vn-muted">{gettext("Recent numbers — tap to add")}</p>
-          <div class="vn-recents">
-            <span :for={recipient <- @saved} class="vn-recent" id={"saved-#{recipient.id}"}>
-              <button
-                type="button"
-                class="vn-recent__add"
-                phx-click="use_recipient"
-                phx-value-phone={recipient.phone}
-              >
-                {recipient.label || Phone.format(recipient.phone)}
-              </button>
-              <button
-                type="button"
-                class="vn-recent__forget"
-                phx-click="delete_recipient"
-                phx-value-id={recipient.id}
-                aria-label={gettext("Forget this number")}
-              >
-                <.icon name="hero-x-mark" class="size-3" />
-              </button>
+          <.input
+            field={@form[:phone]}
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel"
+            label={gettext("M-Pesa number to pay from")}
+            id="airtime-phone"
+            placeholder={gettext("0712 345 678")}
+          />
+
+          <div class="vn-pay__meta">
+            <p class="vn-pay__hint" id="airtime-pay-hint">{pay_hint(@preview)}</p>
+            <span
+              :if={network_label(@form)}
+              class="vn-badge vn-badge--ok"
+              id="airtime-pay-network"
+            >
+              {network_label(@form)}
             </span>
           </div>
-        </section>
-
-        <p :if={@preview[:invalid] not in [nil, []]} class="vn-error" id="airtime-invalid">
-          {gettext("Not a Kenyan number: %{list}", list: Enum.join(@preview.invalid, ", "))}
-        </p>
-
-        <%!-- What we make of the list so far, number by number — and which network
-              each one is on, so nothing about the buy is a guess. --%>
-        <div :if={@preview.recipients != []} id="airtime-recipients">
-          <p class="vn-muted">{gettext("Going to")}</p>
-          <ul class="vn-rows">
-            <li :for={recipient <- @preview.recipients} id={"going-#{recipient.phone}"}>
-              <span>{Phone.format(recipient.phone)}</span>
-              <span :if={recipient.network} class="vn-net">
-                {Phone.network_name(recipient.network)}
-              </span>
-            </li>
-          </ul>
         </div>
 
         <div
@@ -315,6 +374,10 @@ defmodule ViewNinjasWeb.AirtimeLive do
                 balance: kes(@balance),
                 short: kes(@preview[:short_cents])
               )}
+            </p>
+
+            <p :if={prompt_phone_label(@form)} class="vn-topup__prompt" id="airtime-short-phone">
+              {gettext("We'll prompt %{phone} for the difference.", phone: prompt_phone_label(@form))}
             </p>
 
             <button type="button" class="vn-button" phx-click="pay_shortfall" id="pay-shortfall">
@@ -400,9 +463,10 @@ defmodule ViewNinjasWeb.AirtimeLive do
 
   defp start_topup(socket, amount_cents) do
     with {:ok, intent} <- current_intent(socket),
+         {:ok, phone} <- parse_phone(socket.assigns.form[:phone].value),
          :ok <- covers?(socket, intent, amount_cents),
-         :ok <- check_limits(socket),
-         {:ok, payment} <- start_payment(socket, amount_cents) do
+         :ok <- check_limits(socket, phone),
+         {:ok, payment} <- start_payment(socket, amount_cents, phone) do
       {:noreply,
        socket
        |> assign(:intent, intent)
@@ -433,32 +497,43 @@ defmodule ViewNinjasWeb.AirtimeLive do
     end
   end
 
-  defp check_limits(socket) do
+  # Budgeted per customer and per number, so a changed phone is never a way to spam
+  # one line (scope.md §13).
+  defp check_limits(socket, phone) do
     user = socket.assigns.current_scope.user
 
-    if RateLimit.allow?("payment:user:#{user.id}", :payment_user) do
+    if RateLimit.allow?("payment:user:#{user.id}", :payment_user) and
+         RateLimit.allow?("payment:phone:#{phone}", :payment_phone) do
       :ok
     else
       {:error, gettext("Too many attempts just now — try again shortly.")}
     end
   end
 
-  defp start_payment(socket, amount_cents) do
+  defp start_payment(socket, amount_cents, phone) do
     user = socket.assigns.current_scope.user
 
     if Payments.configured?() do
       case Payments.pending_topup(user) do
-        # Never raise two prompts for the same amount.
-        %Payment{amount_cents: ^amount_cents} = pending -> {:ok, pending}
-        _ -> new_payment(user, amount_cents)
+        # Never raise two prompts for the same amount to the same number; a new
+        # number is a new attempt, so the prompt goes where the customer asked.
+        %Payment{amount_cents: ^amount_cents} = pending ->
+          if Payments.prompted_phone(pending) == phone do
+            {:ok, pending}
+          else
+            new_payment(user, amount_cents, phone)
+          end
+
+        _ ->
+          new_payment(user, amount_cents, phone)
       end
     else
       {:error, gettext("Payments are not set up yet.")}
     end
   end
 
-  defp new_payment(user, amount_cents) do
-    with {:ok, payment} <- Payments.start_topup_payment(user, amount_cents),
+  defp new_payment(user, amount_cents, phone) do
+    with {:ok, payment} <- Payments.start_topup_payment(user, amount_cents, phone),
          {:ok, _job} <- CreatePayment.new(%{payment_id: payment.id}) |> Oban.insert() do
       {:ok, payment}
     else
@@ -518,7 +593,7 @@ defmodule ViewNinjasWeb.AirtimeLive do
     socket
     |> assign(:error, nil)
     |> assign(:purchased, orders)
-    |> assign(:form, buy_form("", ""))
+    |> assign(:form, buy_form("", "", default_phone(socket.assigns.current_scope.user)))
     |> load_wallet()
     |> load_saved()
     |> load_recent()
@@ -542,8 +617,13 @@ defmodule ViewNinjasWeb.AirtimeLive do
     assign(socket, :recent, Airtime.list_for_user(socket.assigns.current_scope.user, limit: 10))
   end
 
-  defp buy_form(amount, numbers) do
-    to_form(%{"amount" => amount || "", "numbers" => numbers || ""}, as: "airtime")
+  defp default_phone(user), do: Phone.format(user.phone) || ""
+
+  defp buy_form(amount, numbers, phone) do
+    to_form(
+      %{"amount" => amount || "", "numbers" => numbers || "", "phone" => phone || ""},
+      as: "airtime"
+    )
   end
 
   # Where the buy is submitted with values the change event never saw, the form must
@@ -605,6 +685,29 @@ defmodule ViewNinjasWeb.AirtimeLive do
   defp recipient_count(1), do: gettext("1 number")
   defp recipient_count(count), do: gettext("%{count} numbers", count: count)
 
+  # The network behind the number being typed, as a badge beside the field — the
+  # same reassurance the recipient list gives, applied to the number that pays.
+  defp network_label(form) do
+    form[:phone].value |> Phone.network() |> Phone.network_name()
+  end
+
+  defp pay_hint(preview) do
+    if preview[:short] do
+      gettext("Your wallet is short — we'll prompt this number to pay the difference.")
+    else
+      gettext("Your wallet pays first. If it can't cover the buy, we'll prompt this number.")
+    end
+  end
+
+  # The number the prompt would go to, formatted for the short-fall copy; nil when
+  # what was typed is not a number we'd prompt, so the line simply stays quiet.
+  defp prompt_phone_label(form) do
+    case Phone.normalize(form[:phone].value) do
+      {:ok, phone} -> Phone.format(phone)
+      {:error, :invalid_phone} -> nil
+    end
+  end
+
   defp amounts, do: [50, 100, 200, 500]
 
   defp picked?(form, amount), do: to_string(form[:amount].value) == to_string(amount)
@@ -626,6 +729,20 @@ defmodule ViewNinjasWeb.AirtimeLive do
   end
 
   defp parse_amount(_value), do: {:error, gettext("Enter an amount.")}
+
+  # The M-Pesa number the prompt would go to. Validated only when a prompt is about
+  # to be raised, so a customer paying from the wallet alone is never blocked by it.
+  defp parse_phone(value) when is_binary(value) do
+    case Phone.normalize(value) do
+      {:ok, phone} ->
+        {:ok, phone}
+
+      {:error, :invalid_phone} ->
+        {:error, gettext("Enter a valid M-Pesa number, e.g. 0712 345 678.")}
+    end
+  end
+
+  defp parse_phone(_value), do: {:error, gettext("Enter the M-Pesa number to prompt.")}
 
   # Split on lines and separators only — never on spaces, because a Kenyan number is
   # often written "0722 000 111" and splitting on spaces tears it in three.

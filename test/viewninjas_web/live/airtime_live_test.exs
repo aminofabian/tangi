@@ -118,6 +118,54 @@ defmodule ViewNinjasWeb.AirtimeLiveTest do
     assert has_element?(lv, "#airtime-purchased")
   end
 
+  test "the shortfall can be paid from a number the customer types", %{conn: conn} do
+    user = funded_user(20_000)
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/airtime")
+
+    lv
+    |> form("#airtime-form",
+      airtime: %{
+        amount: "100",
+        numbers: "0712345678\n0722000111\n0733000222",
+        phone: "0747000111"
+      }
+    )
+    |> render_change()
+
+    # The number that pays is named and editable, not assumed from the account.
+    assert has_element?(lv, "#airtime-phone")
+
+    lv |> element("#pay-shortfall") |> render_click()
+
+    payment = Payments.pending_topup(user)
+    assert payment.amount_cents == 10_000
+    assert Payments.prompted_phone(payment) == "254747000111"
+  end
+
+  test "a shortfall will not prompt a number that is not a Kenyan mobile", %{conn: conn} do
+    user = funded_user(20_000)
+    conn = log_in_user(conn, user)
+
+    {:ok, lv, _html} = live(conn, ~p"/airtime")
+
+    lv
+    |> form("#airtime-form",
+      airtime: %{
+        amount: "100",
+        numbers: "0712345678\n0722000111\n0733000222",
+        phone: "not a number"
+      }
+    )
+    |> render_change()
+
+    html = lv |> element("#pay-shortfall") |> render_click()
+
+    assert html =~ "valid M-Pesa number"
+    assert Payments.pending_topup(user) == nil
+  end
+
   test "depositing more than the difference covers the buy and keeps the rest", %{conn: conn} do
     user = funded_user(20_000)
     conn = log_in_user(conn, user)

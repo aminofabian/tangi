@@ -717,6 +717,109 @@ p {
   font-weight: 600;
 }
 
+/* The number the prompt would go to, echoed under the short-fall copy so the two
+ * are impossible to read apart. */
+.vn-topup__prompt {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* -------------------------------------------- the buy form's three steps (§ airtime) */
+
+/* Amount, numbers, and — named rather than assumed — how it is paid for. Numbering
+ * the steps keeps the last one from reading as an afterthought: the M-Pesa number
+ * is a place, and it is where a prompt that goes to the wrong phone gets fixed. */
+.vn-step {
+  margin-top: var(--vn-space-5);
+}
+
+.vn-step__label {
+  display: flex;
+  align-items: center;
+  gap: var(--vn-space-2);
+  margin: 0 0 var(--vn-space-2);
+  font-family: var(--vn-font-display);
+  font-weight: 700;
+  font-size: var(--vn-text-ui);
+}
+
+.vn-step__num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--vn-radius-pill);
+  background: var(--vn-accent-soft);
+  color: var(--vn-accent-text);
+  font-size: var(--vn-text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The pay step: the wallet, and the M-Pesa number behind it, on a tinted panel so
+ * it reads as the place money is arranged rather than as one more field. It turns
+ * to the danger tint the moment the wallet is short, matching the summary below. */
+.vn-pay {
+  padding: var(--vn-space-4);
+  border: 1px solid color-mix(in srgb, var(--vn-accent) 16%, var(--vn-border));
+  border-radius: var(--vn-radius-sm);
+  background: var(--vn-accent-soft);
+}
+
+.vn-pay .vn-step__label {
+  margin-bottom: var(--vn-space-3);
+}
+
+.vn-pay .vn-step__num {
+  background: var(--vn-surface);
+}
+
+.vn-pay--short {
+  border-color: color-mix(in srgb, var(--vn-danger) 40%, var(--vn-border));
+  background: var(--vn-danger-soft);
+}
+
+.vn-pay__wallet {
+  display: flex;
+  align-items: center;
+  gap: var(--vn-space-2);
+  margin-bottom: var(--vn-space-3);
+  padding-bottom: var(--vn-space-3);
+  border-bottom: 1px dashed var(--vn-border);
+}
+
+.vn-pay__wallet .vn-total__value {
+  margin-left: auto;
+}
+
+.vn-pay__wallet-mark {
+  display: inline-flex;
+  color: var(--vn-accent);
+}
+
+.vn-pay__meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--vn-space-3);
+  margin-top: var(--vn-space-2);
+}
+
+.vn-pay__hint {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--vn-muted);
+  font-size: var(--vn-text-sm);
+  line-height: var(--vn-leading-ui);
+}
+
+.vn-pay__meta .vn-badge {
+  flex: none;
+  margin: 0;
+}
+
 /* A lone submit in the buy form gets the same full-width, thumb-first shape. */
 #airtime-form > .vn-button {
   width: 100%;
